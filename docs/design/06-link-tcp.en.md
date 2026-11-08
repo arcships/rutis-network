@@ -74,6 +74,7 @@ The session has no half-close, only `near.end({kind})`; do not design a half-clo
 - Accept each connection, create one bridge and one session.
 - Rust: `Session::handshake` gives `Greeted::id()`; a newer connection of the same id unloads the old session, then mounts the new one; the old connection closes with `Close::Replaced` (4002).
 - Other languages: `open(far)` does not expose the id, so same-id replacement is impossible. `session_key(row)` is first-wins: a second session under the same row registers no handle, and `<row>:<plugin>` only addresses the first. Do not write "coexist". A listener that needs replacement must be Rust (O1).
+- Non-Rust also cannot get structured handshake errors, so it cannot reliably tell an auth rejection from a protocol mismatch; do not treat a TCP close reason as a handshake result, fall back to transport backoff (O1).
 - Accept failures (EMFILE and friends) back off; no busy loop.
 
 ## 8. Reconnect
@@ -135,7 +136,7 @@ Rust uses `Channel` + `Session::new`; TS/Python use `rutis/sessions`.
 - O2 (closed): the frame length is fixed at 4 bytes; 8 bytes is a future extension.
 - O3 (closed): the session has no half-close; EOF maps to `near.end({kind:'done'})` and closes both directions.
 - O4 (blocking): non-Rust `open(far)` cannot set `outbound_limit`, and the session outbound queue is unbounded; production non-Rust links need rutis to add the option or a transport that applies backpressure.
-- O5 (blocking): non-Rust cannot replace by `Hello` id; `session_key(row)` is first-wins, so a listener that needs replacement must be Rust.
+- O5 (blocking): non-Rust cannot replace by `Hello` id or classify handshake errors; `open` needs `ready()` to return the id plus a structured error (see #1 O1). A listener that needs replacement or handshake-error-based reconnect must be Rust.
 
 ## Links
 

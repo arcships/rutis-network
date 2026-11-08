@@ -74,6 +74,7 @@ session 没有半关闭语义，只有 `near.end({kind})`；不要设计半关�
 - accept 每条连接，建一个 bridge + 一个 session。
 - Rust：`Session::handshake` 拿 `Greeted::id()`，同 id 新连接先卸旧 session、再挂新的；旧连接 `Close::Replaced`（4002）。
 - 非 Rust：`open(far)` 不暴露 id，做不了同 id 顶替。`session_key(row)` 先到先得，同一个 row 下第二个 session 不会注册 handle，`<row>:<plugin>` 只会找到第一个；不要写“并存”。需要顶替的监听侧必须用 Rust（O1）。
+- 非 Rust 也拿不到结构化的握手错误，无法可靠区分认证拒绝/协议不兼容；不要把 TCP 关闭原因当握手结果，只能按传输错误退避（O1）。
 - accept 失败（EMFILE 等）要退避，不要忙等。
 
 ## 8. 重连
@@ -135,7 +136,7 @@ Rust 版本用 `Channel` + `Session::new`；TS/Python 用 `rutis/sessions`。
 - O2（已关闭）：帧长度固定 4 字节；8 字节留作未来扩展。
 - O3（已关闭）：session 没有半关闭；EOF 映射为 `near.end({kind:'done'})`，关闭双向。
 - O4（阻塞）：非 Rust `open(far)` 不能设置 `outbound_limit`，session 出站队列默认无上限；生产用非 Rust link 前需要 rutis 补参数或传输层回压。
-- O5（阻塞）：非 Rust 不能按 `Hello` id 顶替；`session_key(row)` 先到先得，需要顶替的监听侧必须用 Rust。
+- O5（阻塞）：非 Rust 不能按 `Hello` id 顶替，也不能分类握手错误；`open` 需要 `ready()` 返回 id + 结构化错误（见 #1 O1）。需要顶替或按握手错误重连的监听侧必须用 Rust。
 
 ## 关联
 
