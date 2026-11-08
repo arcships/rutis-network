@@ -69,7 +69,7 @@ stdio is a byte stream, so frame it; the remote command decides the rule:
 ## 6. Listen side
 
 - Rust uses `Session::handshake` → `Greeted::id()` to replace a same-id session.
-- Non-Rust `open(far)` does not expose the far id: one session per connection; document that same-id connections coexist.
+- Non-Rust `open(far)` does not expose the far id, and `session_key(row)` is first-wins, so non-Rust listeners do not support same-id replacement and must be Rust (O1). Do not write "coexist".
 - Do not parse `Hello`; do not substitute the SSH user/hostname for the id.
 
 ## 7. Errors

@@ -69,7 +69,7 @@ stdio 是字节流，必须 framing，规则由远端命令决定：
 ## 6. listen 侧
 
 - Rust 用 `Session::handshake` → `Greeted::id()` 才能同 id 顶替。
-- 非 Rust 的 `open(far)` 不暴露远端 id：只能一条连接一个 session，文档写明“同 id 的连接并存”。
+- 非 Rust 的 `open(far)` 不暴露远端 id，`session_key(row)` 先到先得，所以非 Rust 监听不支持同 id 顶替，必须用 Rust（O1）。不要写“并存”。
 - 不解析 session `Hello`；不拿 SSH 用户/主机名代替 id。
 
 ## 7. 错误
