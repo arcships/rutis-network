@@ -87,6 +87,12 @@ link plugin
 - Ship one reference bridge (Rust or TS); language templates belong to #10.
 - Conformance contract: boundaries, order, 16 MiB limit, async send, backpressure, close/half-close, `<id>:<plugin>` naming, admission failure before `open`, unload closes the connection, Rust listen replacement.
 
+### D10 localhost TCP / WebSocket are first; HTTP is not a link
+
+- The core already has `websocket::dial` / `websocket::listen`, and `rutis-host/listen` uses it; do not add `link/websocket`.
+- The reference bridge starts with localhost TCP (#6) or the existing WebSocket; both bind `127.0.0.1`, and loopback still needs a random port or one-time token.
+- Plain HTTP request/response has no duplex long-lived stream or message boundaries; HTTP only carries a WebSocket upgrade or gRPC.
+
 ## 3. Interface
 
 Rust:

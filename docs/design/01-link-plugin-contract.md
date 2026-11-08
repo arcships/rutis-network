@@ -87,6 +87,12 @@ link plugin
 - 先做 Rust 或 TS 一份参考 bridge；各语言模板归 #10。
 - 一致性契约：边界、顺序、16 MiB 上限、异步 send、背压、close/半关闭、远端 id 命名、准入失败不建 session、卸载关闭连接、Rust listen 顶替。
 
+### D10 localhost TCP / WebSocket 是第一波，HTTP 不是
+
+- 核心已有 `websocket::dial` / `websocket::listen`，`rutis-host/listen` 也用它；不新增 `link/websocket`。
+- 参考 bridge 先用 localhost TCP（#6）或现有 WebSocket 验证；两者都只绑 `127.0.0.1`，回环也要随机端口/一次性 token 准入。
+- 纯 HTTP 请求/响应没有双向长连接和消息边界，不是 link；HTTP 只作为 WebSocket 升级或 gRPC 的承载。
+
 ## 3. 接口
 
 Rust：
