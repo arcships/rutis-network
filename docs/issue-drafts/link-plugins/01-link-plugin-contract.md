@@ -24,7 +24,7 @@
    - `rutis/sessions.open(far)` 的 `Far` / `Near` 契约，Rust 的 `Session::new(channel)` 与 `Session::handshake`；
    - 明确：认证/准入在链接层；身份来自远端 `Hello`；session 不认证、不拿 peer 参数；
    - 明确：adapter + bridge 的建议形态，adapter 可以是 CLI、SDK 或 sidecar；
-   - 一条最小 TS / Python / Rust 示例，和一条 listen 侧示例；
+   - 一条最小 TS / Rust 代码片段（Python 用同一 `Far` / `Near` 形状；完整模板归 #10），和一条 listen 侧示例；
    - 错误输出（按 code）、重连、close、顶替的约定；
    - 0.20 卸载顺序、0.21 异步回调、`SessionOptions::outbound_limit` 的注意事项。
 2. 提供一个参考 bridge（先 Rust 或 TS），只依赖 `rutis/sessions`，不依赖核心新 API。各语言模板和一致性测试套件归 #10，本 issue 只定义契约和一份参考实现。
