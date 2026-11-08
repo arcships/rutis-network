@@ -68,7 +68,7 @@ interface Input {
 ## 4. Lifecycle
 
 - Device link closes → `near.end`; session unloads → close the ADB/iproxy/WebRTC connection.
-- Reconnect lives in the adapter: exponential backoff; do not retry forever on an unauthorized device.
+- Reconnect lives in the adapter: 0.5 s → 30 s exponential; an unauthorized device/auth rejection retries every 30 s; a protocol mismatch stops; the backoff resets after 60 s connected. An 8b screen/input permission denial is not retried; it is an application-layer error, not the link reconnect policy.
 - 0.20 unload order: register child/connection cleanup once; do not register or wait for another cleanup.
 - 0.21 async `send`: write blocking applies backpressure; the bridge queue is bounded.
 
@@ -96,7 +96,7 @@ interface Input {
 - iOS: `iproxy` + `link/tcp` (with macOS/Xcode); document limits.
 - WebRTC: loopback prototype; document signaling/TURN.
 - Remote control: minimal screen/input; permission denial, backpressure, unload.
-- Disconnect/device unplug: session unloads, clear error.
+- Disconnect/device unplug: session unloads with a clear error; link auth/authorization rejection every 30 s, protocol mismatch stops, backoff resets after 60 s connected.
 - CI does not depend on a real device; manual e2e steps live in the docs.
 
 ## 8. Non-goals

@@ -68,7 +68,7 @@ interface Input {
 ## 4. 生命周期
 
 - 设备链路断开 → `near.end`；session 卸载 → 关闭 ADB/iproxy/WebRTC 连接。
-- 重连在 adapter：指数退避；设备未授权不无限重试。
+- 重连在 adapter：0.5s → 30s 指数；设备未授权/认证拒绝每 30s 再试；协议不兼容停止；连接满 60s 重置退避。8b 的屏幕/输入权限拒绝不重试，属于应用层，不走链路重连策略。
 - 0.20 卸载顺序：子进程/连接清理只注册一次；不在 cleanup 里注册/等待 cleanup。
 - 0.21 异步 `send`：写阻塞回压；bridge 队列有界。
 
@@ -96,7 +96,7 @@ interface Input {
 - iOS：`iproxy` + `link/tcp`（有 macOS/Xcode 时）；文档写限制。
 - WebRTC：loopback 原型；signaling/TURN 写清。
 - 远控：screen/input 最小实现；权限拒绝、背压、卸载。
-- 断线重连/设备拔出：session 卸载，错误清楚。
+- 断线重连/设备拔出：session 卸载，错误清楚；链路认证/授权拒绝每 30s、协议不兼容停止、连接满 60s 重置退避。
 - CI 不依赖真实设备；手工 e2e 步骤写进文档。
 
 ## 8. 非目标
