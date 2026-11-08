@@ -79,7 +79,7 @@ session 没有半关闭语义，只有 `near.end({kind})`；不要设计半关�
 ## 8. 重连
 
 - bridge 不重连；重连在 adapter（SSH/Tailscale/Cloudflare/frp）。
-- 退避建议：0.5s → 30s 指数；认证失败不重试；协议不兼容停止。
+- 退避：0.5s → 30s 指数；认证被拒每 30s 再试；协议不兼容停止；连接满 60s 后重置退避。
 - 新连接 = 新 bridge = 新 session；不要复用旧 session。
 
 ## 9. 反向隧道 wrapper

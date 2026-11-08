@@ -79,7 +79,7 @@ The session has no half-close, only `near.end({kind})`; do not design a half-clo
 ## 8. Reconnect
 
 - The bridge does not reconnect; the adapter does (SSH/Tailscale/Cloudflare/frp).
-- Suggested backoff: 0.5 s → 30 s exponential; no retry on auth failure; stop on protocol mismatch.
+- Backoff: 0.5 s → 30 s exponential; an auth rejection retries every 30 s; a protocol mismatch stops; the backoff resets after 60 s connected.
 - A new connection = a new bridge = a new session; never reuse the old session.
 
 ## 9. Reverse-tunnel wrappers
