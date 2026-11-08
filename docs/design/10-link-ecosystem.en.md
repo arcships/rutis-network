@@ -39,7 +39,7 @@ Requirements:
 - Templates do not expose a cross-link manager or a global `connect` service; each adapter provides only its own row config and session.
 - Composition is `rutis.json` row + `<link row>:<plugin>` + service name; business plugins do not know the link.
 - Each adapter may ship an optional `status` / `doctor` / CLI as its own tool; no central manager, no central credential store.
-- The row contract must expose: config schema, structured status (connected/retrying/stopped, direct/relay, last error, `Hello` id, retry count), optional `status` / `doctor`, and no secrets in logs. The `Hello` id is the id the far end registered, not an SSH user/tailnet node/token.
+- The row contract must expose: config schema, structured status (connected/retrying/stopped, direct/relay, last error, `Hello` id, retry count), optional `status` / `doctor`, and no secrets in logs. The `Hello` id is the id the far end registered, not an SSH user/tailnet node/token; before #1 O1 (handshake result API), the non-Rust `Hello` id field is unavailable/Rust-only.
 - Dynamic changes use `rutis/loader` / `rutis.json`, not a runtime dial hub; prefer always-on rows with reconnect.
 
 ## 4. Conformance suite

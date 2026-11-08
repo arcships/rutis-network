@@ -39,7 +39,7 @@ templates/<lang>/
 - 模板不暴露跨 link 的 manager 或全局 `connect` 服务；每个 adapter 只提供自己的 row 配置和 session。
 - 组合靠 `rutis.json` row + `<link row>:<plugin>` + 服务名；业务插件不认识 link。
 - 每个 adapter 可以带可选的 `status` / `doctor` / CLI，作为该 link 自己的工具；不做中心管理工具，不集中存凭据。
-- row 契约要留够：配置 schema、结构化状态（connected/retrying/stopped、direct/relay、last error、`Hello` id、retry count）、可选 `status` / `doctor`、日志无 secret。`Hello` id 是 session 对面注册的 id，不是 SSH 用户/tailnet 节点/token。
+- row 契约要留够：配置 schema、结构化状态（connected/retrying/stopped、direct/relay、last error、`Hello` id、retry count）、可选 `status` / `doctor`、日志无 secret。`Hello` id 是 session 对面注册的 id，不是 SSH 用户/tailnet 节点/token；在 #1 O1（握手结果 API）落地前，非 Rust 的 `Hello` id 状态标为不可用/Rust-only。
 - 动态增删用 `rutis/loader` / `rutis.json`，不是运行时 dial 中心；优先常驻 + 重连。
 
 ## 4. 一致性测试套件
