@@ -33,7 +33,7 @@
 | 5 | [#5 `link/cloudflared`：Cloudflare Tunnel 做链接层](https://github.com/arcships/rutis-network/issues/5) | [05](05-link-cloudflared.md) | [05](../../design/05-link-cloudflared.md) | P1 | 1、6 |
 | 6 | [#6 `link/tcp` 与反向隧道 wrapper（frp/rathole/ngrok/SSH -R）](https://github.com/arcships/rutis-network/issues/6) | [06](06-link-tcp-and-reverse-tunnels.md) | [06](../../design/06-link-tcp.md) | **P0**（所有 TCP 类 adapter 的地基） | 1 |
 | 7 | [#7 `link/grpc`：云控制面 / relay / 分布式云](https://github.com/arcships/rutis-network/issues/7) | [07](07-link-grpc-cloud.md) | [07](../../design/07-link-grpc.md) | P1（云业务）/ P2（其他） | 1 |
-| 8 | [#8 移动设备链路与远控服务（ADB/usbmuxd/WebRTC + screen/input）](https://github.com/arcships/rutis-network/issues/8) | [08](08-mobile-and-remote-control.md) | [08](../../design/08-mobile.md) | P2 | 1、6 |
+| 8 | [#8 移动设备链路与远控服务（ADB/usbmuxd/WebRTC + screen/input）](https://github.com/arcships/rutis-network/issues/8) | [08](08-mobile-and-remote-control.md) | [08](../../design/08-mobile.md) | P2（8a）/ P3（8b） | 1、6 |
 | 9 | [#9 `link/iroh`：Rust P2P / relay 原型](https://github.com/arcships/rutis-network/issues/9) | [09](09-link-iroh-and-p2p.md) | [09](../../design/09-link-iroh.md) | P3 | 1 |
 | 10 | [#10 链接层插件生态：模板、一致性测试、适配器目录](https://github.com/arcships/rutis-network/issues/10) | [10](10-link-ecosystem.md) | [10](../../design/10-link-ecosystem.md) | P2 | 1、3–6 |
 
