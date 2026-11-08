@@ -19,14 +19,14 @@ gRPC 不是 Tailscale/Cloudflare 那种“到达”方案，而是“到一个�
 ## 范围
 
 1. 新增 `link/grpc` 参考实现（先 Go 或 Rust）：
-   - 一条 gRPC bidi stream 对应一个 session；
+   - 一条 gRPC bidi stream 对应一个 session；session 只在 A/B 两端，relay 透明转发、不挂 session；
    - 消息用 `bytes`（或 `google.protobuf.BytesValue`）承载；
-   - 每条连接/流一个 `rutis/sessions.open(far)`；
+   - 每条连接/流在 A/B 端一个 `rutis/sessions.open(far)`；
    - mTLS / OAuth / JWT / API key 做链接层准入；不把身份传给 session；
    - 远端在 `Hello` 注册 id。
 2. 云端形态（文档 + 测试服务，不必先做产品）：
    - 控制面：宿主注册、路由、配额、观测；
-   - relay：两条流配对，多租户；
+   - relay：透明配对两条流；按 `x-rutis-pair` / `x-rutis-target` / `x-rutis-generation`，不挂 session、不解析 `payload`；
    - 云运行时：gRPC 流到 rutis 运行时；
    - 多区域：最近区域、会话粘性、故障切换、数据驻留。
 3. 技术约束写清：
@@ -37,7 +37,7 @@ gRPC 不是 Tailscale/Cloudflare 那种“到达”方案，而是“到一个�
    - keepalive、重连、会话粘性；
    - 0.21 异步 `send`：gRPC 写阻塞通过 async `send` 回压，不在 bridge 里无界排队。
 4. 文档：`docs/guide/link-plugins.md` 增加“云链接”一节；明确 gRPC 是云链接，不是设备链接。
-5. listen 侧：Rust 用 `Session::handshake` 才能同 id 顶替；非 Rust `open(far)` 不暴露 id，relay 端若要顶替需用 Rust 或写明限制。
+5. listen 侧：只有 A/B 端点挂 session；Rust 用 `Session::handshake` 才能同 id 顶替；relay 不挂 session，只按 pair/generation 配对。非 Rust `open(far)` 不暴露 id，不支持同 id 顶替。
 
 ## 非目标
 
