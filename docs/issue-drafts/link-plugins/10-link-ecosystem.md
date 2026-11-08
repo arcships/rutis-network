@@ -20,7 +20,7 @@
 1. 各语言模板（先 TS / Python / Rust，Go / Swift / Kotlin 后续）：
    - 以 `.agents/skills/rutis-link-plugin/SKILL.md` 为 agent 指南，模板与它保持一致；
    - 只依赖 `rutis/sessions` 服务 / `Session::new(channel)`；
-   - 一个 `link/echo` 或 `link/tcp` 最小实现；
+   - 一个 `link/echo` 或 `link/tcp` 最小实现；优先用 localhost TCP，WebSocket 复用核心已有能力；不新造协议，也不把纯 HTTP 请求/响应当 link；
    - adapter + bridge 的文件结构；
    - 注释里写清认证在 adapter、身份来自远端 `Hello`、session 不碰 token；
    - 0.21 异步 `send`、0.20 卸载顺序、错误 code 写进模板注释。
@@ -58,6 +58,7 @@
 ## 验收
 
 - [ ] TS/Python/Rust 模板可复制、可运行、只依赖 `rutis/sessions`；在 0.21.0 上跑通。
+- [ ] `link/echo` 在 localhost TCP 上可跑；WebSocket 复用核心 `websocket::dial` / `websocket::listen`；没有纯 HTTP link 模板。
 - [ ] 一致性测试套件覆盖上述行为，至少一个语言接入 CI。
 - [ ] `docs/guide/link-plugins.md`（及 `.en.md`）有 adapter 目录，T1/T2/T3 和场景清楚。
 - [ ] 每个 T1 adapter 至少有一个可复制示例（SSH/Tailscale/Cloudflare）。

@@ -13,6 +13,7 @@
 ## 范围
 
 1. 新增 `link/tcp` bridge（任意语言优先 TS/Rust）：
+   - **localhost TCP 是第一个参考 adapter**：`dial 127.0.0.1:<port>` / `listen 127.0.0.1:0`，用它做一致性测试和本地开发的默认传输；回环也要准入（随机端口或一次性 token），只绑 `127.0.0.1`。
    - 长度前缀 framing（优先）：4 字节大端长度 + 正好这么多字节（设计稿选定；8 字节留作未来扩展）；超长在分配前拒绝；
    - 最大消息（对齐 WebSocket 默认 16 MiB）、超长关闭；
    - close / half-close 语义；
@@ -36,11 +37,13 @@
 - 不把 `link/tcp` 做成新的核心 trait。
 - 不做可靠 UDP/QUIC；那是 `link/quic` 或 P2P 的事。
 - 不实现 frp/rathole/ngrok 服务端。
+- 不新写 WebSocket link：核心已有 `websocket::dial` / `websocket::listen`，`rutis-host/listen` 也用它；纯 HTTP 请求/响应不是 link。
 - 不在 bridge 里做 token/身份；身份来自远端 `Hello`。
 - 不解析 session `Hello` 或其它 session 帧。
 
 ## 验收
 
+- [ ] localhost TCP dial/listen 跑通，作为一致性测试和本地开发的默认传输；回环有随机端口/一次性 token 准入，只绑 `127.0.0.1`。
 - [ ] 本地 TCP echo：消息边界、顺序、16 MiB 上限、超长关闭、half-close 全部符合契约。
 - [ ] 背压：慢接收方不会让 bridge 无界增长；async `send` 被 await。
 - [ ] listen 侧多连接各自 session；Rust 同 id 新连接顶替旧连接；非 Rust 写明限制。

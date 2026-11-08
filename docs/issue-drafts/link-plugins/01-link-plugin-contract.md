@@ -27,7 +27,7 @@
    - 一条最小 TS / Rust 代码片段（Python 用同一 `Far` / `Near` 形状；完整模板归 #10），和一条 listen 侧示例；
    - 错误输出（按 code）、重连、close、顶替的约定；
    - 0.20 卸载顺序、0.21 异步回调、`SessionOptions::outbound_limit` 的注意事项。
-2. 提供一个参考 bridge（先 Rust 或 TS），只依赖 `rutis/sessions`，不依赖核心新 API。各语言模板和一致性测试套件归 #10，本 issue 只定义契约和一份参考实现。
+2. 提供一个参考 bridge（先 Rust 或 TS），优先用 localhost TCP 或现有 WebSocket 验证，只依赖 `rutis/sessions`，不依赖核心新 API。各语言模板和一致性测试套件归 #10，本 issue 只定义契约和一份参考实现。
 3. 给出一致性测试的**契约**（测试套件在 #10）：
    - 消息边界、顺序、背压、异步 `send`、close；
    - 远端 `Hello` id 命名 `<id>:<plugin>`；
@@ -40,6 +40,7 @@
 - **listen 顶替**：Rust 用 `Session::handshake` 拿 `Greeted::id()`，先卸旧 session、再挂新 session。0.21.0 的 `open(far)` 只返回 `{ receive, end }`，不暴露远端 id；因此非 Rust 的 listen bridge 不能按 `Hello` id 顶替。契约要求：Rust 实现顶替；其它语言一条连接一个 session，并写明“同 id 的多条连接并存”。禁止解析 session 协议，也禁止拿 SSH 用户 / tailnet 节点 / token 代替 `Hello` id。
 - **认证与身份分开**：adapter 做准入；`Hello` 的 `endpoint` 是身份。`open` 不加 `peer` / `token` / `credential` / `identity`。
 - **bridge 不做第二层 session**：只 framing、backpressure、close/半关闭映射和生命周期。
+- **WebSocket 不是新 link plugin**：核心已经有 `websocket::dial` / `websocket::listen`，`rutis-host/listen` 也用它；第一波只把现有 WebSocket 连接写成参考示例，不新增 `link/websocket`。纯 HTTP 请求/响应不是 link，HTTP 只作为 WebSocket 升级或 gRPC 的承载。
 - **错误按 code**：0.21 的错误文本不是契约；`bad-value` 的 `data.reason`、`bad-result` 的 `data.service` / `method` / `expected` 才是。
 
 ## 非目标
