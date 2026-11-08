@@ -63,7 +63,7 @@
 - [ ] `docs/guide/link-plugins.md`（及 `.en.md`）有 adapter 目录，T1/T2/T3 和场景清楚。
 - [ ] 每个 T1 adapter 至少有一个可复制示例（SSH/Tailscale/Cloudflare）。
 - [ ] 仓库有 LICENSE，版本策略写清。
-- [ ] 文档链接检查和模板测试通过。
+- [ ] 文档链接检查在全部设计 PR 合并后跑，模板测试通过。
 
 ## 关联
 
