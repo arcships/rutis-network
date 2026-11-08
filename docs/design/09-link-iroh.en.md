@@ -48,7 +48,7 @@ Logs must show direct vs relay; document relay privacy/cost.
 
 ## 6. Listen side
 
-- Rust uses `Session::handshake` for same-id replacement; non-Rust `open(far)` does not expose the id, so one session per connection; document it.
+- Rust uses `Session::handshake` for same-id replacement; non-Rust `open(far)` does not expose the id, and `session_key(row)` is first-wins, so non-Rust listeners do not support same-id replacement and must be Rust (O1). Do not write "coexist".
 - Do not parse `Hello`; do not substitute `NodeId` for the id.
 
 ## 7. Maturity and dependencies
@@ -90,7 +90,7 @@ Logs must show direct vs relay; document relay privacy/cost.
 - O1: Use an iroh ticket or `NodeId` as the dial address? Is extra application discovery needed?
 - O2: Public relay or self-hosted relay as the default test path?
 - O3: Is mobile FFI binary size/power acceptable?
-- O4: QUIC multistream (one endpoint, several sessions) or one connection per session?
+- O4 (decided): one QUIC stream per session; QUIC multistream is a future extension, not a current option.
 
 ## Links
 

@@ -48,7 +48,7 @@ Endpoint A ── QUIC (ALPN rutis/link/1) ── Endpoint B
 
 ## 6. listen 侧
 
-- Rust 用 `Session::handshake` 才能同 id 顶替；非 Rust `open(far)` 不暴露 id，只能一条连接一个 session，文档写明。
+- Rust 用 `Session::handshake` 才能同 id 顶替；非 Rust `open(far)` 不暴露 id，`session_key(row)` 先到先得，所以非 Rust 监听不支持同 id 顶替，必须用 Rust（O1）。不要写“并存”。
 - 不解析 `Hello`；不拿 `NodeId` 代替 id。
 
 ## 7. 成熟度与依赖
@@ -90,7 +90,7 @@ Endpoint A ── QUIC (ALPN rutis/link/1) ── Endpoint B
 - O1：用 iroh 的 ticket 还是 `NodeId` 作为拨号地址？是否要额外的应用层发现。
 - O2：公共 relay 还是自建 relay 作为默认测试路径。
 - O3：移动端 FFI 的二进制体积/功耗是否可接受。
-- O4：是否需要 QUIC 多流（一个 endpoint 多条 session）还是每 session 一条连接。
+- O4（已决定）：一条 QUIC 流一个 session；QUIC 多流作为未来扩展，不是当前选项。
 
 ## 关联
 
