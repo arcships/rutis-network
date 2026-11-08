@@ -61,7 +61,7 @@ Cloudflare 只负责到达（和可选的 Access 准入）；link plugin 做 fra
 ## 6. listen 侧
 
 - 监听侧通常是 `cloudflared tunnel` 后面的 rutis listener；Rust 用 `Session::handshake` 才能同 id 顶替。
-- 非 Rust `open(far)` 不暴露 id：一条连接一个 session，文档写明。
+- 非 Rust `open(far)` 不暴露 id，`session_key(row)` 先到先得，所以非 Rust 监听不支持同 id 顶替，必须用 Rust（O1）。不要写“并存”。
 - 不解析 session `Hello`；不拿 Access 身份代替 id。
 
 ## 7. 错误

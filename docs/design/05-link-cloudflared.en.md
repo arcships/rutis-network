@@ -61,7 +61,7 @@ dialer link/tcp ── 127.0.0.1:<local> ── cloudflared access tcp ── Cl
 ## 6. Listen side
 
 - The listener usually sits behind `cloudflared tunnel`; Rust uses `Session::handshake` for same-id replacement.
-- Non-Rust `open(far)` does not expose the id: one session per connection; document it.
+- Non-Rust `open(far)` does not expose the id, and `session_key(row)` is first-wins, so non-Rust listeners do not support same-id replacement and must be Rust (O1). Do not write "coexist".
 - Do not parse `Hello`; do not substitute the Access identity for the id.
 
 ## 7. Errors
