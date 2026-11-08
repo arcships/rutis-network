@@ -22,7 +22,7 @@ adapter (SSH/Tailscale/Cloudflare/ADB/frp) ── TCP bytes ── link/tcp brid
 ### 2.1 localhost TCP is the first adapter
 
 - Start with `dial 127.0.0.1:<port>` / `listen 127.0.0.1:0`, the default transport for the conformance suite and local development.
-- Bind `127.0.0.1` only; admit with a random port or one-time token. Loopback is not implicitly trusted.
+- Bind `127.0.0.1` only. A random port is not admission: any local process can find it. Admit with Unix-socket permissions, or define a token frame before this bridge; raw TCP loopback with no admission is for development and tests only.
 - It adds no session logic; it is the first adapter and test base for the #6 bridge.
 
 ### 2.2 WebSocket already exists; HTTP is not a link
@@ -47,9 +47,9 @@ adapter (SSH/Tailscale/Cloudflare/ADB/frp) ── TCP bytes ── link/tcp brid
 ## 4. Sending
 
 - Send one message: write the 4-byte big-endian length, then the payload; handle partial writes (`write` returning less than requested).
-- The send queue is bounded (default 64 messages or 4 MiB, whichever comes first); when full, `send` waits.
+- The send queue is bounded (default 64 messages or 4 MiB, whichever comes first; this is bridge policy, not a `Channel` contract); when full, `send` waits.
 - Since 0.21, `far.send` may be async: the session awaits it; write blocking applies backpressure through the promise. Do not fire-and-forget.
-- Since 0.20, a session has a writer thread and `open(far)` leaves the outbound backlog unbounded; the bridge must bound its own queue.
+- Since 0.20, a session has a writer thread and its outbound queue is unbounded by default. Rust uses `Session::options(SessionOptions { outbound_limit: Some(bytes) })`; non-Rust `open(far)` has no such option, and a bridge-side queue cannot bound the session queue (O2). Do not present "the bridge is bounded" as "the session is bounded".
 - On write failure/connection close, fail the current `send`, close the connection, and `near.end`.
 
 ## 5. Receiving
@@ -59,21 +59,21 @@ adapter (SSH/Tailscale/Cloudflare/ADB/frp) ── TCP bytes ── link/tcp brid
 - Over-limit `length`: close and report; do not allocate 16 MiB before checking.
 - EOF mid-frame means truncation: report and close. EOF on a frame boundary: `near.end({kind:'done'})`.
 
-## 6. Close and half-close
+## 6. Close and EOF
 
-The session has no half-close, only `near.end({kind})`:
+The session has no half-close, only `near.end({kind})`; do not design a half-close protocol.
 
-- Far FIN (read EOF) → `near.end({kind:'done'})`.
+- Far FIN (read EOF) → `near.end({kind:'done'})`, then close both directions.
 - Session unload → close the socket write side, drain where possible, then close; once only.
 - `near.end({kind:'replaced'})`: a same-id session took over; map to 4002 where the transport has a close code.
 - `near.end({kind:'rejected', reason})`: refused after admission; map to 4003 where available.
-- Do not model half-close as two lifecycles, and do not close twice.
+- EOF in one direction ends the whole connection; do not wait for the other direction to send FIN, and do not close twice.
 
 ## 7. Listen side
 
 - Accept each connection, create one bridge and one session.
 - Rust: `Session::handshake` gives `Greeted::id()`; a newer connection of the same id unloads the old session, then mounts the new one; the old connection closes with `Close::Replaced` (4002).
-- Other languages: `open(far)` does not expose the id; one session per connection, and document that same-id connections coexist. Do not parse `Hello`; do not substitute an adapter identity.
+- Other languages: `open(far)` does not expose the id, so same-id replacement is impossible. `session_key(row)` is first-wins: a second session under the same row registers no handle, and `<row>:<plugin>` only addresses the first. Do not write "coexist". A listener that needs replacement must be Rust (O1).
 - Accept failures (EMFILE and friends) back off; no busy loop.
 
 ## 8. Reconnect
@@ -109,13 +109,14 @@ Rust uses `Channel` + `Session::new`; TS/Python use `rutis/sessions`.
 
 ## 11. Tests
 
-- localhost TCP dial/listen works, the default test transport; bind 127.0.0.1 only, admitted by a random port or one-time token.
-- Local TCP echo: single frame, empty frame, consecutive frames, coalesced/short reads, 16 MiB, 16 MiB + 1.
+- localhost TCP dial/listen works, the default test transport; bind 127.0.0.1 only; raw TCP without admission is for tests, production uses Unix-socket permissions or a token frame.
+- Local TCP echo: single frame, empty frame, consecutive frames, coalesced/short reads, 16 MiB, 16 MiB + 1 (16 MiB is bridge policy).
 - Order: 1000 small messages stay ordered.
-- Backpressure: slow receiver + fast sender; the bridge queue stays within its bound and memory does not grow.
+- Backpressure: slow receiver + fast sender; the bridge queue stays within its bound; Rust verifies `SessionOptions::outbound_limit` ends the session instead of growing without bound.
 - Async `send`: returns a promise, the session awaits it, a slow write loses nothing.
-- Close: far FIN → `near.end`; session unload → socket closed; once.
-- Listen: multiple connections, each a session; Rust same-id replacement; other languages coexist.
+- Close/EOF: far FIN → `near.end`; session unload → socket closed; once; no half-close protocol.
+- Listen: multiple connections, each a session; Rust same-id replacement; other languages explicitly unsupported.
+- Reverse tunnel: frp or rathole runs; SSH `-R` or ngrok runs at least once; the bridge code does not change.
 - Errors: truncated frame, over limit, connection reset; clear error with a code.
 - No public network; CI uses loopback.
 
@@ -130,9 +131,11 @@ Rust uses `Channel` + `Session::new`; TS/Python use `rutis/sessions`.
 
 ## 13. Open questions
 
-- O1: Bound the send queue by messages or bytes? Suggest both, first hit wins: 64 messages / 4 MiB.
-- O2: Support an optional 8-byte length? Not first; keep one format.
-- O3: Should half-close be preserved in the adapter (SSH channel EOF)? The session only sees `near.end`; the adapter decides when to close.
+- O1 (closed): the send queue is bounded by 64 messages / 4 MiB, first hit wins.
+- O2 (closed): the frame length is fixed at 4 bytes; 8 bytes is a future extension.
+- O3 (closed): the session has no half-close; EOF maps to `near.end({kind:'done'})` and closes both directions.
+- O4 (blocking): non-Rust `open(far)` cannot set `outbound_limit`, and the session outbound queue is unbounded; production non-Rust links need rutis to add the option or a transport that applies backpressure.
+- O5 (blocking): non-Rust cannot replace by `Hello` id; `session_key(row)` is first-wins, so a listener that needs replacement must be Rust.
 
 ## Links
 

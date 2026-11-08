@@ -22,7 +22,7 @@ adapter（SSH/Tailscale/Cloudflare/ADB/frp）── TCP 字节流 ── link/tc
 ### 2.1 localhost TCP 是第一个 adapter
 
 - 先做 `dial 127.0.0.1:<port>` / `listen 127.0.0.1:0`，作为一致性测试和本地开发的默认传输。
-- 只绑 `127.0.0.1`；用随机端口或一次性 token 准入，回环也不默认可信。
+- 只绑 `127.0.0.1`。随机端口不是准入：本机任何进程都能扫到。要准入就用 Unix socket 权限，或在本 bridge 之前定义一个 token 帧；没有准入的 raw TCP loopback 只用于开发和测试。
 - 它不引入新的 session 逻辑，只是 #6 bridge 的第一个 adapter 和测试底座。
 
 ### 2.2 WebSocket 已有，HTTP 不是 link
@@ -47,9 +47,9 @@ adapter（SSH/Tailscale/Cloudflare/ADB/frp）── TCP 字节流 ── link/tc
 ## 4. 发送
 
 - 发送一条消息：写 4 字节大端长度，再写 payload；必须处理部分写（`write` 返回少于请求）。
-- 发送队列有界（默认 64 条或 4 MiB，取先到者）；队列满时 `send` 等待。
+- 发送队列有界（默认 64 条或 4 MiB，取先到者；这是 bridge 自己的策略，不是 `Channel` 的契约）；队列满时 `send` 等待。
 - 0.21 起 `far.send` 可以是 async：session 会 await；写阻塞通过 Promise 回压，不要 fire-and-forget。
-- 0.20 起 session 有写线程，`open(far)` 的出站积压默认无上限；bridge 必须自己限流，不能把无界队列丢给 session。
+- 0.20 起 session 有写线程，出站队列默认无上限。Rust 用 `Session::options(SessionOptions { outbound_limit: Some(bytes) })`；非 Rust `open(far)` 没有这个参数，bridge 自己的队列不能限制 session 的队列（O2）。不要把“bridge 有界”当成“session 有界”。
 - 写失败/连接关闭：让当前 `send` 失败，关闭连接，`near.end`。
 
 ## 5. 接收
@@ -59,21 +59,21 @@ adapter（SSH/Tailscale/Cloudflare/ADB/frp）── TCP 字节流 ── link/tc
 - `length` 超限：关闭，报错误；不要先分配 16 MiB 再检查。
 - EOF：如果正在读一帧，说明截断，报错并关闭；如果帧边界 EOF，`near.end({kind:'done'})`。
 
-## 6. close 与半关闭
+## 6. close 与 EOF
 
-session 没有半关闭语义，只有 `near.end({kind})`：
+session 没有半关闭语义，只有 `near.end({kind})`；不要设计半关闭协议。
 
-- 远端 FIN（读端 EOF）→ `near.end({kind:'done'})`。
+- 远端 FIN（读端 EOF）→ `near.end({kind:'done'})`，随后关闭双向。
 - 本端 session 卸载 → 关闭 socket 写端，尽量 drain，再关闭；只关一次。
 - `near.end({kind:'replaced'})`：同 id 被顶替，关闭时映射为传输的 4002（如果传输有 close code）。
 - `near.end({kind:'rejected', reason})`：准入后拒绝，映射 4003（如果有）。
-- 不把半关闭当两条独立生命周期；不要重复关闭。
+- 一方向 EOF 就是整个连接结束；不要等另一方向再发 FIN，也不要重复关闭。
 
 ## 7. listen 侧
 
 - accept 每条连接，建一个 bridge + 一个 session。
 - Rust：`Session::handshake` 拿 `Greeted::id()`，同 id 新连接先卸旧 session、再挂新的；旧连接 `Close::Replaced`（4002）。
-- 非 Rust：`open(far)` 不暴露 id；只能一条连接一个 session，文档写明“同 id 的连接并存”。不解析 `Hello`，不拿 adapter 身份代替。
+- 非 Rust：`open(far)` 不暴露 id，做不了同 id 顶替。`session_key(row)` 先到先得，同一个 row 下第二个 session 不会注册 handle，`<row>:<plugin>` 只会找到第一个；不要写“并存”。需要顶替的监听侧必须用 Rust（O1）。
 - accept 失败（EMFILE 等）要退避，不要忙等。
 
 ## 8. 重连
@@ -109,13 +109,14 @@ Rust 版本用 `Channel` + `Session::new`；TS/Python 用 `rutis/sessions`。
 
 ## 11. 测试
 
-- localhost TCP dial/listen 跑通，作为默认测试传输；只绑 127.0.0.1，有随机端口/一次性 token 准入。
-- 本地 TCP echo：单帧、空帧、连续帧、粘包/短读、16 MiB、16 MiB+1。
+- localhost TCP dial/listen 跑通，作为默认测试传输；只绑 127.0.0.1；无准入的 raw TCP 只用于测试，生产用 Unix socket 权限或 token 帧。
+- 本地 TCP echo：单帧、空帧、连续帧、粘包/短读、16 MiB、16 MiB+1（16 MiB 是 bridge 策略）。
 - 顺序：1000 条小消息顺序不变。
-- 背压：慢接收方 + 快发送方，bridge 队列不超过上限，内存不涨。
+- 背压：慢接收方 + 快发送方，bridge 队列不超过上限；Rust 用 `SessionOptions::outbound_limit` 验证 session 也会结束，而不是无界增长。
 - 异步 `send`：返回 Promise，session await；慢写不丢消息。
-- close：远端 FIN → `near.end`；session 卸载 → socket 关闭；只关一次。
-- listen：多连接各自 session；Rust 同 id 顶替；非 Rust 并存。
+- close/EOF：远端 FIN → `near.end`；session 卸载 → socket 关闭；只关一次；没有半关闭协议。
+- listen：多连接各自 session；Rust 同 id 顶替；非 Rust 明确不支持。
+- 反向隧道：frp 或 rathole 任一跑通；SSH `-R` 或 ngrok 至少一个跑通；bridge 代码不改。
 - 错误：截断帧、超长、连接重置，错误清楚且带 code。
 - 不依赖公网；CI 用 loopback。
 
@@ -130,9 +131,11 @@ Rust 版本用 `Channel` + `Session::new`；TS/Python 用 `rutis/sessions`。
 
 ## 13. 开放问题
 
-- O1：发送队列上限按条数还是字节？建议两者取先到者，默认 64 条 / 4 MiB。
-- O2：要不要支持 8 字节长度作为可选扩展？先不做，保持一种格式。
-- O3：半关闭是否需要在 adapter 层保留（例如 SSH channel 的 EOF）？session 只看到 `near.end`，adapter 可以自己决定何时关。
+- O1（已关闭）：发送队列上限 64 条 / 4 MiB，取先到者。
+- O2（已关闭）：帧长度固定 4 字节；8 字节留作未来扩展。
+- O3（已关闭）：session 没有半关闭；EOF 映射为 `near.end({kind:'done'})`，关闭双向。
+- O4（阻塞）：非 Rust `open(far)` 不能设置 `outbound_limit`，session 出站队列默认无上限；生产用非 Rust link 前需要 rutis 补参数或传输层回压。
+- O5（阻塞）：非 Rust 不能按 `Hello` id 顶替；`session_key(row)` 先到先得，需要顶替的监听侧必须用 Rust。
 
 ## 关联
 
