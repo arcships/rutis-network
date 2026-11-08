@@ -22,7 +22,7 @@ syntax = "proto3";
 package rutis.link.v1;
 
 service Link {
-  // 一条 bidi stream = 一个 session。
+  // 一条 bidi stream = 一个 session（只存在于 A/B 两端）。
   rpc Tunnel(stream Frame) returns (stream Frame);
 }
 
@@ -31,9 +31,9 @@ message Frame {
 }
 ```
 
-- 一条 bidi stream 对应一个 session；不要在一个 stream 里多路复用多个 session（除非以后有明确的 `session_id` 字段和独立的生命周期）。
+- 一条 bidi stream 对应一个 session；session 只在 A/B 两端存在，relay 是透明转发，不挂 session。
 - `payload` 就是 session 消息；gRPC 已有消息边界，不需要长度前缀。
-- 控制面/relay 可以用同一 service 加 metadata（`authorization`、`x-rutis-region`），或另开管理 service；先不扩。
+- 配对信息放在 stream metadata，不放进 `payload`：`x-rutis-pair`（租户内配对键）、`x-rutis-target`（目标 endpoint）、`x-rutis-generation`（每次重连递增）。relay 只读这些 metadata。
 - 协议版本放在 metadata 或第一帧；不要改 `payload` 的语义。
 
 ## 3. 准入
@@ -58,7 +58,7 @@ message Frame {
 ## 5. 生命周期与重连
 
 - stream 断开 → `near.end`；session 卸载 → 关闭 stream。
-- 重连在 link/grpc：指数退避（0.5s → 30s）；`UNAUTHENTICATED` 不重试；`UNAVAILABLE`/GOAWAY 重试。
+- 重连在 link/grpc：指数退避（0.5s → 30s）；`UNAUTHENTICATED`/`PERMISSION_DENIED` 每 30s 再试；`UNAVAILABLE`/GOAWAY 按退避重试；连接满 60s 重置退避。
 - 0.20 卸载顺序：stream/客户端清理只注册一次；不在 cleanup 里注册/等待 cleanup。
 - 0.21 异步 `send`：gRPC 写阻塞通过 async `send` 回压；bridge 队列有界。
 - 服务端 GOAWAY：让当前 session 卸载，按退避重连；不要静默丢消息。
@@ -72,13 +72,14 @@ message Frame {
 - 配额/观测：连接数、消息数、字节数、错误码；
 - 不下发 session 内容。
 
-### 6.2 relay
+### 6.2 relay（透明配对）
 
-- 两条 stream 配对：A↔relay↔B；relay 只转发 `payload`，不解析 session 协议；
-- 多租户：租户 id 来自准入，不进 session；
-- 配对失败：两端都收到明确错误；
-- relay 不做身份；身份仍由两端 `Hello` 决定。
-- **边界**：relay/控制面是独立的云服务或应用，不是本地链接层的 manager/注册表；它不参与本地 link 的组合，也不替 link 管凭据。这样不违反 #1 D11。
+- **模型**：relay 不挂 session、不握手、不解析 `payload`；A/B 各自与自己的 session 握手，`Hello` 端到端。relay 只把两条 stream 的 `payload` 原样对接。
+- **配对**：`x-rutis-pair` + `x-rutis-target` 定位两条 stream；租户 id 来自准入，配对键只在租户内有效。
+- **代次**：每次重连 `x-rutis-generation` 递增；同 pair 的新代次到达时，relay 关闭旧代次的两条 stream，再对接新代次。
+- **失败**：配对超时/找不到对端时，两端都收到 `UNAVAILABLE` 和结构化 `data`（pair、target、generation、reason）；不创建 session。
+- **不做**：relay 不做身份、不做 session 顶替、不解析 `Hello`；这些都在 A/B。
+- **边界**：relay/控制面是独立的云服务或应用，不是本地链接层的 manager/注册表，也不替 link 管凭据；不违反 #1 D11。
 
 ### 6.3 云运行时
 
@@ -94,15 +95,16 @@ message Frame {
 
 ## 7. listen 侧
 
-- Rust 用 `Session::handshake` 拿 `Greeted::id()` 才能同 id 顶替；relay 端如果要顶替，用 Rust。
-- 非 Rust `open(far)` 不暴露 id，`session_key(row)` 先到先得；多条 stream 不能挂在同一个 row 下，relay 端要么用 Rust，要么每条 stream 使用独立的 row/session。
-- 不解析 `Hello`；不拿 gRPC principal 代替 id。
+- relay 不挂 session；只有 A/B 端点用 `Session::handshake` / `open`。
+- A/B 的 Rust 监听用 `Session::handshake` 拿 `Greeted::id()` 做同 id 顶替；非 Rust `open(far)` 不暴露 id，`session_key(row)` 先到先得，所以非 Rust 监听不支持同 id 顶替，必须用 Rust（O1）。
+- 非 Rust 在 O1（握手结果 API）落地前也拿不到握手的结构化错误，无法可靠区分认证拒绝/协议不兼容；不要把 gRPC status 当握手结果，只能按传输错误退避并记为限制。
+- relay 只按 `x-rutis-pair` / `x-rutis-generation` 配对；不解析 `Hello`，不拿 gRPC principal 代替 id。
 
 ## 8. 错误
 
 | 场景 | 处理 |
 | --- | --- |
-| 未认证/权限不足 | `UNAUTHENTICATED`/`PERMISSION_DENIED`；不 `open` |
+| 未认证/权限不足 | `UNAUTHENTICATED`/`PERMISSION_DENIED`；不 `open`；每 30s 再试 |
 | 消息超 4 MiB | 调大限制或分片；报清楚 |
 | 代理超时/GOAWAY | `near.end`；退避重连 |
 | relay 配对失败 | 两端明确错误；不挂起 |

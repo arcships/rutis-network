@@ -22,7 +22,7 @@ syntax = "proto3";
 package rutis.link.v1;
 
 service Link {
-  // One bidi stream = one session.
+  // One bidi stream = one session (only at the A/B endpoints).
   rpc Tunnel(stream Frame) returns (stream Frame);
 }
 
@@ -31,9 +31,9 @@ message Frame {
 }
 ```
 
-- One bidi stream per session; do not multiplex several sessions on one stream unless a `session_id` field and separate lifecycles are designed later.
+- One bidi stream corresponds to one session; the session exists only at A/B. The relay is a transparent forwarder and mounts no session.
 - `payload` is a session message; gRPC already keeps boundaries, so no length prefix.
-- The control plane/relay can use the same service with metadata (`authorization`, `x-rutis-region`) or a separate admin service; not first.
+- Pairing lives in stream metadata, not `payload`: `x-rutis-pair` (tenant-scoped pair key), `x-rutis-target` (target endpoint), `x-rutis-generation` (incremented on every reconnect). The relay reads only these metadata keys.
 - Put the protocol version in metadata or the first frame; do not change `payload` semantics.
 
 ## 3. Admission
@@ -58,7 +58,7 @@ The session `Hello` still registers identity; the gRPC principal is not mapped t
 ## 5. Lifecycle and reconnect
 
 - Stream closes → `near.end`; session unloads → close the stream.
-- Reconnect lives in link/grpc: exponential backoff (0.5 s → 30 s); no retry on `UNAUTHENTICATED`; retry on `UNAVAILABLE`/GOAWAY.
+- Reconnect lives in link/grpc: exponential backoff (0.5 s → 30 s); `UNAUTHENTICATED`/`PERMISSION_DENIED` retries every 30 s; `UNAVAILABLE`/GOAWAY backs off; the backoff resets after 60 s connected.
 - 0.20 unload order: register stream/client cleanup once; do not register or wait for another cleanup.
 - 0.21 async `send`: gRPC write blocking applies backpressure through async `send`; the bridge queue is bounded.
 - Server GOAWAY: unload the session and reconnect with backoff; do not silently drop messages.
@@ -72,13 +72,14 @@ The session `Hello` still registers identity; the gRPC principal is not mapped t
 - Quota/observability: connections, messages, bytes, error codes;
 - Never carries session content.
 
-### 6.2 Relay
+### 6.2 Relay (transparent pairing)
 
-- Pair two streams: A ↔ relay ↔ B; the relay forwards `payload` and does not parse the session protocol;
-- Multi-tenant: the tenant id comes from admission, not from the session;
-- Pairing failure: both ends get a clear error;
-- The relay does not own identity; the two `Hello`s do.
-- **Boundary**: the relay/control plane is a separate cloud service or application, not the local link layer's manager/registry; it does not take part in local link composition and does not hold link credentials. This keeps #1 D11 intact.
+- **Model**: the relay mounts no session, does no handshake, and does not parse `payload`. A/B each handshake with their own session; `Hello` is end-to-end. The relay pairs two streams and forwards `payload` unchanged.
+- **Pairing**: `x-rutis-pair` + `x-rutis-target` locate the two streams; the tenant id comes from admission, and the pair key is tenant-scoped.
+- **Generation**: every reconnect increments `x-rutis-generation`; when a newer generation for the same pair arrives, the relay closes the two old streams and pairs the new ones.
+- **Failure**: on pair timeout/no peer, both ends get `UNAVAILABLE` with structured `data` (pair, target, generation, reason); no session is created.
+- **Non-goals**: the relay does not own identity, replace sessions, or parse `Hello`; those live at A/B.
+- **Boundary**: the relay/control plane is a separate cloud service or application, not the local link layer's manager/registry, and does not hold link credentials; #1 D11 stays intact.
 
 ### 6.3 Cloud runtime
 
@@ -94,15 +95,16 @@ The session `Hello` still registers identity; the gRPC principal is not mapped t
 
 ## 7. Listen side
 
-- Rust uses `Session::handshake` to get `Greeted::id()` for same-id replacement; a relay that needs replacement uses Rust.
-- Non-Rust `open(far)` does not expose the id, and `session_key(row)` is first-wins; multiple streams cannot share one row. A relay either uses Rust or gives each stream its own row/session.
-- Do not parse `Hello`; do not substitute the gRPC principal for the id.
+- The relay mounts no session; only the A/B endpoints use `Session::handshake` / `open`.
+- A/B's Rust listener uses `Session::handshake` and `Greeted::id()` for same-id replacement; non-Rust `open(far)` does not expose the id, and `session_key(row)` is first-wins, so non-Rust listeners do not support same-id replacement and must be Rust (O1).
+- Non-Rust also cannot get structured handshake errors before O1 (handshake result API), so it cannot reliably tell an auth rejection from a protocol mismatch; do not treat a gRPC status as a handshake result, fall back to transport backoff and record the limitation.
+- The relay pairs only by `x-rutis-pair` / `x-rutis-generation`; it does not parse `Hello` and does not substitute the gRPC principal for the id.
 
 ## 8. Errors
 
 | Case | Handling |
 | --- | --- |
-| Unauthenticated/permission denied | `UNAUTHENTICATED`/`PERMISSION_DENIED`; do not `open` |
+| Unauthenticated/permission denied | `UNAUTHENTICATED`/`PERMISSION_DENIED`; do not `open`; retry every 30 s |
 | Message over 4 MiB | Raise the limit or split; report clearly |
 | Proxy timeout/GOAWAY | `near.end`; reconnect with backoff |
 | Relay pairing failure | Clear error on both ends; do not hang |
