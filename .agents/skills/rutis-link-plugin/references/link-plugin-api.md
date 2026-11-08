@@ -103,7 +103,7 @@ The session has **no half-close**: `near.end` ends everything. EOF in one direct
 
 - One channel = one session. A listen side opens one session per accepted connection.
 - `Channel` closes → session unloads; session unloads → channel closes. Do not create a second lifecycle.
-- Reconnect/backoff belongs to the link plugin. The session never reconnects.
+- Reconnect/backoff belongs to the link plugin: 0.5 s → 30 s exponential; an auth rejection retries every 30 s; a protocol mismatch stops; the backoff resets after 60 s connected. The session never reconnects.
 - Heartbeat belongs to the adapter (SSH keepalive, WebSocket ping, gRPC keepalive, Tailscale's own); the bridge does not invent a generic heartbeat frame. A failed heartbeat closes the connection and maps to `near.end`.
 - Since 0.20, unloading runs one reverse stack, one entry at a time: register the adapter cleanup once (in `apply`, `ctx.effect`, or the cleanup `apply` returns); a cleanup cannot register another cleanup or wait for another one.
 - Since 0.20, a session sends on its own writer thread. `rutis/sessions.open(far)` leaves the outbound queue unbounded (`SessionOptions::outbound_limit` is a host option), and a bridge-side queue does **not** bound it. Rust sets `Session::options(SessionOptions { outbound_limit: Some(bytes) })`; non-Rust `open(far)` has no such option, so this is a blocking API gap (O2).
