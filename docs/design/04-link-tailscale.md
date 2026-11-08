@@ -52,7 +52,7 @@
 
 ## 6. listen 侧
 
-- system 模式可以用 Rust 的 `Session::handshake` 做同 id 顶替；非 Rust `open(far)` 不暴露 id，只能一条连接一个 session，文档写明。
+- system 模式可以用 Rust 的 `Session::handshake` 做同 id 顶替；非 Rust `open(far)` 不暴露 id，`session_key(row)` 先到先得，所以非 Rust 监听不支持同 id 顶替，必须用 Rust（O1）。不要写“并存”。
 - tsnet/sidecar 的 Listener 在 adapter 层 accept，仍然要遵守“一个连接一个 session”。
 - 不解析 session `Hello`；不拿 tailnet 节点名代替 id。
 

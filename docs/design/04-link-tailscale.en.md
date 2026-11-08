@@ -52,7 +52,7 @@ Give individuals and small teams a cross-NAT path without public ports, certific
 
 ## 6. Listen side
 
-- system mode can use Rust's `Session::handshake` for same-id replacement; non-Rust `open(far)` does not expose the id, so one session per connection; document it.
+- system mode can use Rust's `Session::handshake` for same-id replacement; non-Rust `open(far)` does not expose the id, and `session_key(row)` is first-wins, so non-Rust listeners do not support same-id replacement and must be Rust (O1). Do not write "coexist".
 - tsnet/sidecar listeners accept in the adapter; still one connection = one session.
 - Do not parse `Hello`; do not substitute the tailnet node name for the id.
 
