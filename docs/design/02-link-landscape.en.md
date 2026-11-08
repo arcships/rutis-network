@@ -45,8 +45,8 @@ Decide what to build first, not list protocols. The scenario decides: where the 
 | Tier | Content | Why |
 | --- | --- | --- |
 | P0 | #1 contract, #2 this analysis, #6 TCP bridge | Settle the boundary and the shared bridge first; otherwise duplication and coupling |
-| P1 | #3 SSH, #4 Tailscale, #5 Cloudflare Tunnel | Cover "I already have SSH", "private network/NAT/ACL", "no client install/public ingress" |
-| P2 | #7 gRPC (cloud business only; otherwise P3), #8 mobile links, #10 ecosystem | Depends on a cloud/device business; ecosystem waits for T1 |
+| P1 | #3 SSH, #4 Tailscale, #5 Cloudflare Tunnel; #7 gRPC (cloud business only) | Cover "I already have SSH", "private network/NAT/ACL", "no client install/public ingress"; cloud business moves gRPC earlier |
+| P2 | #7 gRPC (not cloud business), #8 mobile links, #10 ecosystem | Depends on a cloud/device business; ecosystem waits for T1 |
 | P3 | #8b remote-control services, #9 iroh, message buses, enterprise zero-trust | Application layer or early technology; does not block T1 |
 
 ## 5. What each candidate gives
@@ -67,7 +67,7 @@ Decide what to build first, not list protocols. The scenario decides: where the 
 - #4 Tailscale framing lands in #6; dependency updated.
 - #5 Cloudflare access mode lands in #6; dependency updated.
 - #8 ADB/usbmuxd/WebRTC land in #6; remote-control service split as 8b.
-- #7 priority changed to "cloud business P1, otherwise P2/P3".
+- #7 priority changed to "cloud business P1, otherwise P2".
 - #10 no longer overlaps #1: templates, catalogue and CI are #10.
 
 ## 7. What not to do
