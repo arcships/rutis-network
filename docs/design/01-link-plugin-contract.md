@@ -64,7 +64,7 @@ link plugin
 ### D6 生命周期
 
 - `Channel` 关闭 → session 卸载；session 卸载 → 关闭 channel。
-- 重连/退避在链接层；session 从不重连。
+- 重连/退避在链接层：0.5s → 30s 指数；认证被拒每 30s 再试；协议不兼容停止；连接满 60s 后重置退避。session 从不重连。
 - 0.20 起卸载是一条逆序栈：adapter 清理只注册一次，不在 cleanup 里注册/等待 cleanup。
 - 0.20 起 session 有自己的写线程，出站队列默认无上限。Rust 用 `Session::options(SessionOptions { outbound_limit: Some(bytes) })`；非 Rust 的 `open(far)` 没有这个参数，bridge 自己的队列**不能**限制 session 的队列——这是 O2，生产用非 Rust link 前必须解决。
 - 0.21 起收到的函数默认异步：`send` 可以是 async，session 会 await，传输写阻塞由此回压。
@@ -168,6 +168,8 @@ connection.onClose(() => near.end({ kind: 'done' }))
 ## 关联
 
 - issue [#1](https://github.com/arcships/rutis-network/issues/1)
+- [TCP bridge 设计稿](06-link-tcp.md)
+- [生态设计稿](10-link-ecosystem.md)
 - [SKILL.md](../../.agents/skills/rutis-link-plugin/SKILL.md)
 - [link-plugin-api.md](../../.agents/skills/rutis-link-plugin/references/link-plugin-api.md)
 - rutis `docs/guide/plugin-api.md#自建连接rutissessionsopen`

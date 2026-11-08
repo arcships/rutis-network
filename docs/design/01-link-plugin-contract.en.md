@@ -64,7 +64,7 @@ link plugin
 ### D6 Lifecycle
 
 - `Channel` closes → session unloads; session unloads → close the channel.
-- Reconnect/backoff lives in the link layer; the session never reconnects.
+- Reconnect/backoff lives in the link layer: 0.5 s → 30 s exponential; an auth rejection retries every 30 s; a protocol mismatch stops; the backoff resets after 60 s connected. The session never reconnects.
 - Since 0.20, unloading is one reverse stack: register the adapter cleanup once; a cleanup cannot register or wait for another cleanup.
 - Since 0.20, a session has its own writer thread and an unbounded outbound queue by default. Rust uses `Session::options(SessionOptions { outbound_limit: Some(bytes) })`; non-Rust `open(far)` has no such option, and a bridge-side queue **cannot** bound the session queue — this is O2 and blocks production use of non-Rust links.
 - Since 0.21, received functions are asynchronous by default: `send` may be async, the session awaits it, and transport write blocking applies backpressure.
@@ -168,6 +168,8 @@ connection.onClose(() => near.end({ kind: 'done' }))
 ## Links
 
 - Issue [#1](https://github.com/arcships/rutis-network/issues/1)
+- [TCP bridge design](06-link-tcp.en.md)
+- [Ecosystem design](10-link-ecosystem.en.md)
 - [SKILL.md](../../.agents/skills/rutis-link-plugin/SKILL.md)
 - [link-plugin-api.md](../../.agents/skills/rutis-link-plugin/references/link-plugin-api.md)
 - rutis `docs/guide/plugin-api.md#your-own-connection-rutissessionsopen`
