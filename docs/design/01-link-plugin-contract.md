@@ -74,6 +74,7 @@ link plugin
 
 - Rust：`Session::handshake(&ctx, channel).await` → `Greeted::id()`；先卸同 id 旧 session，再用 `ctx.plugin(greeted)` 挂新的；旧 channel 以 `Close::Replaced`（4002）关闭。
 - 非 Rust：0.21.0 的 `open(far)` 只返回 `{ receive, end }`，没有远端 id，做不了同 id 顶替。也**不要**说“同 id 的多条连接并存”：`session_key(row)` 是先到先得（`crates/rutis-bridge/src/session/plugin/mod.rs`），同一个 row 下第二个 session 不再注册 handle，`<row>:<plugin>` 只会找到第一个。需要顶替的监听侧必须用 Rust；O1 是阻塞项，不是可选优化。
+- 非 Rust 在 O1（握手结果 API）落地前也拿不到结构化的握手错误，无法可靠区分认证拒绝/协议不兼容；只能按传输错误退避。
 - 禁止在 bridge 里解析 `Hello` 来拿 id；禁止用 adapter 的准入身份代替。
 
 ### D8 错误
@@ -152,7 +153,7 @@ connection.onClose(() => near.end({ kind: 'done' }))
 
 ## 6. 开放问题
 
-- **O1（阻塞非 Rust listen 顶替）**：需要 rutis 在 `rutis/sessions.open` 上暴露握手后的远端 id（例如 `near.id` / `ready()`）。在它出现前，非 Rust listen 不做同 id 顶替；`session_key(row)` 先到先得，第二条同 row 的 session 不会注册 handle。该 API 变更应作为 rutis 的独立 issue 讨论，不能靠解析 `Hello` 绕过。
+- **O1（阻塞非 Rust 握手结果）**：`rutis/sessions.open` 需要暴露握手结果，例如 `ready()` 返回 `{ id, error? }`，`error` 带 `code` / `data`（认证拒绝、协议不兼容、传输失败）。它同时是 listen 顶替、非 Rust 重连分类和 row 状态 `Hello` id 的前提。在它出现前：非 Rust listen 不做同 id 顶替；非 Rust 无法可靠区分认证拒绝/协议不兼容，只能按传输错误退避；#10 的 row 状态 `Hello` id 标为 Rust-only。该 API 变更应作为 rutis 的独立 issue 讨论，不能靠解析 `Hello` 绕过。
 - **O2（阻塞非 Rust 出站限流）**：`open(far)` 不能设置 `SessionOptions::outbound_limit`，session 的出站队列默认无上限；bridge 自己的队列无法限制它。Rust 用 `Session::options(...)`；非 Rust 需要 rutis 在 `open` 上补这个参数，或明确非 Rust 生产链接必须由传输层回压。
 - **O3（已关闭）**：`link/tcp` 帧长度固定 4 字节大端；8 字节留作未来扩展，不作为当前可选项。
 - **O3**：0.21 的异步回调在旧 runtime（0.20）上按同步处理；bridge 不能假设 `send` 一定异步。

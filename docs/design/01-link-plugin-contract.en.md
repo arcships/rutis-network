@@ -74,6 +74,7 @@ link plugin
 
 - Rust: `Session::handshake(&ctx, channel).await` → `Greeted::id()`; unload the old session of that id, then `ctx.plugin(greeted)`, closing the old channel with `Close::Replaced` (4002).
 - Other languages: in 0.21.0 `open(far)` returns only `{ receive, end }` and does not expose the far id, so same-id replacement is impossible. Do **not** say "two connections from the same id coexist": `session_key(row)` is first-wins (`crates/rutis-bridge/src/session/plugin/mod.rs`), so a second session under the same row registers no handle and `<row>:<plugin>` only addresses the first. A listener that needs replacement must be Rust; O1 is blocking, not an optional optimization.
+- Non-Rust also cannot get structured handshake errors before O1 (handshake result API), so it cannot reliably tell an auth rejection from a protocol mismatch; it falls back to transport backoff.
 - Do not parse `Hello` in the bridge and do not substitute the adapter's admission identity.
 
 ### D8 Errors
@@ -152,7 +153,7 @@ connection.onClose(() => near.end({ kind: 'done' }))
 
 ## 6. Open questions
 
-- **O1 (blocks non-Rust listen replacement)**: rutis needs to expose the far id after the handshake through `rutis/sessions.open` (for example `near.id` / `ready()`). Until then, non-Rust listeners do not replace; `session_key(row)` is first-wins, so a second session under the same row registers no handle. This is a separate rutis API discussion; parsing `Hello` is not a workaround.
+- **O1 (blocks non-Rust handshake result)**: `rutis/sessions.open` needs a handshake result, for example `ready()` returning `{ id, error? }` with `code` / `data` (auth rejected, protocol mismatch, transport failure). It is the prerequisite for listen replacement, non-Rust reconnect classification, and the row status `Hello` id. Until then: non-Rust listeners do not replace; non-Rust cannot reliably tell an auth rejection from a protocol mismatch and falls back to transport backoff; #10's row status `Hello` id is Rust-only. This is a separate rutis API discussion; parsing `Hello` is not a workaround.
 - **O2 (blocks non-Rust outbound bounds)**: `open(far)` cannot set `SessionOptions::outbound_limit`, and the session's outbound queue is unbounded by default; a bridge-side queue cannot bound it. Rust uses `Session::options(...)`. Non-Rust needs rutis to add the option to `open`, or a transport that applies backpressure.
 - **O3 (closed)**: `link/tcp` uses a fixed 4-byte big-endian length; 8 bytes is a future extension, not a current choice.
 - **O3**: 0.21 async callbacks run synchronously on a 0.20 runtime; a bridge must not assume `send` is always async.
