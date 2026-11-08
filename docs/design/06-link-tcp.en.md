@@ -19,6 +19,17 @@ adapter (SSH/Tailscale/Cloudflare/ADB/frp) ── TCP bytes ── link/tcp brid
 - One TCP connection = one bridge instance = one session.
 - A reverse tunnel only brings local/public TCP; it does not repeat the bridge.
 
+### 2.1 localhost TCP is the first adapter
+
+- Start with `dial 127.0.0.1:<port>` / `listen 127.0.0.1:0`, the default transport for the conformance suite and local development.
+- Bind `127.0.0.1` only; admit with a random port or one-time token. Loopback is not implicitly trusted.
+- It adds no session logic; it is the first adapter and test base for the #6 bridge.
+
+### 2.2 WebSocket already exists; HTTP is not a link
+
+- The core already has `websocket::dial` / `websocket::listen`, and `rutis-host/listen` uses it; this bridge does not rewrite WebSocket.
+- Plain HTTP request/response has no duplex long-lived stream or message boundaries; it is not a link. HTTP only carries a WebSocket upgrade or gRPC.
+
 ## 3. Frame format
 
 ```text
@@ -98,6 +109,7 @@ Rust uses `Channel` + `Session::new`; TS/Python use `rutis/sessions`.
 
 ## 11. Tests
 
+- localhost TCP dial/listen works, the default test transport; bind 127.0.0.1 only, admitted by a random port or one-time token.
 - Local TCP echo: single frame, empty frame, consecutive frames, coalesced/short reads, 16 MiB, 16 MiB + 1.
 - Order: 1000 small messages stay ordered.
 - Backpressure: slow receiver + fast sender; the bridge queue stays within its bound and memory does not grow.
@@ -113,6 +125,7 @@ Rust uses `Channel` + `Session::new`; TS/Python use `rutis/sessions`.
 - No reliable UDP/QUIC; that is `link/quic`/P2P.
 - No frp/rathole/ngrok server.
 - No compression/encryption/multiplexing.
+- Do not rewrite WebSocket (the core has it); plain HTTP request/response is not a link.
 - No `link/tcp` core trait.
 
 ## 13. Open questions

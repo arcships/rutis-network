@@ -19,6 +19,17 @@ adapter（SSH/Tailscale/Cloudflare/ADB/frp）── TCP 字节流 ── link/tc
 - 一条 TCP 连接 = 一个 bridge 实例 = 一个 session。
 - 反向隧道只负责“把本地/公网 TCP 带过来”，不重复 bridge。
 
+### 2.1 localhost TCP 是第一个 adapter
+
+- 先做 `dial 127.0.0.1:<port>` / `listen 127.0.0.1:0`，作为一致性测试和本地开发的默认传输。
+- 只绑 `127.0.0.1`；用随机端口或一次性 token 准入，回环也不默认可信。
+- 它不引入新的 session 逻辑，只是 #6 bridge 的第一个 adapter 和测试底座。
+
+### 2.2 WebSocket 已有，HTTP 不是 link
+
+- 核心已有 `websocket::dial` / `websocket::listen`，`rutis-host/listen` 也用它；本 bridge 不重写 WebSocket。
+- 纯 HTTP 请求/响应没有双向长连接和消息边界，不作为 link；HTTP 只承载 WebSocket 升级或 gRPC。
+
 ## 3. 帧格式
 
 ```text
@@ -98,6 +109,7 @@ Rust 版本用 `Channel` + `Session::new`；TS/Python 用 `rutis/sessions`。
 
 ## 11. 测试
 
+- localhost TCP dial/listen 跑通，作为默认测试传输；只绑 127.0.0.1，有随机端口/一次性 token 准入。
 - 本地 TCP echo：单帧、空帧、连续帧、粘包/短读、16 MiB、16 MiB+1。
 - 顺序：1000 条小消息顺序不变。
 - 背压：慢接收方 + 快发送方，bridge 队列不超过上限，内存不涨。
@@ -113,6 +125,7 @@ Rust 版本用 `Channel` + `Session::new`；TS/Python 用 `rutis/sessions`。
 - 不做可靠 UDP/QUIC；那是 `link/quic`/P2P。
 - 不实现 frp/rathole/ngrok 服务端。
 - 不做压缩/加密/多路复用。
+- 不新写 WebSocket（核心已有）；纯 HTTP 请求/响应不是 link。
 - 不把 `link/tcp` 做成核心 trait。
 
 ## 13. 开放问题
