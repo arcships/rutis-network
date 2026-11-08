@@ -1,6 +1,8 @@
 # feat(link): `link/grpc` 云控制面 / relay / 分布式云
 
-状态：已发布为 [#7](https://github.com/arcships/rutis-network/issues/7)。优先级 P1（云业务）/ P2（其他）。依赖契约 issue。
+状态：已发布为 [#7](https://github.com/arcships/rutis-network/issues/7)。优先级 **P1（云业务）/ P2（其他）**。依赖契约 #1。设计稿：[docs/design/07-link-grpc.md](../../design/07-link-grpc.md)。
+
+版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。
 
 ## 问题
 
@@ -19,7 +21,7 @@ gRPC 不是 Tailscale/Cloudflare 那种“到达”方案，而是“到一个�
 1. 新增 `link/grpc` 参考实现（先 Go 或 Rust）：
    - 一条 gRPC bidi stream 对应一个 session；
    - 消息用 `bytes`（或 `google.protobuf.BytesValue`）承载；
-   - 每条连接/流一个 `sessions.open(far)`；
+   - 每条连接/流一个 `rutis/sessions.open(far)`；
    - mTLS / OAuth / JWT / API key 做链接层准入；不把身份传给 session；
    - 远端在 `Hello` 注册 id。
 2. 云端形态（文档 + 测试服务，不必先做产品）：
@@ -29,11 +31,13 @@ gRPC 不是 Tailscale/Cloudflare 那种“到达”方案，而是“到一个�
    - 多区域：最近区域、会话粘性、故障切换、数据驻留。
 3. 技术约束写清：
    - HTTP/2 中间层/负载均衡的超时、缓冲、最大流时长；
-   - 默认 gRPC 消息上限（一般 4 MiB）与 rutis 16 MiB 的差异；
+   - 默认 gRPC 消息上限（一般 4 MiB）与 rutis 16 MiB 的差异；需要调大或分片；
    - 长连接与 serverless scale-to-zero；
    - gRPC-Web 不支持 bidi；浏览器用 WebSocket/WebTransport；
-   - keepalive、重连、会话粘性。
+   - keepalive、重连、会话粘性；
+   - 0.21 异步 `send`：gRPC 写阻塞通过 async `send` 回压，不在 bridge 里无界排队。
 4. 文档：`docs/guide/link-plugins.md` 增加“云链接”一节；明确 gRPC 是云链接，不是设备链接。
+5. listen 侧：Rust 用 `Session::handshake` 才能同 id 顶替；非 Rust `open(far)` 不暴露 id，relay 端若要顶替需用 Rust 或写明限制。
 
 ## 非目标
 
@@ -44,15 +48,17 @@ gRPC 不是 Tailscale/Cloudflare 那种“到达”方案，而是“到一个�
 
 ## 验收
 
-- [ ] 本地 gRPC 测试服务：宿主 dial、bidi stream、`sessions.open`、远端插件 `<id>:<plugin>` 跑通。
+- [ ] 本地 gRPC 测试服务：宿主 dial、bidi stream、`open(far)`、远端插件 `<id>:<plugin>` 跑通。
 - [ ] mTLS 或 OAuth 准入失败时连接被拒；session 不感知。
 - [ ] 一条流断开 → session 卸载；重连在 link plugin；云 relay 能重新配对。
 - [ ] 16 MiB 消息在调大 gRPC 限制后跑通，或明确分片策略。
 - [ ] 文档写清云控制面/relay/云运行时/多区域四种场景和限制。
+- [ ] 文档写清优先级：只在云业务成立时 P1，否则 P2；不阻塞 #3–#6。
 - [ ] 测试不依赖真实云账号；`cargo test` / 语言测试 / 文档链接检查通过。
 
 ## 关联
 
+- 设计稿：[docs/design/07-link-grpc.md](../../design/07-link-grpc.md)
 - [链接层 link plugin 契约](01-link-plugin-contract.md)
 - [`link/tcp` 与反向隧道](06-link-tcp-and-reverse-tunnels.md)
 - [连接节点](https://github.com/arcships/rutis/blob/main/docs/guide/nodes.md)

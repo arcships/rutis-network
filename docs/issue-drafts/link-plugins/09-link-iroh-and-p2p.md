@@ -1,6 +1,8 @@
 # feat(link): `link/iroh` Rust P2P / relay 原型
 
-状态：已发布为 [#9](https://github.com/arcships/rutis-network/issues/9)。优先级 P3。依赖契约 issue。
+状态：已发布为 [#9](https://github.com/arcships/rutis-network/issues/9)。优先级 P3。依赖契约 #1。设计稿：[docs/design/09-link-iroh.md](../../design/09-link-iroh.md)。
+
+版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。
 
 ## 问题
 
@@ -14,7 +16,7 @@
    - `Endpoint` + `ALPN`；
    - 一条 QUIC 双向流对应一个 session；
    - 长度前缀 framing；
-   - `sessions.open(far)` / `Session::new(channel)`；
+   - `rutis/sessions.open(far)` / `Session::new(channel)`；
    - 准入用 endpoint 公钥/应用层 token；不把 iroh 身份传给 session；
    - 远端在 `Hello` 注册 id。
 2. 连接形态：
@@ -26,6 +28,8 @@
    - 写清 iroh 的成熟度、relay、NAT、移动端 FFI、依赖体积；
    - 明确“iroh 是 link transport，不是 session 层”。
 4. 可选：libp2p / WebRTC 的对比只写文档，不实现。
+5. 0.21 异步 `send`：QUIC 流写阻塞通过 async `send` 回压；不要在 bridge 里无界缓冲。
+6. listen 侧：Rust 用 `Session::handshake` 才能同 id 顶替；非 Rust `open(far)` 不暴露 id，原型需写明。
 
 ## 非目标
 
@@ -37,7 +41,7 @@
 ## 验收
 
 - [ ] 两个 iroh endpoint 在 local/relay 环境跑通一条 QUIC 流，消息边界/顺序正确。
-- [ ] `sessions.open` / `Session::new` 跑通，远端插件 `<id>:<plugin>` 出现。
+- [ ] `open(far)` / `Session::new` 跑通，远端插件 `<id>:<plugin>` 出现。
 - [ ] 断开/重连/session 卸载行为符合契约；重连在 link plugin。
 - [ ] 文档写清直连/relay、NAT、延迟/吞吐、移动端 FFI、依赖体积。
 - [ ] 至少一个手工 e2e 步骤；不依赖真实 n0 账号/生产 relay。
@@ -45,6 +49,7 @@
 
 ## 关联
 
+- 设计稿：[docs/design/09-link-iroh.md](../../design/09-link-iroh.md)
 - [链接层 link plugin 契约](01-link-plugin-contract.md)
 - [`link/tcp` 与反向隧道](06-link-tcp-and-reverse-tunnels.md)
 - [`link/grpc`](07-link-grpc-cloud.md)

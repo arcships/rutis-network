@@ -1,12 +1,14 @@
 # feat(link): `link/tailscale` 用 tailnet TCP 做链接层
 
-状态：已发布为 [#4](https://github.com/arcships/rutis-network/issues/4)。优先级 P1。依赖契约 issue。
+状态：已发布为 [#4](https://github.com/arcships/rutis-network/issues/4)。优先级 P1。依赖契约 #1 与 `link/tcp` #6。设计稿：[docs/design/04-link-tailscale.md](../../design/04-link-tailscale.md)。
+
+版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。
 
 ## 问题
 
 个人开发者/小团队最常见的跨网络场景是：笔记本、GPU 机器、home lab、手机，分布在不同的 NAT 后面。用户不想开公网端口，也不想自己管证书和 DNS。
 
-Tailscale 提供到达、MagicDNS、NAT 穿透和 ACL。它应该是一个 link plugin 的 adapter，不是 rutis 的 underlay：link plugin 用 tailnet TCP 建连接，做 framing，然后 `sessions.open(far)`。认证/准入由 tailnet ACL 负责；远端 id 仍由 session `Hello` 注册。
+Tailscale 提供到达、MagicDNS、NAT 穿透和 ACL。它应该是一个 link plugin 的 adapter，不是 rutis 的 underlay：link plugin 用 tailnet TCP 建连接，做 framing，然后 `rutis/sessions.open(far)`。认证/准入由 tailnet ACL 负责；远端 id 仍由 session `Hello` 注册。
 
 ## 范围
 
@@ -20,7 +22,9 @@ Tailscale 提供到达、MagicDNS、NAT 穿透和 ACL。它应该是一个 link 
    - `docs/guide/link-plugins.md` 增加 Tailscale 一节；
    - 写清 system / tsnet / sidecar 三种模式、ACL、MagicDNS、证书/DERP、重连；
    - 明确“Tailscale 不是 link 层，是 adapter”；不要写成“让现有 WebSocket 跑在 Tailscale 上”。
-5. 错误输出：Tailscale 未启动、DNS 不解析、ACL 拒绝、DERP 回退、证书/密钥过期，各写一条。
+5. 错误输出：Tailscale 未启动、DNS 不解析、ACL 拒绝、DERP 回退、证书/密钥过期，各写一条；按 code 匹配，不按 0.21 的文本匹配。
+6. listen 侧：Rust 用 `Session::handshake` 才能同 id 顶替；非 Rust 的 `open(far)` 不暴露 id，只能一条连接一个 session，文档写明。
+7. 0.21 异步 `send`：tailnet 写阻塞应通过 async `send` 回压，不要在 bridge 里无界缓冲。
 
 ## 非目标
 
@@ -32,16 +36,18 @@ Tailscale 提供到达、MagicDNS、NAT 穿透和 ACL。它应该是一个 link 
 
 ## 验收
 
-- [ ] system 模式：两台 tailnet 机器，一台 dial、一台 listen，跑通 `sessions.open(far)`；远端插件以 `<id>:<plugin>` 出现。
+- [ ] system 模式：两台 tailnet 机器，一台 dial、一台 listen，跑通 `rutis/sessions.open(far)`；远端插件以 `<id>:<plugin>` 出现。
 - [ ] tsnet 模式（Go）或 sidecar 模式至少一种跑通，证明不依赖系统 daemon。
 - [ ] ACL 拒绝时连接失败，错误清楚；session 不感知 Tailscale。
 - [ ] `tailscale status` 能区分 direct / relay；文档写明 DERP 回退的吞吐/延迟风险。
 - [ ] 断开/重连/session 卸载行为符合契约；不把重连逻辑放进 session。
+- [ ] listen 侧：Rust 同 id 顶替；非 Rust 示例写明“不顶替”的限制。
 - [ ] 文档示例可复制运行；测试不依赖真实 tailnet（unit fake + 手工 e2e 步骤）。
 - [ ] `cargo test` / 语言测试 / 文档链接检查通过。
 
 ## 关联
 
+- 设计稿：[docs/design/04-link-tailscale.md](../../design/04-link-tailscale.md)
 - [链接层 link plugin 契约](01-link-plugin-contract.md)
 - [`link/tcp` 与反向隧道](06-link-tcp-and-reverse-tunnels.md)
 - [`link/cloudflared`](05-link-cloudflared.md)

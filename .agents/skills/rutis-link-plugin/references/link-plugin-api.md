@@ -1,6 +1,6 @@
 # Link plugin API
 
-This file is the part of the rutis plugin API a link plugin needs. It is copied from the 0.19 API; the repository is authoritative.
+This file is the part of the rutis plugin API a link plugin needs, written against rutis **0.21.0** (2026-11-05): session protocol 4, `rutis.json` format 1, plugin API 3. The rutis repository is authoritative; check `docs/guide/plugin-api.md` ("Your own connection") and `crates/rutis-bridge/src/session/plugin/open.rs` when the host changes.
 
 ## The contract
 
@@ -41,25 +41,49 @@ let session = ctx.plugin(greeted);
 
 The host provides `LocalId` at the root context (`rutis-host` does this from `rutis.json`'s `id`). There is no default: a session without one fails with `the host provides no id for its sessions`.
 
-`Channel` is the 0.19 transport contract: sender, receiver, closer; ordered, reliable, keeps message boundaries. `pipe::framed(read, write, closer)` can frame a byte stream as newline-delimited messages (16 MiB limit, no raw newline in a message). For a new adapter, a length-prefixed framing is preferred.
+`Channel` is the 0.19 transport contract: sender, receiver, closer; ordered, reliable, keeps message boundaries. `pipe::framed(read, write, closer)` frames a byte stream as newline-delimited messages (16 MiB limit, no raw newline in a message). For a new adapter, length-prefixed framing is preferred.
 
 ## Any language
 
-The session plugin `rutis-bridge/session` provides the service `sessions`:
+The session plugin `rutis-bridge/session` provides the service `rutis/sessions`:
 
 ```ts
 type Close = { kind: 'done' } | { kind: 'replaced' } | { kind: 'rejected'; reason: string }
 interface Far  { send(message: Uint8Array): void; close(why: Close): void }
 interface Near { receive(message: Uint8Array): Promise<void>; end(why: Close): void }
 
-sessions.open(far: Far): Near
+open(far: Far): Near
 ```
 
-- Declare `sessions` in `inject`; without it, `open` fails with `declare sessions in inject`.
+```ts
+export default definePlugin({
+  name: 'relay',
+  inject: ['rutis/sessions'],
+  async apply(ctx, config) {
+    const connection = await connect(config) // admission, before any session
+    const near = ctx.use('rutis/sessions').open({
+      send: message => connection.send(message),
+      close: why => connection.close(why),
+    })
+    connection.onMessage(message => near.receive(message))
+    connection.onClose(() => near.end({ kind: 'done' }))
+    ctx.effect(() => () => connection.close({ kind: 'done' }))
+  },
+})
+```
+
+- The service is `rutis/sessions`, not `sessions` (0.19.3 renamed it). Declare it in `inject`; without it, `open` fails with `declare rutis/sessions in inject`. The old name is not kept, and `sessions` is left to the host's own services.
 - The session is mounted under the plugin that calls `open`: when that plugin unloads, its sessions and their remote plugins unload.
 - `receive` completes when the message is in the session's receive queue; the queue is 64 messages, and a full queue waits, carrying backpressure to the connection.
 - The far end's plugins here are called `<far id>:<plugin>`; to make the far end run a plugin, write a row `<connection row>:<plugin>` (for example `relay:contacts`). While the far end is absent, that row waits.
 - There is no `peer`, `token`, `credential` or `identity` parameter. Do not add one.
+- `open(far)` returns `Near` immediately and does not expose the far end's `Hello` id. Only Rust's `Session::handshake` gives `Greeted::id()` before mounting. A non-Rust listen bridge therefore cannot do same-id replacement as of 0.21.0; see "Listen-side replacement" below.
+
+## Callbacks and 0.21
+
+Since 0.21, a function handed over by reference is asynchronous by default: the session awaits `far.send`, so a bridge whose `send` returns a Promise applies transport backpressure instead of buffering. Inside a synchronous call it still returns the value itself. `near.receive` is likewise awaited; do not drop its Promise without handling it.
+
+`far.close` is called once, when the session closes the channel. Keep it idempotent: the adapter may also close the connection from its own side.
 
 ## Close semantics
 
@@ -78,8 +102,34 @@ Rust `Channel` has `Close::Done`, `Close::Replaced`, `Close::Rejected(reason)`; 
 - One channel = one session. A listen side opens one session per accepted connection.
 - `Channel` closes → session unloads; session unloads → channel closes. Do not create a second lifecycle.
 - Reconnect/backoff belongs to the link plugin. The session never reconnects.
-- `rutis-host/listen` uses the far end's `Hello` id for replacement: a newer connection with the same id unloads the old session's remote plugins, closes the old connection with 4002, then mounts the new session.
+- Since 0.20, unloading runs one reverse stack, one entry at a time: register the adapter cleanup once (in `apply`, `ctx.effect`, or the cleanup `apply` returns); a cleanup cannot register another cleanup or wait for another one.
+- Since 0.20, a session sends on its own writer thread. `rutis/sessions.open(far)` leaves the outbound backlog unbounded (`SessionOptions::outbound_limit` is a host option), so the link plugin must bound its own queue; a blocked `far.send` holds that session's writer, not the process.
+- `rutis-host/listen` uses the far end's `Hello` id for replacement: a newer connection with the same id unloads the old session's remote plugins, closes the old connection with 4002, then mounts the new session. This is Rust-only today; the session core keeps no ids and replaces nothing.
 - A handshake failure on a listen side does not print; the dialer writes the reason.
+
+## Listen-side replacement
+
+Replacement needs the far end's `Hello` id **after** the handshake and **before** mounting.
+
+- Rust: `Session::handshake` → `Greeted::id()` → unload the old session → `ctx.plugin(greeted)`.
+- Other languages: `open(far)` returns `{ receive, end }`; there is no id. Parsing the session `Hello` in the bridge is forbidden (the bridge is transport, not a second session layer). Do not substitute the adapter's admission identity (SSH user, tailnet node, token): the contract's id is the far end's registration.
+
+Until rutis exposes the id to `open`, use one of these:
+
+1. implement the listener in Rust (`Session::handshake`), or
+2. accept one session per connection and document that two connections from the same far id coexist.
+
+## Errors
+
+Match codes, not text: 0.21 changed almost every sentence. `error.code` and the keys of `error.data` are the contract.
+
+| Code | Meaning for a link plugin |
+| --- | --- |
+| `not-declared` | `rutis/sessions` is missing from `inject` (`data.service`) |
+| `bad-argument` / `bad-value` | `open(far)` got something other than `{ send, close }`; `bad-value` carries `data.reason` (`non-finite`, `cycle`, `too-deep`, `type`, `tag`, `limit`) |
+| `bad-result` | a result did not decode (`data.service`, `data.method`, `data.expected`) |
+| `unavailable` | a declared service is not leased in |
+| `timeout` / `not-running` / `no-service` | test-tool failures, not link-layer errors |
 
 ## What not to put in the session
 
@@ -87,6 +137,7 @@ Rust `Channel` has `Close::Done`, `Close::Replaced`, `Close::Rejected(reason)`; 
 - a `peer` / `expected_id` parameter;
 - a transport type check or a vendor name;
 - reconnect/backoff;
-- framing/encoding of the transport.
+- framing/encoding of the transport;
+- a parse of the session `Hello` or any other session frame.
 
 If you need any of these in the session, the boundary is wrong: put it in the link plugin.

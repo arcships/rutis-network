@@ -1,18 +1,20 @@
 # feat(link): `link/cloudflared` 用 Cloudflare Tunnel 做链接层
 
-状态：已发布为 [#5](https://github.com/arcships/rutis-network/issues/5)。优先级 P1。依赖契约 issue 与 `link/tcp`。
+状态：已发布为 [#5](https://github.com/arcships/rutis-network/issues/5)。优先级 P1。依赖契约 #1 与 `link/tcp` #6。设计稿：[docs/design/05-link-cloudflared.md](../../design/05-link-cloudflared.md)。
+
+版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。
 
 ## 问题
 
 很多场景不能在拨号侧装 VPN 客户端：手机、浏览器、临时机器、第三方。监听侧又常在 NAT 后，不能开公网端口。Cloudflare Tunnel 的“监听侧出站、拨号侧普通 HTTPS/WSS”正好覆盖这个场景。
 
-它应该是 link plugin 的 adapter：Cloudflare 负责到达（和可选的 Access 准入），link plugin 做 framing 和 `sessions.open(far)`；rutis 不需要知道 Cloudflare，也不需要 token 之外的第二层认证。
+它应该是 link plugin 的 adapter：Cloudflare 负责到达（和可选的 Access 准入），link plugin 做 framing 和 `rutis/sessions.open(far)`；rutis 不需要知道 Cloudflare，也不需要 token 之外的第二层认证。
 
 ## 范围
 
 1. 新增 `link/cloudflared` 参考实现，先做 **access 模式**：
    - 拨号侧跑 `cloudflared access tcp --hostname <host> --url 127.0.0.1:<port>`；
-   - link plugin 连本地回环 TCP，走通用 `link/tcp` bridge；
+   - link plugin 连本地回环 TCP，走通用 `link/tcp` bridge（#6）；
    - 准入由 Cloudflare Access 服务令牌/身份负责；不把 Access 身份传给 session。
 2. 再做 **public 模式**（可选）：
    - 监听侧跑 `cloudflared tunnel`；
@@ -21,10 +23,12 @@
    - 明确公开入口的风险。
 3. 文档：
    - `docs/guide/link-plugins.md` 增加 Cloudflare 一节；
-   - 写清 access / public / WARP 三种形态、Access 服务令牌、长连接限制、错误输出；
+   - 写清 access / public / WARP 三种形态、Access 服务令牌、长连接限制、错误输出（按 code）；
    - 明确“Cloudflare 是反向隧道，不是 mesh；不是 P2P”。
-4. 错误输出：`cloudflared` 未启动、Access 拒绝、隧道断开、WebSocket/HTTP2 代理超时、公开入口配置错误，各写一条。
-5. 验收测试用本地 fake tunnel / 本地 `cloudflared access` 能覆盖的部分，不依赖真实 Cloudflare 账号。
+4. 错误输出：`cloudflared` 未启动、Access 拒绝、隧道断开、WebSocket/HTTP2 代理超时、公开入口配置错误，各写一条；0.21 的文本不稳定，按 `code` 和 `data` 匹配。
+5. 0.21 异步 `send`：WebSocket / `cloudflared` 的写阻塞通过 async `send` 回压；不要在 bridge 里无界排队。
+6. listen 侧：Rust 用 `Session::handshake` 才能同 id 顶替；非 Rust `open(far)` 不暴露 id，文档写明只能一条连接一个 session。
+7. 验收测试用本地 fake tunnel / 本地 `cloudflared access` 能覆盖的部分，不依赖真实 Cloudflare 账号。
 
 ## 非目标
 
@@ -40,11 +44,13 @@
 - [ ] public 模式：`wss://` 连上并跑通；Access 拒绝时错误清楚。
 - [ ] 长连接断开/重连/session 卸载行为符合契约；重连在 link plugin。
 - [ ] 文档写明公开入口的安全边界（token/Access、不要裸露 rutis）。
+- [ ] listen 侧：Rust 同 id 顶替；非 Rust 示例写明“不顶替”的限制。
 - [ ] 至少一个 Linux/macOS 手工 e2e 步骤；不依赖 CI 里的 Cloudflare 账号。
 - [ ] `cargo test` / 语言测试 / 文档链接检查通过。
 
 ## 关联
 
+- 设计稿：[docs/design/05-link-cloudflared.md](../../design/05-link-cloudflared.md)
 - [链接层 link plugin 契约](01-link-plugin-contract.md)
 - [`link/tcp` 与反向隧道](06-link-tcp-and-reverse-tunnels.md)
 - [`link/tailscale`](04-link-tailscale.md)

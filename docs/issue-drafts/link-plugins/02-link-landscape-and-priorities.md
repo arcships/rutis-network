@@ -1,6 +1,8 @@
 # research(link): 跨网络 link 方案全景、场景与优先级
 
-状态：已发布为 [#2](https://github.com/arcships/rutis-network/issues/2)。优先级 P0。依赖契约 issue。
+状态：已发布为 [#2](https://github.com/arcships/rutis-network/issues/2)。优先级 P0。依赖契约 issue #1。设计稿：[docs/design/02-link-landscape.md](../../design/02-link-landscape.md)。
+
+版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。
 
 ## 问题
 
@@ -15,7 +17,7 @@
 
 ## 范围
 
-1. 在 `docs/guide/link-plugins.md` 增加“方案全景与场景”一节（或单独 `docs/research-link-landscape.md`），至少覆盖：
+1. 写 `docs/research-link-landscape.md`（`.en.md` 同步；或作为 `docs/guide/link-plugins.md` 的“方案全景与场景”一节），至少覆盖：
    - 直连流：SSH、TCP、WebSocket、QUIC、WebTransport、gRPC、WebRTC data channel、ADB、usbmuxd、pipe/Unix。
    - 覆盖网络：Tailscale/Headscale、ZeroTier、Nebula、NetBird、WireGuard、EasyTier、OpenZiti、Twingate、Netmaker、Innernet、Firezone、Yggdrasil、n2n、tinc、Cloudflare WARP。
    - 反向隧道：Cloudflare Tunnel、ngrok、frp、rathole、SSH `-R`、bore、chisel、sish、zrok、Pangolin、Azure Relay、Tailscale Funnel。
@@ -28,7 +30,16 @@
    - 个人 GPU/远程机器、手机/设备 App、home lab/自建、团队/企业、demo/教程、中国/VPS、部署平台、分布式云、远控、IoT。
 3. 优先级：T1（SSH、Tailscale、Cloudflare Tunnel）、T2（frp/rathole、K8s/Docker/Fly.io/Railway、Headscale/NetBird、gRPC）、T3（iroh/WebRTC、MQTT/NATS、企业零信任、远控）。
 4. 业务/宣发/厂商/生态四个维度各写一段：为什么这个顺序，不做什么，什么条件下重排。
-5. 不写实现；只产出可评审的分析和后续 issue 拆分建议。
+5. 不写实现；只产出可评审的分析，并校验已有的 #3–#9 是否与优先级一致。
+
+## 关键问题（必须回答）
+
+- **link 与 app 的边界**：RDP/VNC/SPICE 是应用协议；ADB/usbmuxd 是 link；gRPC 是云链接，不是设备链接；MQTT/NATS 是消息总线，不是连接语义。
+- **TCP 类 adapter 的地基**：SSH forward、Tailscale、Cloudflare access、ADB、usbmuxd、frp/rathole 最终都给本地/公网 TCP，统一落在 #6 的 bridge 上。没有 #6，这些 adapter 会各写一遍 framing。
+- **不能做 VPN 的场景**：手机、浏览器、临时机器、第三方。Cloudflare Tunnel / WebRTC / iroh 覆盖这些场景，但代价是公开入口或 relay。
+- **中国/VPS**：Tailscale 的控制面和 DERP 可能不可用；frp/rathole/SSH `-R` 是现实选项。
+- **0.21 的能力边界**：非 Rust 的 listen 顶替做不了（`open` 不暴露远端 id）；需要顶替的监听侧先用 Rust。
+- **不承诺生产**：iroh 仍是原型；Cloudflare 公开入口有安全边界；gRPC 受 HTTP/2 中间层限制。
 
 ## 验收
 
@@ -36,11 +47,15 @@
 - [ ] 每个场景有“用户怎么用”的具体步骤，不只写技术特性。
 - [ ] T1/T2/T3 的理由能对应到场景和业务/宣发/合作/生态，而不是“协议流行度”。
 - [ ] 明确写出“远控协议大多不是 link”“gRPC 是云链接不是设备链接”“消息总线不是连接语义”。
-- [ ] 分析结论能反推出 3–5 个后续 issue，并与本目录的 issue 列表一致。
+- [ ] 分析结论能校验已有的 #3–#9：每个 issue 的优先级、依赖、拆分是否仍然成立；需要改的写进结论，不新开重复 issue。
+- [ ] 结论与 `docs/issue-drafts/link-plugins/README.md` 的表格一致（#6 为 P0 地基；#7 仅在云业务时 P1）。
 - [ ] 文档链接检查通过。
 
 ## 关联
 
+- 设计稿：[docs/design/02-link-landscape.md](../../design/02-link-landscape.md)
 - [链接层 link plugin 契约](01-link-plugin-contract.md)
 - [远程连接：只留一个会话插件](https://github.com/arcships/rutis/blob/main/docs/design-remote-session-2026-10-28.md)
 - [连接节点](https://github.com/arcships/rutis/blob/main/docs/guide/nodes.md)
+- [0.19.3 发布说明（服务改名）](https://github.com/arcships/rutis/blob/main/docs/releases/0.19.3.md)
+- [0.21 迁移（异步回调、错误 code）](https://github.com/arcships/rutis/blob/main/docs/migration-0.21.md)

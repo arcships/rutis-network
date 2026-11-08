@@ -1,6 +1,8 @@
 # feat(link): 移动设备链路与远控服务（ADB/usbmuxd/WebRTC + screen/input）
 
-状态：已发布为 [#8](https://github.com/arcships/rutis-network/issues/8)。优先级 P2。依赖契约 issue 与 `link/tcp`。
+状态：已发布为 [#8](https://github.com/arcships/rutis-network/issues/8)。优先级 P2。依赖契约 #1 与 `link/tcp` #6。设计稿：[docs/design/08-mobile.md](../../design/08-mobile.md)。
+
+版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。
 
 ## 问题
 
@@ -12,6 +14,10 @@
 现在没有这两层的清晰边界，容易把 RDP/VNC 当 link，或者把 ADB 只当调试工具。
 
 ## 范围
+
+本 issue 分两层，实现和验收分开：
+
+### 8a 设备链路（link）
 
 1. `link/adb`（Android）：
    - `adb forward tcp:<port> tcp:<port>` / `adb reverse` 给本地 TCP；
@@ -26,11 +32,16 @@
 3. `link/webrtc`（可选，先原型）：
    - WebRTC data channel 作为通用消息通道；
    - signaling 由已有的 SSH/Tailscale/Cloudflare/gRPC 提供；
-   - STUN/TURN、DTLS 身份、浏览器/移动端限制写清。
-4. 远控服务（应用层，不是 link）：
-   - 定义 `screen` / `input` / `audio` / `clipboard` 服务的形状（可以先最小 `screen` + `input`）；
-   - 远控 plugin 可以用 RDP/VNC/SPICE/RustDesk/scrcpy/WebRTC 实现；
-   - 其他插件通过服务使用远控，不直接依赖协议。
+   - STUN/TURN、DTLS 身份、浏览器/移动端限制写清；
+   - 0.21 异步 `send`：data channel 的写阻塞通过 async `send` 回压。
+4. listen 侧：Rust 用 `Session::handshake` 才能同 id 顶替；非 Rust `open(far)` 不暴露 id，移动端如果多连接需写明限制。
+
+### 8b 远控服务（应用层，不是 link）
+
+1. 定义 `screen` / `input` / `audio` / `clipboard` 服务的形状（先最小 `screen` + `input`）；
+2. 远控 plugin 可以用 RDP/VNC/SPICE/RustDesk/scrcpy/WebRTC 实现；
+3. 其他插件通过服务使用远控，不直接依赖协议；
+4. 服务走 rutis 的服务/事件，不塞进 link layer；`screen` / `input` 的权限、错误和背压单独定义；
 5. 文档：`docs/guide/link-plugins.md` 增加“移动设备链路”和“远控是应用服务”两节；明确 RDP/VNC 大多数不是 link。
 
 ## 非目标
@@ -39,19 +50,34 @@
 - 不重新实现 RDP/VNC 编解码；集成现成实现。
 - 不先做完整远控产品；先做服务契约和最小实现。
 - 不把 ADB/WebRTC 身份映射成 session identity。
+- 不把 screen/input 塞进 `rutis/sessions.open`。
 
 ## 验收
+
+### 8a
 
 - [ ] Android：`adb forward` + `link/tcp` 跑通 session；设备上的插件以 `<id>:<plugin>` 出现。
 - [ ] iOS：`iproxy` + `link/tcp` 跑通（有 macOS/Xcode 环境时）；文档写清限制。
 - [ ] WebRTC data channel 至少一个 loopback 原型跑通；signaling/TURN 写清。
+- [ ] 断开/重连/session 卸载符合契约；重连在 link plugin。
+- [ ] listen 侧：Rust 同 id 顶替；非 Rust 写明限制。
+
+### 8b
+
 - [ ] `screen` / `input` 服务最小实现：跨设备调用、权限/错误清楚；不依赖 link 层。
+- [ ] RDP/VNC 只作为应用协议集成，不作为 link；文档明确边界。
+- [ ] 服务契约有背压和生命周期；session 断开时服务正确卸载。
+
+### 共同
+
 - [ ] 文档明确“RDP/VNC 是应用协议，不是 link”；RDP DVC 只作为例外提一句。
 - [ ] `cargo test` / 语言测试 / 文档链接检查通过。
 
 ## 关联
 
+- 设计稿：[docs/design/08-mobile.md](../../design/08-mobile.md)
 - [链接层 link plugin 契约](01-link-plugin-contract.md)
 - [`link/tcp` 与反向隧道](06-link-tcp-and-reverse-tunnels.md)
 - [`link/iroh` 与 P2P](09-link-iroh-and-p2p.md)
 - [Android 应用托管](https://github.com/arcships/rutis/blob/main/docs/design-android-runtime-2026-10-12.md)
+- [0.21 迁移（异步回调）](https://github.com/arcships/rutis/blob/main/docs/migration-0.21.md)

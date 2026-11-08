@@ -1,6 +1,6 @@
 # Link plugin scenarios and candidates
 
-Use this to choose an adapter, not to decide that every adapter must be built. The user's scenario decides the priority.
+Baseline: rutis 0.21.0. Use this to choose an adapter, not to decide that every adapter must be built. The user's scenario decides the priority.
 
 ## Scenario → adapter
 
