@@ -1,7 +1,7 @@
 # 跨网络 link 方案全景、场景与优先级：设计稿
 
 状态：草案。日期：2026-11-08。基线：rutis 0.21.0。
-关联 issue：[#2](https://github.com/arcships/rutis-network/issues/2)。
+关联 issue：[#2](https://github.com/arcships/rutis-network/issues/2)。依赖：[#1](https://github.com/arcships/rutis-network/issues/1)。
 
 ## 1. 目的
 
@@ -38,6 +38,14 @@
 | 浏览器 | 网页用本地设备的插件 | WebRTC / WebTransport / WebSocket | signaling、TURN、权限 |
 | 本地 / 离线 | 同机/同进程 | pipe / memory / Unix socket | 无 |
 
+注：WebSocket 的核心已有 `websocket::dial` / `websocket::listen`，`rutis-host/listen` 也在用；不新写 `link/websocket`。第一波的参考 adapter 是 localhost TCP（#6），不是新协议。纯 HTTP 请求/响应不是 link。
+
+### 3.1 两个具体步骤
+
+**个人 GPU**：1) GPU 机器装 rutis 运行时；2) 笔记本写 `link/ssh` row，host/user/key 指向 GPU 机器；3) 写 `<link row>:embedder` 让对面跑插件；4) 笔记本业务插件 `use` 对面服务；5) SSH 断了 link 自己退避重连。
+
+**手机/设备**：1) 设备装 rutis 运行时/应用；2) 监听侧用 `cloudflared tunnel` 或 Tailscale 暴露一个 TCP/WSS 端点；3) 设备侧 `link/cloudflared`/`link/tailscale` row 连入；4) 业务插件按服务名使用设备插件；5) 公网入口加 Access 或 token。
+
 ## 4. 优先级
 
 #6 的 `link/tcp` bridge 是 **P0 地基**：SSH forward、Tailscale、Cloudflare access、ADB、usbmuxd、frp/rathole 最终都给 TCP。没有它，这些 adapter 会各写一遍 framing。
@@ -48,6 +56,22 @@
 | P1 | #3 SSH、#4 Tailscale、#5 Cloudflare Tunnel；#7 gRPC（仅云业务） | 覆盖“已有 SSH”“私有网络/NAT/ACL”“不能装客户端/公开入口”三类主场景；云业务才把 gRPC 提前 |
 | P2 | #7 gRPC（非云业务）、#8 移动设备链路、#10 生态 | 取决于是否有云业务/设备场景；生态要等 T1 成型 |
 | P3 | #8b 远控服务、#9 iroh、消息总线、企业零信任 | 应用层或早期技术；不阻塞 T1 |
+
+### 4.1 T 层与 P 层的映射
+
+issue #2/#10 用 T1/T2/T3，README 和本设计用 P0–P3；两者是同一顺序的两种刻度：
+
+- **T1 = P1**：主场景必须做（SSH、Tailscale、Cloudflare Tunnel）。
+- **T2 = P2**：有明确场景但依赖额外条件（frp/rathole、Headscale/NetBird、K8s/Fly.io；gRPC 仅在云业务时提到 P1）。
+- **T3 = P3**：早期或应用层（iroh/WebRTC、MQTT/NATS、企业零信任、远控）。
+- **P0** 不是 T 层：它是契约 + TCP bridge 的地基，先于 T1。
+
+### 4.2 四个维度
+
+- **业务**：T1 覆盖“已有 SSH”“私有网络/NAT/ACL”“不能装客户端/公开入口”三类最常见使用；长尾协议不先做。
+- **宣发**：SSH/Tailscale/Cloudflare 用户已有认知，demo 和教程最容易讲清；iroh/WebRTC 是技术品牌项，后置。
+- **厂商**：Tailscale/Cloudflare 是商业产品，适配不等于绑定；企业零信任（OpenZiti/Twingate 等）销售周期长，后置。
+- **生态**：先有契约、TCP bridge 和模板，第三方才愿意写 adapter；先把 T1 做成可复制示例，再扩目录。
 
 ## 5. 每个候选的“给什么 / 怎么接”
 

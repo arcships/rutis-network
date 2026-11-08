@@ -1,7 +1,7 @@
 # Cross-network link landscape, scenarios and priorities: design
 
 Status: draft. Date: 2026-11-08. Baseline: rutis 0.21.0.
-Issue: [#2](https://github.com/arcships/rutis-network/issues/2).
+Issue: [#2](https://github.com/arcships/rutis-network/issues/2). Depends on [#1](https://github.com/arcships/rutis-network/issues/1).
 
 ## 1. Purpose
 
@@ -38,6 +38,14 @@ Decide what to build first, not list protocols. The scenario decides: where the 
 | Browser | web page uses a local device's plugins | WebRTC / WebTransport / WebSocket | signaling, TURN, permissions |
 | Local / offline | same machine/process | pipe / memory / Unix socket | none |
 
+Note: WebSocket is already in the core (`websocket::dial` / `websocket::listen`, used by `rutis-host/listen`); do not add `link/websocket`. The first reference adapter is localhost TCP (#6), not a new protocol. Plain HTTP request/response is not a link.
+
+### 3.1 Two concrete paths
+
+**Personal GPU**: 1) install a rutis runtime on the GPU box; 2) add a `link/ssh` row on the laptop with host/user/key; 3) add `<link row>:embedder` so the far end runs the plugin; 4) the laptop business plugin `use`s the far service; 5) when SSH drops, the link reconnects with backoff.
+
+**Phone/device**: 1) install a rutis runtime/app on the device; 2) expose a TCP/WSS endpoint with `cloudflared tunnel` or Tailscale; 3) add a `link/cloudflared`/`link/tailscale` row on the device; 4) business plugins use the device plugins by service name; 5) put Access or a token in front of public ingress.
+
 ## 4. Priorities
 
 #6's `link/tcp` bridge is the **P0 foundation**: SSH forward, Tailscale, Cloudflare access, ADB, usbmuxd and frp/rathole all end in TCP. Without it each adapter writes framing again.
@@ -48,6 +56,22 @@ Decide what to build first, not list protocols. The scenario decides: where the 
 | P1 | #3 SSH, #4 Tailscale, #5 Cloudflare Tunnel; #7 gRPC (cloud business only) | Cover "I already have SSH", "private network/NAT/ACL", "no client install/public ingress"; cloud business moves gRPC earlier |
 | P2 | #7 gRPC (not cloud business), #8 mobile links, #10 ecosystem | Depends on a cloud/device business; ecosystem waits for T1 |
 | P3 | #8b remote-control services, #9 iroh, message buses, enterprise zero-trust | Application layer or early technology; does not block T1 |
+
+### 4.1 T tiers and P tiers
+
+Issues #2/#10 use T1/T2/T3; the README and this design use P0–P3. They are the same order in two scales:
+
+- **T1 = P1**: must-have main scenarios (SSH, Tailscale, Cloudflare Tunnel).
+- **T2 = P2**: clear scenarios with extra conditions (frp/rathole, Headscale/NetBird, K8s/Fly.io; gRPC moves to P1 only for cloud business).
+- **T3 = P3**: early or application layer (iroh/WebRTC, MQTT/NATS, enterprise zero-trust, remote control).
+- **P0** is not a T tier: it is the contract + TCP bridge foundation, before T1.
+
+### 4.2 Four dimensions
+
+- **Business**: T1 covers "I already have SSH", "private network/NAT/ACL", "no client install/public ingress"; long-tail protocols wait.
+- **Promotion**: SSH/Tailscale/Cloudflare are already understood, so demos and tutorials are easiest; iroh/WebRTC are brand/technology items and come later.
+- **Vendors**: Tailscale/Cloudflare are commercial products; adapting them is not depending on them. Enterprise zero-trust (OpenZiti/Twingate etc.) has a long sales cycle and comes later.
+- **Ecosystem**: the contract, TCP bridge and templates come first; third parties write adapters after T1 has copy-paste examples.
 
 ## 5. What each candidate gives
 
