@@ -18,7 +18,7 @@ Endpoint A ── QUIC (ALPN rutis/link/1) ── Endpoint B
 
 - `Endpoint` + `ALPN`；拨号方知道对方的 `NodeId`/ticket。
 - 一条 QUIC 双向流对应一个 session；不要在一个流里多路复用多个 session。
-- 准入：endpoint 公钥 + 应用层 token（可选）；不把 iroh `NodeId` 传给 session。
+- 准入：拨号侧校验配置的期望 `NodeId`；监听侧维护 NodeId allowlist，没有 allowlist 时必须强制应用 token；两者都在 `Session::new` / `open` 之前完成。不把 iroh `NodeId` 传给 session，日志不输出 token。
 - 远端在 `Hello` 注册 id；`NodeId` 不是 session id。
 
 ## 3. 帧格式
@@ -42,13 +42,14 @@ Endpoint A ── QUIC (ALPN rutis/link/1) ── Endpoint B
 ## 5. 生命周期与重连
 
 - 流/连接关闭 → `near.end`；session 卸载 → 关闭流/连接。
-- 重连在 link/iroh：指数退避（0.5s → 30s）；endpoint 认证失败不重试；relay 不可用按退避。
+- 重连在 link/iroh：指数退避（0.5s → 30s）；认证/权限拒绝每 30s 再试；relay 不可用按退避；连接满 60s 重置退避。
 - 0.20 卸载顺序：endpoint/连接清理只注册一次；不在 cleanup 里注册/等待 cleanup。
 - 0.21 异步 `send`：写阻塞回压。
 
 ## 6. listen 侧
 
 - Rust 用 `Session::handshake` 才能同 id 顶替；非 Rust `open(far)` 不暴露 id，`session_key(row)` 先到先得，所以非 Rust 监听不支持同 id 顶替，必须用 Rust（O1）。不要写“并存”。
+- 非 Rust 在 O1（握手结果 API）落地前拿不到握手的结构化错误，无法可靠区分认证拒绝/协议不兼容；不要把 iroh 连接错误当握手结果，只能按传输错误退避并记为限制。
 - 不解析 `Hello`；不拿 `NodeId` 代替 id。
 
 ## 7. 成熟度与依赖
@@ -64,7 +65,7 @@ Endpoint A ── QUIC (ALPN rutis/link/1) ── Endpoint B
 | 对方不在线/NodeId 不解析 | 报 id 和 DNS/发现错误 |
 | 打洞失败 | 记录并回退 relay（如果配置允许） |
 | relay 不可用 | 报 relay 地址；退避 |
-| 认证失败 | 报 endpoint 公钥/ token；不重试 |
+| 认证/授权失败 | 报结构化原因 + endpoint 公钥指纹；不输出 token；每 30s 再试 |
 | 流超时/重置 | `near.end`；重连 |
 | 帧超长 | 关闭，报 16 MiB |
 
@@ -73,6 +74,7 @@ Endpoint A ── QUIC (ALPN rutis/link/1) ── Endpoint B
 - 两个本地 endpoint：一条 QUIC 流、边界/顺序/16 MiB/close/背压。
 - 直连与 relay 各跑一次；日志能区分。
 - 断线重连/退避；session 卸载关闭流。
+- 准入：未授权 NodeId / 缺少或错误 token 被拒绝，不创建 session；日志不含 token。
 - 不依赖 n0 生产账号/公共 relay；用本地/自建测试 relay。
 - benchmark：延迟/吞吐/成功率（直连 vs relay）。
 - 至少一个手工 e2e 步骤。

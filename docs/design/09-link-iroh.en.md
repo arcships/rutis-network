@@ -18,7 +18,7 @@ Endpoint A ── QUIC (ALPN rutis/link/1) ── Endpoint B
 
 - `Endpoint` + `ALPN`; the dialer knows the peer's `NodeId`/ticket.
 - One QUIC bidirectional stream per session; do not multiplex several sessions on one stream.
-- Admission: endpoint public key + optional application token; do not pass the iroh `NodeId` to the session.
+- Admission: verify the configured expected `NodeId` on dial; keep a NodeId allowlist on listen, and require an application token when there is no allowlist; both before `Session::new` / `open`. Do not pass the iroh `NodeId` to the session; never log the token.
 - The far end registers its id in `Hello`; `NodeId` is not the session id.
 
 ## 3. Framing
@@ -42,13 +42,14 @@ Logs must show direct vs relay; document relay privacy/cost.
 ## 5. Lifecycle and reconnect
 
 - Stream/connection closes → `near.end`; session unloads → close stream/connection.
-- Reconnect lives in link/iroh: exponential backoff (0.5 s → 30 s); no retry on endpoint auth failure; relay unavailability backs off.
+- Reconnect lives in link/iroh: exponential backoff (0.5 s → 30 s); auth/permission rejection retries every 30 s; relay unavailability backs off; the backoff resets after 60 s connected.
 - 0.20 unload order: register endpoint/connection cleanup once; do not register or wait for another cleanup.
 - 0.21 async `send`: write blocking applies backpressure.
 
 ## 6. Listen side
 
 - Rust uses `Session::handshake` for same-id replacement; non-Rust `open(far)` does not expose the id, and `session_key(row)` is first-wins, so non-Rust listeners do not support same-id replacement and must be Rust (O1). Do not write "coexist".
+- Non-Rust also cannot get structured handshake errors before O1 (handshake result API), so it cannot reliably tell an auth rejection from a protocol mismatch; do not treat an iroh connection error as a handshake result, fall back to transport backoff and record the limitation.
 - Do not parse `Hello`; do not substitute `NodeId` for the id.
 
 ## 7. Maturity and dependencies
@@ -64,7 +65,7 @@ Logs must show direct vs relay; document relay privacy/cost.
 | Peer offline / NodeId does not resolve | Report the id and discovery/DNS error |
 | Hole punching fails | Record it and fall back to relay if configured |
 | Relay unavailable | Report the relay address; back off |
-| Auth failure | Report endpoint key/token; do not retry |
+| Auth/authorization failure | Report a structured reason + endpoint public-key fingerprint; never the token; retry every 30 s |
 | Stream timeout/reset | `near.end`; reconnect |
 | Frame over limit | Close; report 16 MiB |
 
@@ -73,6 +74,7 @@ Logs must show direct vs relay; document relay privacy/cost.
 - Two local endpoints: one QUIC stream, boundaries/order/16 MiB/close/backpressure.
 - Direct and relay each once; logs distinguish them.
 - Disconnect/reconnect/backoff; session unload closes the stream.
+- Admission: an unauthorized NodeId / missing or wrong token is rejected and creates no session; logs contain no token.
 - No n0 production account/public relay; use a local/self-hosted test relay.
 - Benchmarks: latency/throughput/success rate (direct vs relay).
 - At least one manual e2e step.
