@@ -61,7 +61,7 @@ stdio 是字节流，必须 framing，规则由远端命令决定：
 ## 5. 生命周期与重连
 
 - SSH 进程退出 / channel 关闭 → `near.end`；session 卸载 → 关闭 SSH 进程/channel。
-- 重连在 link/ssh：默认指数退避（0.5s → 30s），认证失败不重试（与 rutis 的 dial 规则一致），协议不兼容停止。
+- 重连在 link/ssh：默认指数退避（0.5s → 30s），认证被拒每 30s 再试，协议不兼容停止；连接满 60s 后重置退避。
 - 0.20 卸载顺序：SSH 子进程的 kill/wait 只注册一次，不在 cleanup 里注册/等待另一个 cleanup。
 - 0.21 异步 `send`：SSH stdin 写阻塞用 async `send` 回压；不要在 bridge 里无界排队。
 - 子进程退出要 wait，避免僵尸；`ssh` 进程的输出（stderr）要能出现在 link plugin 的错误里，但不要混进 session 字节流。
@@ -70,6 +70,7 @@ stdio 是字节流，必须 framing，规则由远端命令决定：
 
 - Rust 用 `Session::handshake` → `Greeted::id()` 才能同 id 顶替。
 - 非 Rust 的 `open(far)` 不暴露远端 id，`session_key(row)` 先到先得，所以非 Rust 监听不支持同 id 顶替，必须用 Rust（O1）。不要写“并存”。
+- 非 Rust 在 O1（握手结果 API）落地前也拿不到握手的结构化错误，无法可靠区分认证拒绝/协议不兼容；不要把 adapter 关闭原因当握手结果，只能按传输错误退避并记为限制。
 - 不解析 session `Hello`；不拿 SSH 用户/主机名代替 id。
 
 ## 7. 错误
@@ -98,7 +99,7 @@ stdio 是字节流，必须 framing，规则由远端命令决定：
 - 远端不问候：10 秒 session 握手超时并结束进程；`Process::mount` 的 30 秒只用于本端 spawn。
 - 认证失败：不创建 session。
 - `ssh -L` / `-R` + `link/tcp`：同一套 session 跑通。
-- 断线重连：退避、认证失败不重试、协议不兼容停止。
+- 断线重连：退避、认证被拒每 30s 再试、协议不兼容停止；连接满 60s 重置退避。
 - 平台矩阵：Linux + macOS 必跑；Windows OpenSSH 手工或 CI（如果可用），记录信号/进程行为差异。
 - 不依赖公网 SSH 服务。
 

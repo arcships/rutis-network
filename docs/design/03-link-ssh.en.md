@@ -61,7 +61,7 @@ stdio is a byte stream, so frame it; the remote command decides the rule:
 ## 5. Lifecycle and reconnect
 
 - SSH process exits / channel closes → `near.end`; session unloads → close the SSH process/channel.
-- Reconnect lives in link/ssh: exponential backoff (0.5 s → 30 s); an authentication failure is not retried (matching rutis dial rules); a protocol mismatch stops.
+- Reconnect lives in link/ssh: exponential backoff (0.5 s → 30 s); an auth rejection retries every 30 s; a protocol mismatch stops; the backoff resets after 60 s connected.
 - 0.20 unload order: register the child kill/wait once; a cleanup does not register or wait for another cleanup.
 - 0.21 async `send`: SSH stdin write blocking applies backpressure through async `send`; do not queue without bound.
 - Reap the child to avoid zombies; SSH stderr belongs in link-plugin errors, not in the session byte stream.
@@ -70,6 +70,7 @@ stdio is a byte stream, so frame it; the remote command decides the rule:
 
 - Rust uses `Session::handshake` → `Greeted::id()` to replace a same-id session.
 - Non-Rust `open(far)` does not expose the far id, and `session_key(row)` is first-wins, so non-Rust listeners do not support same-id replacement and must be Rust (O1). Do not write "coexist".
+- Non-Rust also cannot get structured handshake errors before O1 (handshake result API), so it cannot reliably tell an auth rejection from a protocol mismatch; do not treat an adapter close reason as a handshake result, fall back to transport backoff and record the limitation.
 - Do not parse `Hello`; do not substitute the SSH user/hostname for the id.
 
 ## 7. Errors
@@ -98,7 +99,7 @@ stdio is a byte stream, so frame it; the remote command decides the rule:
 - No greeting: 10 s session handshake timeout and process end; the 30 s `Process::mount` limit only applies to local spawn.
 - Auth failure: no session.
 - `ssh -L` / `-R` + `link/tcp`: the same session works.
-- Disconnect: backoff, no retry on auth failure, stop on protocol mismatch.
+- Disconnect: backoff, auth rejection every 30 s, stop on protocol mismatch; reset after 60 s connected.
 - Platform matrix: Linux + macOS required; Windows OpenSSH manual or CI if available, with signal/process differences recorded.
 - No public SSH service in CI.
 
