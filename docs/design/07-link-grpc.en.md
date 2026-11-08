@@ -94,8 +94,8 @@ The session `Hello` still registers identity; the gRPC principal is not mapped t
 
 ## 7. Listen side
 
-- Rust uses `Session::handshake` to get `Greeted::id()` for same-id replacement; a relay that needs replacement uses Rust or documents the limitation.
-- Non-Rust `open(far)` does not expose the id; the relay can treat each stream as an independent session.
+- Rust uses `Session::handshake` to get `Greeted::id()` for same-id replacement; a relay that needs replacement uses Rust.
+- Non-Rust `open(far)` does not expose the id, and `session_key(row)` is first-wins; multiple streams cannot share one row. A relay either uses Rust or gives each stream its own row/session.
 - Do not parse `Hello`; do not substitute the gRPC principal for the id.
 
 ## 8. Errors

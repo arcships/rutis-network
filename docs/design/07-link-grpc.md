@@ -94,8 +94,8 @@ message Frame {
 
 ## 7. listen 侧
 
-- Rust 用 `Session::handshake` 拿 `Greeted::id()` 才能同 id 顶替；relay 端如果要顶替，用 Rust 或写明限制。
-- 非 Rust `open(far)` 不暴露 id；relay 可以把每条 stream 当一个独立 session。
+- Rust 用 `Session::handshake` 拿 `Greeted::id()` 才能同 id 顶替；relay 端如果要顶替，用 Rust。
+- 非 Rust `open(far)` 不暴露 id，`session_key(row)` 先到先得；多条 stream 不能挂在同一个 row 下，relay 端要么用 Rust，要么每条 stream 使用独立的 row/session。
 - 不解析 `Hello`；不拿 gRPC principal 代替 id。
 
 ## 8. 错误
