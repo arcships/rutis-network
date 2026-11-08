@@ -55,7 +55,7 @@ link plugin
 
 ### D5 字节流归一化为消息
 
-- 长度前缀优先：4 字节大端长度 + 正好这么多字节；超长在分配前拒绝。
+- 长度前缀优先：4 字节大端长度 + 正好这么多字节；超长在分配前拒绝。远端是 `pipe::framed` 兼容的运行时/桥时，换行 framing 也有效（session JSON 转义换行）；两者按远端契约选一种，不混用。
 - 参考 bridge 的单条上限 16 MiB（对齐 WebSocket 默认）；`Channel` 本身没有最大消息契约，超长由 bridge 干净关闭。
 - 保持顺序与背压；bridge 自己的发送队列有界；它不能限制 session 的出站队列（见 D6/O2）。
 - close / EOF 映射到 `near.end({kind:'done'})`；传输只关一次；session 没有半关闭。
