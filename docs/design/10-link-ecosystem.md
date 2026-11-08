@@ -33,6 +33,14 @@ templates/<lang>/
 - 0.21 异步 `send`、0.20 卸载顺序、错误 code 写进模板。
 - 模板能 `copy → 改 adapter → 跑测试`；不要求所有语言先支持所有 adapter。
 
+### 3.1 管理工具与组合
+
+- 模板不暴露跨 link 的 manager 或全局 `connect` 服务；每个 adapter 只提供自己的 row 配置和 session。
+- 组合靠 `rutis.json` row + `<link row>:<plugin>` + 服务名；业务插件不认识 link。
+- 每个 adapter 可以带可选的 `status` / `doctor` / CLI，作为该 link 自己的工具；不做中心管理工具，不集中存凭据。
+- row 契约要留够：配置 schema、结构化状态（connected/retrying/stopped、direct/relay、last error、peer id、retry count）、可选 `status` / `doctor`、日志无 secret。
+- 动态增删用 `rutis/loader` / `rutis.json`，不是运行时 dial 中心；优先常驻 + 重连。
+
 ## 4. 一致性测试套件
 
 同一套用例，跨语言执行（每语言一个 runner，共享 JSON 用例或同一套语义）。默认传输是 localhost TCP（只绑 `127.0.0.1`，随机端口/token）；WebSocket 用例复用核心能力；纯 HTTP 没有用例。
@@ -93,6 +101,7 @@ templates/<lang>/
 - 不新增核心 trait/API。
 - 不要求所有语言同时支持所有 adapter。
 - 不做插件市场；先文档 + 模板。
+- 不做跨 link 的中心管理工具 / 全局 `connect` 服务 / 中心凭据库；管理工具是每条 link 可选的、外部的。
 - 不重复 #1 的契约和参考 bridge。
 - 不把 CI 依赖公网服务。
 

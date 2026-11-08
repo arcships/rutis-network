@@ -33,6 +33,14 @@ Requirements:
 - 0.21 async `send`, 0.20 unload order and error codes are in the template.
 - `copy → change adapter → run tests`; not every language must support every adapter first.
 
+### 3.1 Management tools and composition
+
+- Templates do not expose a cross-link manager or a global `connect` service; each adapter provides only its own row config and session.
+- Composition is `rutis.json` row + `<link row>:<plugin>` + service name; business plugins do not know the link.
+- Each adapter may ship an optional `status` / `doctor` / CLI as its own tool; no central manager, no central credential store.
+- The row contract must expose: config schema, structured status (connected/retrying/stopped, direct/relay, last error, peer id, retry count), optional `status` / `doctor`, and no secrets in logs.
+- Dynamic changes use `rutis/loader` / `rutis.json`, not a runtime dial hub; prefer always-on rows with reconnect.
+
 ## 4. Conformance suite
 
 One set of cases, run per language (each language has a runner; share JSON cases or the same semantics). The default transport is localhost TCP (bind `127.0.0.1`, random port/token); WebSocket cases reuse the core; plain HTTP has no cases.
@@ -93,6 +101,7 @@ Do not write "planned" as "supported".
 - No new core trait/API.
 - No requirement that every language supports every adapter.
 - No plugin marketplace; docs + templates first.
+- No cross-link central management tool, global `connect` service or central credential store; management tools are per-link, optional and external.
 - No duplicate of #1's contract and reference bridge.
 - No CI dependency on public services.
 
