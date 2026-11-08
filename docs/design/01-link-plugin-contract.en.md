@@ -58,7 +58,7 @@ link plugin
 - Prefer a length prefix: a 4-byte big-endian length followed by exactly that many bytes; reject an over-limit length before allocating.
 - Maximum message: 16 MiB, the WebSocket default; close cleanly when exceeded.
 - Preserve order and backpressure; the bridge's send queue is bounded.
-- Map close / half-close to `near.end({kind:'done'})`; close the transport once.
+- Map close / EOF to `near.end({kind:'done'})`; close the transport once; the session has no half-close.
 - Do not parse or rewrite the session protocol; the bridge is transport, not a second session layer.
 
 ### D6 Lifecycle
@@ -136,7 +136,7 @@ connection.onClose(() => near.end({ kind: 'done' }))
 - Fake `Far` / `Near`: boundaries, order, maximum message, close, backpressure.
 - Async `send` returns a promise and is awaited; a slow send does not grow the bridge queue.
 - Far `Hello` id → `<id>:<plugin>`.
-- Listen: Rust multiple connections plus same-id replacement; other languages allow coexistence.
+- Listen: Rust multiple connections plus same-id replacement; non-Rust does not support same-id replacement (`session_key` is first-wins); do not write "coexist".
 - Admission fails before `open`; no session is created.
 - Session unload closes the adapter connection.
 - No token or certificate in output.

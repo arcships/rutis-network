@@ -58,7 +58,7 @@ link plugin
 - 长度前缀优先：4 字节大端长度 + 正好这么多字节；超长在分配前拒绝。
 - 最大消息 16 MiB，对齐 WebSocket 默认；超长干净关闭。
 - 保持顺序与背压；bridge 的发送队列有界。
-- close / 半关闭映射到 `near.end({kind:'done'})`；传输只关一次。
+- close / EOF 映射到 `near.end({kind:'done'})`；传输只关一次；session 没有半关闭。
 - 不解析、不改写 session 协议；bridge 不是第二层 session。
 
 ### D6 生命周期
@@ -136,7 +136,7 @@ connection.onClose(() => near.end({ kind: 'done' }))
 - 假 `Far` / `Near`：边界、顺序、最大消息、close、背压。
 - 异步 `send` 返回 Promise，session await 它；慢发送不撑大 bridge 队列。
 - 远端 `Hello` id → `<id>:<plugin>`。
-- listen：Rust 多连接 + 同 id 顶替；非 Rust 多连接并存。
+- listen：Rust 多连接 + 同 id 顶替；非 Rust 不支持同 id 顶替（`session_key` 先到先得），不要写“并存”。
 - 准入失败在 `open` 之前；没有 session 被创建。
 - session 卸载后 adapter 连接关闭。
 - 输出里没有 token/证书。
