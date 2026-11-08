@@ -5,7 +5,7 @@ Issue: [#5](https://github.com/arcships/rutis-network/issues/5). Depends on [#1]
 
 ## 1. Goal
 
-Cover the case where the dialer cannot install a VPN and the listener is behind NAT with no public port: the listener runs Cloudflare Tunnel outbound, and the dialer reaches it over ordinary HTTPS/WSS or `cloudflared access tcp`.
+Cover the case where the dialer cannot install a VPN and the listener is behind NAT with no public port: the listener runs Cloudflare Tunnel outbound, and the dialer reaches it over WSS (WebSocket upgrade) or `cloudflared access tcp`.
 
 Cloudflare only reaches (and optionally admits via Access); the link plugin frames and calls `rutis/sessions.open(far)`; rutis does not know Cloudflare.
 
@@ -26,7 +26,7 @@ dialer link/tcp ── 127.0.0.1:<local> ── cloudflared access tcp ── Cl
 ### 2.2 public (optional)
 
 - The listener runs `cloudflared tunnel` and exposes local rutis WSS/TCP at `wss://<host>`.
-- The link plugin connects to `wss://<host>` or HTTPS; the bridge handles messages (WebSocket) or bytes (TCP).
+- The link plugin connects to `wss://<host>` (WebSocket upgrade) or Cloudflare's TCP transport; plain HTTPS request/response is not a link.
 - Cloudflare Access or a link-layer token admits; document the public-ingress risk.
 - "Public ingress without Access" is not the default recommendation.
 

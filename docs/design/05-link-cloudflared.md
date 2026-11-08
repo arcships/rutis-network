@@ -5,7 +5,7 @@
 
 ## 1. 目标
 
-覆盖“拨号侧不能装 VPN、监听侧在 NAT 后不能开公网端口”的场景：监听侧用 Cloudflare Tunnel 出站，拨号侧用普通 HTTPS/WSS 或 `cloudflared access tcp` 连入。
+覆盖“拨号侧不能装 VPN、监听侧在 NAT 后不能开公网端口”的场景：监听侧用 Cloudflare Tunnel 出站，拨号侧用 WSS（WebSocket 升级）或 `cloudflared access tcp` 连入。
 
 Cloudflare 只负责到达（和可选的 Access 准入）；link plugin 做 framing 和 `rutis/sessions.open(far)`；rutis 不需要知道 Cloudflare。
 
@@ -26,7 +26,7 @@ Cloudflare 只负责到达（和可选的 Access 准入）；link plugin 做 fra
 ### 2.2 public（可选）
 
 - 监听侧跑 `cloudflared tunnel`，把本地 rutis 的 WSS/TCP 暴露到 `wss://<host>`。
-- link plugin 连 `wss://<host>` 或 HTTPS；bridge 直接处理消息（WebSocket）或字节流（TCP）。
+- link plugin 连 `wss://<host>`（WebSocket 升级）或 Cloudflare 的 TCP 承载；纯 HTTPS 请求/响应不是 link。
 - 准入由 Cloudflare Access 或链接层自己的 token 负责；公开入口必须写清风险。
 - 不把“公开入口 + 无 Access”当作默认推荐。
 
