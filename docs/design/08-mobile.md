@@ -39,7 +39,7 @@
 
 ### 2.4 listen 侧
 
-- Rust 用 `Session::handshake` 才能同 id 顶替；非 Rust `open(far)` 不暴露 id，只能一条连接一个 session，文档写明。
+- Rust 用 `Session::handshake` 才能同 id 顶替；非 Rust `open(far)` 不暴露 id，`session_key(row)` 先到先得，第二条同 row 的 session 不会注册 handle，所以非 Rust 监听不支持同 id 顶替，必须用 Rust（O1）。不要写“并存”。
 - 不解析 session `Hello`；不拿设备名/ADB 序列号代替 id。
 
 ## 3. 8b 远控服务
@@ -100,7 +100,7 @@ interface Input {
 
 ## 8. 非目标
 
-- 不把 RDP/VNC/SPICE 做成通用 link。
+- 不把 RDP/VNC/SPICE 做成通用 link；RDP DVC 只作为“应用协议里的例外”提一句，不是 link 层。
 - 不重新实现 RDP/VNC 编解码。
 - 不先做完整远控产品。
 - 不把 ADB/WebRTC 身份映射成 session identity。

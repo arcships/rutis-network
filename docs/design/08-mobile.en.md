@@ -39,7 +39,7 @@ host link/tcp ── 127.0.0.1:<local> ── adb forward tcp:<local> tcp:<devic
 
 ### 2.4 Listen side
 
-- Rust uses `Session::handshake` for same-id replacement; non-Rust `open(far)` does not expose the id, so one session per connection; document it.
+- Rust uses `Session::handshake` for same-id replacement; non-Rust `open(far)` does not expose the id, and `session_key(row)` is first-wins, so a second session under the same row registers no handle. Non-Rust listeners do not support same-id replacement and must be Rust (O1). Do not write "coexist".
 - Do not parse `Hello`; do not substitute a device name/ADB serial for the id.
 
 ## 3. 8b Remote-control services
@@ -100,7 +100,7 @@ interface Input {
 
 ## 8. Non-goals
 
-- No RDP/VNC/SPICE as a generic link.
+- No RDP/VNC/SPICE as a generic link; RDP DVC is mentioned only as an application-protocol exception, not a link layer.
 - No reimplementation of RDP/VNC codecs.
 - No full remote-control product first.
 - No ADB/WebRTC identity as session identity.
