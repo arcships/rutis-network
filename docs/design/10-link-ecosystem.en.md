@@ -28,13 +28,14 @@ templates/<lang>/
 Requirements:
 
 - Only `rutis/sessions` (TS/Python) or `Session::new` (Rust); no new core API.
+- `link/echo` uses localhost TCP (bind `127.0.0.1`, random port/token); WebSocket reuses the core `websocket::dial` / `websocket::listen`; no plain HTTP link template.
 - Comments state: admission is in the adapter; identity comes from the far `Hello`; the session has no token.
 - 0.21 async `send`, 0.20 unload order and error codes are in the template.
 - `copy → change adapter → run tests`; not every language must support every adapter first.
 
 ## 4. Conformance suite
 
-One set of cases, run per language (each language has a runner; share JSON cases or the same semantics):
+One set of cases, run per language (each language has a runner; share JSON cases or the same semantics). The default transport is localhost TCP (bind `127.0.0.1`, random port/token); WebSocket cases reuse the core; plain HTTP has no cases.
 
 | Case | Assertion |
 | --- | --- |

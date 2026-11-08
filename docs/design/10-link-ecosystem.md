@@ -28,13 +28,14 @@ templates/<lang>/
 要求：
 
 - 只依赖 `rutis/sessions`（TS/Python）或 `Session::new`（Rust）；不新增核心 API。
+- `link/echo` 用 localhost TCP（只绑 `127.0.0.1`，随机端口/token）；WebSocket 复用核心 `websocket::dial` / `websocket::listen`；不提供纯 HTTP link 模板。
 - 注释写清：认证在 adapter；身份来自远端 `Hello`；session 不碰 token。
 - 0.21 异步 `send`、0.20 卸载顺序、错误 code 写进模板。
 - 模板能 `copy → 改 adapter → 跑测试`；不要求所有语言先支持所有 adapter。
 
 ## 4. 一致性测试套件
 
-同一套用例，跨语言执行（每语言一个 runner，共享 JSON 用例或同一套语义）：
+同一套用例，跨语言执行（每语言一个 runner，共享 JSON 用例或同一套语义）。默认传输是 localhost TCP（只绑 `127.0.0.1`，随机端口/token）；WebSocket 用例复用核心能力；纯 HTTP 没有用例。
 
 | 用例 | 断言 |
 | --- | --- |
