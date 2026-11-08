@@ -138,7 +138,7 @@ export default definePlugin({
 
 **Listen-side replacement.** In Rust, `Session::handshake(&ctx, channel).await` gives `Greeted::id()` before mounting; this is how `rutis-host/listen` unloads an older session of the same far id first, closes it with `Close::Replaced` (4002), then mounts the new one. In other languages, `rutis/sessions.open(far)` returns only `{ receive, end }` as of 0.21.0 and does **not** expose the far end's id, so a non-Rust listen bridge cannot implement same-id replacement without parsing the session protocol (forbidden).
 
-Do not write "two connections from the same far id coexist": `session_key(row)` is first-wins, so a second session under the same row registers no handle and `<row>:<plugin>` only addresses the first. A listener that needs replacement must be Rust. O1 (far id through `open`) and O2 (outbound limit through `open`) are blocking API gaps, not optional optimizations.
+Do not write "two connections from the same far id coexist": `session_key(row)` is first-wins, so a second session under the same row registers no handle and `<row>:<plugin>` only addresses the first. A listener that needs replacement must be Rust. O1 (handshake result: id plus structured `code`/`data`) and O2 (outbound limit through `open`) are blocking API gaps, not optional optimizations. Without O1, non-Rust also cannot tell an auth rejection from a protocol mismatch; it falls back to transport backoff.
 
 Do not guess the id from the adapter (SSH user, tailnet node, token): that is admission identity, not the far end's `Hello` id.
 

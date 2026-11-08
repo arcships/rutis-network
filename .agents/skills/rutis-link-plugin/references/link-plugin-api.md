@@ -117,7 +117,7 @@ Replacement needs the far end's `Hello` id **after** the handshake and **before*
 - Rust: `Session::handshake` → `Greeted::id()` → unload the old session → `ctx.plugin(greeted)`.
 - Other languages: `open(far)` returns `{ receive, end }`; there is no id. Parsing the session `Hello` in the bridge is forbidden (the bridge is transport, not a second session layer). Do not substitute the adapter's admission identity (SSH user, tailnet node, token): the contract's id is the far end's registration.
 
-Until rutis exposes the id to `open` (O1), a non-Rust listener cannot replace. Do **not** fall back to "one session per connection, same id coexists": `session_key(row)` is first-wins, so the second session registers no handle and `<row>:<plugin>` only addresses the first. Implement the listener in Rust (`Session::handshake`).
+Until rutis exposes a handshake result to `open` (O1: `ready()` returning the id plus a structured `code`/`data` error), a non-Rust listener cannot replace and cannot reliably classify handshake errors. Do **not** fall back to "one session per connection, same id coexists": `session_key(row)` is first-wins, so the second session registers no handle and `<row>:<plugin>` only addresses the first. Implement the listener in Rust (`Session::handshake`); without O1, non-Rust reconnect falls back to transport backoff.
 
 ## Errors
 
