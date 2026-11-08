@@ -32,13 +32,14 @@ templates/<lang>/
 - 注释写清：认证在 adapter；身份来自远端 `Hello`；session 不碰 token。
 - 0.21 异步 `send`、0.20 卸载顺序、错误 code 写进模板。
 - 模板能 `copy → 改 adapter → 跑测试`；不要求所有语言先支持所有 adapter。
+- 每个 T1 adapter 至少一个可复制示例：SSH、Tailscale、Cloudflare Tunnel；示例只依赖 `rutis.json` row + `rutis/sessions`，不引入 manager。
 
 ### 3.1 管理工具与组合
 
 - 模板不暴露跨 link 的 manager 或全局 `connect` 服务；每个 adapter 只提供自己的 row 配置和 session。
 - 组合靠 `rutis.json` row + `<link row>:<plugin>` + 服务名；业务插件不认识 link。
 - 每个 adapter 可以带可选的 `status` / `doctor` / CLI，作为该 link 自己的工具；不做中心管理工具，不集中存凭据。
-- row 契约要留够：配置 schema、结构化状态（connected/retrying/stopped、direct/relay、last error、peer id、retry count）、可选 `status` / `doctor`、日志无 secret。
+- row 契约要留够：配置 schema、结构化状态（connected/retrying/stopped、direct/relay、last error、`Hello` id、retry count）、可选 `status` / `doctor`、日志无 secret。`Hello` id 是 session 对面注册的 id，不是 SSH 用户/tailnet 节点/token。
 - 动态增删用 `rutis/loader` / `rutis.json`，不是运行时 dial 中心；优先常驻 + 重连。
 
 ## 4. 一致性测试套件
@@ -48,12 +49,12 @@ templates/<lang>/
 | 用例 | 断言 |
 | --- | --- |
 | 边界/顺序 | 1000 条消息按序到达，边界不合并 |
-| 最大消息 | 16 MiB 通过；16 MiB+1 干净关闭 |
+| 最大消息 | 16 MiB 通过；16 MiB+1 干净关闭（16 MiB 是 bridge 策略，不是 `Channel` 契约） |
 | 空消息 | 长度 0 通过 |
 | 背压 | 慢接收方，bridge 队列不超上限，内存不涨 |
 | 异步 send | `send` 返回 Promise，session await；慢写不丢 |
 | close | 远端 FIN → `near.end`；session 卸载 → 连接关闭一次 |
-| 半关闭 | 读 EOF 映射为 `done`；不重复关闭 |
+| EOF / close | 读 EOF 映射为 `done`；session 没有半关闭，不重复关闭 |
 | 远端 id | `<id>:<plugin>` 命名 |
 | listen 多连接 | 每条连接一个 session |
 | 同 id 顶替 | Rust 顶替；非 Rust 写明并存 |

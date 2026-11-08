@@ -32,13 +32,14 @@ Requirements:
 - Comments state: admission is in the adapter; identity comes from the far `Hello`; the session has no token.
 - 0.21 async `send`, 0.20 unload order and error codes are in the template.
 - `copy → change adapter → run tests`; not every language must support every adapter first.
+- Every T1 adapter has at least one copy-paste example: SSH, Tailscale, Cloudflare Tunnel; examples use only `rutis.json` rows + `rutis/sessions`, no manager.
 
 ### 3.1 Management tools and composition
 
 - Templates do not expose a cross-link manager or a global `connect` service; each adapter provides only its own row config and session.
 - Composition is `rutis.json` row + `<link row>:<plugin>` + service name; business plugins do not know the link.
 - Each adapter may ship an optional `status` / `doctor` / CLI as its own tool; no central manager, no central credential store.
-- The row contract must expose: config schema, structured status (connected/retrying/stopped, direct/relay, last error, peer id, retry count), optional `status` / `doctor`, and no secrets in logs.
+- The row contract must expose: config schema, structured status (connected/retrying/stopped, direct/relay, last error, `Hello` id, retry count), optional `status` / `doctor`, and no secrets in logs. The `Hello` id is the id the far end registered, not an SSH user/tailnet node/token.
 - Dynamic changes use `rutis/loader` / `rutis.json`, not a runtime dial hub; prefer always-on rows with reconnect.
 
 ## 4. Conformance suite
@@ -48,12 +49,12 @@ One set of cases, run per language (each language has a runner; share JSON cases
 | Case | Assertion |
 | --- | --- |
 | Boundaries/order | 1000 messages arrive in order, boundaries kept |
-| Maximum message | 16 MiB passes; 16 MiB + 1 closes cleanly |
+| Maximum message | 16 MiB passes; 16 MiB + 1 closes cleanly (16 MiB is bridge policy, not a `Channel` contract) |
 | Empty message | length 0 passes |
 | Backpressure | slow receiver; bridge queue stays bounded, memory does not grow |
 | Async send | `send` returns a promise, session awaits; a slow write loses nothing |
 | Close | far FIN → `near.end`; session unload → connection closed once |
-| Half-close | read EOF maps to `done`; no double close |
+| EOF / close | read EOF maps to `done`; the session has no half-close, no double close |
 | Far id | `<id>:<plugin>` naming |
 | Listen multi-connection | one session per connection |
 | Same-id replacement | Rust replaces; other languages document coexistence |
