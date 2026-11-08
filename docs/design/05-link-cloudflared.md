@@ -54,7 +54,7 @@ Cloudflare 只负责到达（和可选的 Access 准入）；link plugin 做 fra
 ## 5. 生命周期与重连
 
 - `cloudflared` 退出 / WebSocket 关闭 → `near.end`；session 卸载 → 关闭连接/进程。
-- 重连在 link plugin：指数退避（0.5s → 30s）；Access 拒绝不要无限重试。
+- 重连在 link plugin：指数退避（0.5s → 30s）；Access 拒绝每 30s 再试；配置/协议错误停止；连接满 60s 后重置退避。
 - 0.20 卸载顺序：`cloudflared` 子进程的 kill/wait 只注册一次；不在 cleanup 里注册/等待 cleanup。
 - 子进程 stderr 要能进 link plugin 错误，不混进 session 字节流。
 
@@ -62,6 +62,7 @@ Cloudflare 只负责到达（和可选的 Access 准入）；link plugin 做 fra
 
 - 监听侧通常是 `cloudflared tunnel` 后面的 rutis listener；Rust 用 `Session::handshake` 才能同 id 顶替。
 - 非 Rust `open(far)` 不暴露 id，`session_key(row)` 先到先得，所以非 Rust 监听不支持同 id 顶替，必须用 Rust（O1）。不要写“并存”。
+- 非 Rust 在 O1（握手结果 API）落地前拿不到握手的结构化错误，无法可靠区分认证拒绝/协议不兼容；不要把 `cloudflared`/WebSocket 关闭原因当握手结果，只能按传输错误退避并记为限制。
 - 不解析 session `Hello`；不拿 Access 身份代替 id。
 
 ## 7. 错误
@@ -69,7 +70,7 @@ Cloudflare 只负责到达（和可选的 Access 准入）；link plugin 做 fra
 | 场景 | 处理 |
 | --- | --- |
 | `cloudflared` 未安装/未启动 | 报二进制名和启动命令 |
-| Access 拒绝 | 报 403/Access 错误；不重试 |
+| Access 拒绝 | 报 403/Access 错误；每 30s 再试，不忙等 |
 | Tunnel 断开 | `near.end`；退避重连 |
 | WebSocket/HTTP2 代理超时 | 报超时；提示长连接限制 |
 | 公开入口配置错误 | 报 hostname/route，不暴露 token |

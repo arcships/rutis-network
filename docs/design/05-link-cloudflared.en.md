@@ -54,7 +54,7 @@ dialer link/tcp ── 127.0.0.1:<local> ── cloudflared access tcp ── Cl
 ## 5. Lifecycle and reconnect
 
 - `cloudflared` exits / WebSocket closes → `near.end`; session unloads → close the connection/process.
-- Reconnect lives in the link plugin: exponential backoff (0.5 s → 30 s); do not retry forever on Access denial.
+- Reconnect lives in the link plugin: exponential backoff (0.5 s → 30 s); an Access rejection retries every 30 s; a config/protocol error stops; the backoff resets after 60 s connected.
 - 0.20 unload order: register the `cloudflared` child kill/wait once; do not register or wait for another cleanup.
 - Child stderr belongs in link-plugin errors, not in the session byte stream.
 
@@ -62,6 +62,7 @@ dialer link/tcp ── 127.0.0.1:<local> ── cloudflared access tcp ── Cl
 
 - The listener usually sits behind `cloudflared tunnel`; Rust uses `Session::handshake` for same-id replacement.
 - Non-Rust `open(far)` does not expose the id, and `session_key(row)` is first-wins, so non-Rust listeners do not support same-id replacement and must be Rust (O1). Do not write "coexist".
+- Non-Rust also cannot get structured handshake errors before O1 (handshake result API), so it cannot reliably tell an auth rejection from a protocol mismatch; do not treat a `cloudflared`/WebSocket close reason as a handshake result, fall back to transport backoff and record the limitation.
 - Do not parse `Hello`; do not substitute the Access identity for the id.
 
 ## 7. Errors
@@ -69,7 +70,7 @@ dialer link/tcp ── 127.0.0.1:<local> ── cloudflared access tcp ── Cl
 | Case | Handling |
 | --- | --- |
 | `cloudflared` missing/not running | Report the binary and start command |
-| Access denial | Report 403/Access error; do not retry |
+| Access denial | Report 403/Access error; retry every 30 s, no busy loop |
 | Tunnel disconnect | `near.end`; reconnect with backoff |
 | WebSocket/HTTP2 proxy timeout | Report timeout; mention long-connection limits |
 | Public ingress misconfiguration | Report hostname/route; never print the token |
