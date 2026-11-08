@@ -57,7 +57,7 @@ One set of cases, run per language (each language has a runner; share JSON cases
 | EOF / close | read EOF maps to `done`; the session has no half-close, no double close |
 | Far id | `<id>:<plugin>` naming |
 | Listen multi-connection | one session per connection |
-| Same-id replacement | Rust replaces; other languages document coexistence |
+| Same-id replacement | Rust replaces; non-Rust does not support it (`session_key` is first-wins) |
 | Admission failure | fails before `open`; no session |
 | Unload | session unload closes the adapter connection; cleanup registered once |
 | Errors | truncated/over-limit/reset carry a code, no token |

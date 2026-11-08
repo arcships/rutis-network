@@ -57,7 +57,7 @@ templates/<lang>/
 | EOF / close | 读 EOF 映射为 `done`；session 没有半关闭，不重复关闭 |
 | 远端 id | `<id>:<plugin>` 命名 |
 | listen 多连接 | 每条连接一个 session |
-| 同 id 顶替 | Rust 顶替；非 Rust 写明并存 |
+| 同 id 顶替 | Rust 顶替；非 Rust 不支持（`session_key` 先到先得） |
 | 准入失败 | `open` 之前失败；没有 session |
 | 卸载 | session 卸载后 adapter 连接关闭；cleanup 只注册一次 |
 | 错误 | 截断/超长/重置有 code，无 token |
