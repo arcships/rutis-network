@@ -28,7 +28,7 @@
    - 本地/物理：pipe、Unix socket、fd、蓝牙、串口、USB、NFC、LoRa。
 2. 场景表：每个场景写“用户怎么用 / 首选 / 摩擦”，至少覆盖：
    - 个人 GPU/远程机器、手机/设备 App、home lab/自建、团队/企业、demo/教程、中国/VPS、部署平台、分布式云、远控、IoT。
-3. 优先级：T1（SSH、Tailscale、Cloudflare Tunnel）、T2（frp/rathole、K8s/Docker/Fly.io/Railway、Headscale/NetBird）；gRPC 只在云业务时 T1/T2，否则 T3。
+3. 优先级：T1（SSH、Tailscale、Cloudflare Tunnel）、T2（frp/rathole、K8s/Docker/Fly.io/Railway、Headscale/NetBird；gRPC 仅云业务时 T1，否则 T2）。
 4. 业务/宣发/厂商/生态四个维度各写一段：为什么这个顺序，不做什么，什么条件下重排。
 5. 不写实现；只产出可评审的分析，并校验已有的 #3–#9 是否与优先级一致。
 

@@ -37,7 +37,7 @@
 
 ## 关键决策
 
-- **listen 顶替**：Rust 用 `Session::handshake` 拿 `Greeted::id()`，先卸旧 session、再挂新 session。0.21.0 的 `open(far)` 只返回 `{ receive, end }`，不暴露远端 id；因此非 Rust 的 listen bridge 不能按 `Hello` id 顶替。契约要求：Rust 实现顶替；其它语言一条连接一个 session，并写明“同 id 的多条连接并存”。禁止解析 session 协议，也禁止拿 SSH 用户 / tailnet 节点 / token 代替 `Hello` id。
+- **listen 顶替**：Rust 用 `Session::handshake` 拿 `Greeted::id()`，先卸旧 session、再挂新 session。0.21.0 的 `open(far)` 只返回 `{ receive, end }`，不暴露远端 id；因此非 Rust 的 listen bridge 不能按 `Hello` id 顶替。契约要求：Rust 实现顶替；其它语言不支持同 id 顶替，同一个 row 下第二条 session 不注册 handle，需要顶替必须用 Rust（O1 阻塞）。禁止解析 session 协议，也禁止拿 SSH 用户 / tailnet 节点 / token 代替 `Hello` id。
 - **认证与身份分开**：adapter 做准入；`Hello` 的 `endpoint` 是身份。`open` 不加 `peer` / `token` / `credential` / `identity`。
 - **bridge 不做第二层 session**：只 framing、backpressure、close/EOF 映射和生命周期。
 - **WebSocket 不是新 link plugin**：核心已经有 `websocket::dial` / `websocket::listen`，`rutis-host/listen` 也用它；第一波只把现有 WebSocket 连接写成参考示例，不新增 `link/websocket`。纯 HTTP 请求/响应不是 link，HTTP 只作为 WebSocket 升级或 gRPC 的承载。

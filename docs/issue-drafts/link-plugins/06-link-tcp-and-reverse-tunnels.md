@@ -19,7 +19,7 @@
    - close / EOF 语义（session 没有 half-close）；
    - 背压：发送阻塞、接收队列有界；Rust 用 `SessionOptions::outbound_limit`，非 Rust 的 `open(far)` 还补不了；
    - 每条连接一个 session；
-   - listen 侧 accept 多条连接；Rust 按远端 `Hello` id 顶替，非 Rust 写明只能并存。
+   - listen 侧 accept 多条连接；Rust 按远端 `Hello` id 顶替，非 Rust 不支持同 id 顶替（同 row 第二条 session 不注册 handle）。
 2. 明确 `link/tcp` **不做认证**；认证在它下面的 adapter（SSH/Tailscale/frp/Cloudflare）或上面的链接层插件。
 3. 反向隧道 wrapper（可以是薄脚本/配置，不一定是新 crate）：
    - frp / rathole：`frpc`/`rathole` 把本地 TCP 暴露到 VPS；`link/tcp` 连本地或 VPS；
@@ -46,7 +46,7 @@
 - [ ] localhost TCP dial/listen 跑通，作为一致性测试和本地开发的默认传输；只绑 `127.0.0.1`；无准入 raw TCP 只用于测试，生产用 Unix socket 权限或 token 帧。
 - [ ] 本地 TCP echo：消息边界、顺序、16 MiB 上限、超长关闭、close/EOF 全部符合契约；session 没有 half-close。
 - [ ] 背压：慢接收方不会让 bridge 无界增长；async `send` 被 await。
-- [ ] listen 侧多连接各自 session；Rust 同 id 新连接顶替旧连接；非 Rust 写明限制。
+- [ ] listen 侧多连接各自 session；Rust 同 id 新连接顶替旧连接；非 Rust 不支持同 id 顶替。
 - [ ] frp 或 rathole 任一跑通（本地 VPS 或 loopback 模拟），`link/tcp` 不需要改。
 - [ ] SSH `-R` 或 ngrok 至少一个跑通，文档写清准入和公网风险。
 - [ ] 断开/重连/session 卸载行为符合契约；重连在 link plugin。

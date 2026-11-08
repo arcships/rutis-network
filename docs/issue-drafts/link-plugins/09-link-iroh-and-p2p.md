@@ -17,7 +17,7 @@
    - 一条 QUIC 双向流对应一个 session；
    - 长度前缀 framing；
    - `rutis/sessions.open(far)` / `Session::new(channel)`；
-   - 准入用 endpoint 公钥/应用层 token；不把 iroh 身份传给 session；
+   - 准入：拨号侧校验期望的 `NodeId`；监听侧维护 NodeId allowlist，没有 allowlist 时必须强制应用 token；两者都在 `Session::new` / `open` 之前完成。不把 iroh 身份传给 session，日志不输出 token；
    - 远端在 `Hello` 注册 id。
 2. 连接形态：
    - 直接 P2P（能打洞时）；
@@ -41,7 +41,7 @@
 ## 验收
 
 - [ ] 两个 iroh endpoint 在 local/relay 环境跑通一条 QUIC 流，消息边界/顺序正确。
-- [ ] `open(far)` / `Session::new` 跑通，远端插件 `<id>:<plugin>` 出现。
+- [ ] 未授权 NodeId / token 被拒绝，且不创建 session；错误只含结构化原因和公钥指纹，不含 token。
 - [ ] 断开/重连/session 卸载行为符合契约；重连在 link plugin。
 - [ ] 文档写清直连/relay、NAT、延迟/吞吐、移动端 FFI、依赖体积。
 - [ ] 至少一个手工 e2e 步骤；不依赖真实 n0 账号/生产 relay。
