@@ -1,6 +1,6 @@
 # feat(link): `link/iroh` Rust P2P / relay 原型
 
-状态：已发布为 [#9](https://github.com/arcships/rutis-network/issues/9)。优先级 P3。依赖契约 #1。设计稿：[docs/design/09-link-iroh.md](../../design/09-link-iroh.md)。
+状态：已发布为 [#9](https://github.com/arcships/rutis-network/issues/9)。优先级 P3。依赖契约 #1。设计稿：[PR #19](https://github.com/arcships/rutis-network/pull/19)。
 
 版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。
 
@@ -49,7 +49,7 @@
 
 ## 关联
 
-- 设计稿：[docs/design/09-link-iroh.md](../../design/09-link-iroh.md)
+- 设计稿：[PR #19](https://github.com/arcships/rutis-network/pull/19)
 - [链接层 link plugin 契约](01-link-plugin-contract.md)
 - [`link/tcp` 与反向隧道](06-link-tcp-and-reverse-tunnels.md)
 - [`link/grpc`](07-link-grpc-cloud.md)

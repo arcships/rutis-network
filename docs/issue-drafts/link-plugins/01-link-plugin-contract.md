@@ -1,6 +1,6 @@
 # feat(link): 定义链接层 link plugin 契约（adapter + bridge，任意语言）
 
-状态：已发布为 [#1](https://github.com/arcships/rutis-network/issues/1)。优先级 P0。设计稿：[docs/design/01-link-plugin-contract.md](../../design/01-link-plugin-contract.md)。
+状态：已发布为 [#1](https://github.com/arcships/rutis-network/issues/1)。优先级 P0。设计稿：[PR #11](https://github.com/arcships/rutis-network/pull/11)。
 
 版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。0.19.3 把服务 `sessions` 改名为 `rutis/sessions`；0.20 改了卸载顺序和会话写线程；0.21 把收到的函数改为默认异步，并改了错误文本。
 
@@ -61,7 +61,7 @@
 
 ## 关联
 
-- 设计稿：[docs/design/01-link-plugin-contract.md](../../design/01-link-plugin-contract.md)
+- 设计稿：[PR #11](https://github.com/arcships/rutis-network/pull/11)
 - Agent 指南：[.agents/skills/rutis-link-plugin/SKILL.md](../../../.agents/skills/rutis-link-plugin/SKILL.md)
 - [远程连接：只留一个会话插件](https://github.com/arcships/rutis/blob/main/docs/design-remote-session-2026-10-28.md) §2、§5
 - [协议与 Channel 解耦](https://github.com/arcships/rutis/blob/main/docs/design-protocol-channel-decoupling-2026-10-03.md)

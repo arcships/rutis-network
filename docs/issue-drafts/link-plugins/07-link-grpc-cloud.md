@@ -1,6 +1,6 @@
 # feat(link): `link/grpc` 云控制面 / relay / 分布式云
 
-状态：已发布为 [#7](https://github.com/arcships/rutis-network/issues/7)。优先级 **P1（云业务）/ P2（其他）**。依赖契约 #1。设计稿：[docs/design/07-link-grpc.md](../../design/07-link-grpc.md)。
+状态：已发布为 [#7](https://github.com/arcships/rutis-network/issues/7)。优先级 **P1（云业务）/ P2（其他）**。依赖契约 #1。设计稿：[PR #17](https://github.com/arcships/rutis-network/pull/17)。
 
 版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。
 
@@ -58,7 +58,7 @@ gRPC 不是 Tailscale/Cloudflare 那种“到达”方案，而是“到一个�
 
 ## 关联
 
-- 设计稿：[docs/design/07-link-grpc.md](../../design/07-link-grpc.md)
+- 设计稿：[PR #17](https://github.com/arcships/rutis-network/pull/17)
 - [链接层 link plugin 契约](01-link-plugin-contract.md)
 - [`link/tcp` 与反向隧道](06-link-tcp-and-reverse-tunnels.md)
 - [连接节点](https://github.com/arcships/rutis/blob/main/docs/guide/nodes.md)

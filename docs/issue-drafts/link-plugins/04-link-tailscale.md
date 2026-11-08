@@ -1,6 +1,6 @@
 # feat(link): `link/tailscale` 用 tailnet TCP 做链接层
 
-状态：已发布为 [#4](https://github.com/arcships/rutis-network/issues/4)。优先级 P1。依赖契约 #1 与 `link/tcp` #6。设计稿：[docs/design/04-link-tailscale.md](../../design/04-link-tailscale.md)。
+状态：已发布为 [#4](https://github.com/arcships/rutis-network/issues/4)。优先级 P1。依赖契约 #1 与 `link/tcp` #6。设计稿：[PR #14](https://github.com/arcships/rutis-network/pull/14)。
 
 版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。
 
@@ -47,7 +47,7 @@ Tailscale 提供到达、MagicDNS、NAT 穿透和 ACL。它应该是一个 link 
 
 ## 关联
 
-- 设计稿：[docs/design/04-link-tailscale.md](../../design/04-link-tailscale.md)
+- 设计稿：[PR #14](https://github.com/arcships/rutis-network/pull/14)
 - [链接层 link plugin 契约](01-link-plugin-contract.md)
 - [`link/tcp` 与反向隧道](06-link-tcp-and-reverse-tunnels.md)
 - [`link/cloudflared`](05-link-cloudflared.md)

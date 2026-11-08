@@ -1,6 +1,6 @@
 # feat(link): 链接层插件生态：模板、一致性测试、适配器目录
 
-状态：已发布为 [#10](https://github.com/arcships/rutis-network/issues/10)。优先级 P2。依赖契约 #1 与至少一个 T1 插件。设计稿：[docs/design/10-link-ecosystem.md](../../design/10-link-ecosystem.md)。
+状态：已发布为 [#10](https://github.com/arcships/rutis-network/issues/10)。优先级 P2。依赖契约 #1 与至少一个 T1 插件。设计稿：[PR #20](https://github.com/arcships/rutis-network/pull/20)。
 
 版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。
 
@@ -66,7 +66,7 @@
 
 ## 关联
 
-- 设计稿：[docs/design/10-link-ecosystem.md](../../design/10-link-ecosystem.md)
+- 设计稿：[PR #20](https://github.com/arcships/rutis-network/pull/20)
 - [链接层 link plugin 契约](01-link-plugin-contract.md)
 - [`link/ssh`](03-link-ssh.md)
 - [`link/tailscale`](04-link-tailscale.md)

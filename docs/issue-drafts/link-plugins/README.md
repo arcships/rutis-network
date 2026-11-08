@@ -26,16 +26,16 @@
 
 | 顺序 | Issue | 草案 | 设计稿 | 优先级 | 依赖 |
 | --- | --- | --- | --- | --- | --- |
-| 1 | [#1 链接层 link plugin 契约（adapter + bridge，任意语言）](https://github.com/arcships/rutis-network/issues/1) | [01](01-link-plugin-contract.md) | [01](../../design/01-link-plugin-contract.md) | P0 | 无 |
-| 2 | [#2 跨网络 link 方案全景、场景与优先级](https://github.com/arcships/rutis-network/issues/2) | [02](02-link-landscape-and-priorities.md) | [02](../../design/02-link-landscape.md) | P0 | 1 |
-| 3 | [#3 `link/ssh`：用 SSH 做链接层](https://github.com/arcships/rutis-network/issues/3) | [03](03-link-ssh.md) | [03](../../design/03-link-ssh.md) | P1 | 1、6 |
-| 4 | [#4 `link/tailscale`：tailnet TCP 做链接层](https://github.com/arcships/rutis-network/issues/4) | [04](04-link-tailscale.md) | [04](../../design/04-link-tailscale.md) | P1 | 1、6 |
-| 5 | [#5 `link/cloudflared`：Cloudflare Tunnel 做链接层](https://github.com/arcships/rutis-network/issues/5) | [05](05-link-cloudflared.md) | [05](../../design/05-link-cloudflared.md) | P1 | 1、6 |
-| 6 | [#6 `link/tcp` 与反向隧道 wrapper（frp/rathole/ngrok/SSH -R）](https://github.com/arcships/rutis-network/issues/6) | [06](06-link-tcp-and-reverse-tunnels.md) | [06](../../design/06-link-tcp.md) | **P0**（所有 TCP 类 adapter 的地基） | 1 |
-| 7 | [#7 `link/grpc`：云控制面 / relay / 分布式云](https://github.com/arcships/rutis-network/issues/7) | [07](07-link-grpc-cloud.md) | [07](../../design/07-link-grpc.md) | P1（云业务）/ P2（其他） | 1 |
-| 8 | [#8 移动设备链路与远控服务（ADB/usbmuxd/WebRTC + screen/input）](https://github.com/arcships/rutis-network/issues/8) | [08](08-mobile-and-remote-control.md) | [08](../../design/08-mobile.md) | P2（8a）/ P3（8b） | 1、6 |
-| 9 | [#9 `link/iroh`：Rust P2P / relay 原型](https://github.com/arcships/rutis-network/issues/9) | [09](09-link-iroh-and-p2p.md) | [09](../../design/09-link-iroh.md) | P3 | 1 |
-| 10 | [#10 链接层插件生态：模板、一致性测试、适配器目录](https://github.com/arcships/rutis-network/issues/10) | [10](10-link-ecosystem.md) | [10](../../design/10-link-ecosystem.md) | P2 | 1、3–6 |
+| 1 | [#1 链接层 link plugin 契约（adapter + bridge，任意语言）](https://github.com/arcships/rutis-network/issues/1) | [01](01-link-plugin-contract.md) | [PR #11](https://github.com/arcships/rutis-network/pull/11) | P0 | 无 |
+| 2 | [#2 跨网络 link 方案全景、场景与优先级](https://github.com/arcships/rutis-network/issues/2) | [02](02-link-landscape-and-priorities.md) | [PR #12](https://github.com/arcships/rutis-network/pull/12) | P0 | 1 |
+| 3 | [#3 `link/ssh`：用 SSH 做链接层](https://github.com/arcships/rutis-network/issues/3) | [03](03-link-ssh.md) | [PR #13](https://github.com/arcships/rutis-network/pull/13) | P1 | 1、6 |
+| 4 | [#4 `link/tailscale`：tailnet TCP 做链接层](https://github.com/arcships/rutis-network/issues/4) | [04](04-link-tailscale.md) | [PR #14](https://github.com/arcships/rutis-network/pull/14) | P1 | 1、6 |
+| 5 | [#5 `link/cloudflared`：Cloudflare Tunnel 做链接层](https://github.com/arcships/rutis-network/issues/5) | [05](05-link-cloudflared.md) | [PR #15](https://github.com/arcships/rutis-network/pull/15) | P1 | 1、6 |
+| 6 | [#6 `link/tcp` 与反向隧道 wrapper（frp/rathole/ngrok/SSH -R）](https://github.com/arcships/rutis-network/issues/6) | [06](06-link-tcp-and-reverse-tunnels.md) | [PR #16](https://github.com/arcships/rutis-network/pull/16) | **P0**（所有 TCP 类 adapter 的地基） | 1 |
+| 7 | [#7 `link/grpc`：云控制面 / relay / 分布式云](https://github.com/arcships/rutis-network/issues/7) | [07](07-link-grpc-cloud.md) | [PR #17](https://github.com/arcships/rutis-network/pull/17) | P1（云业务）/ P2（其他） | 1 |
+| 8 | [#8 移动设备链路与远控服务（ADB/usbmuxd/WebRTC + screen/input）](https://github.com/arcships/rutis-network/issues/8) | [08](08-mobile-and-remote-control.md) | [PR #18](https://github.com/arcships/rutis-network/pull/18) | P2（8a）/ P3（8b） | 1、6 |
+| 9 | [#9 `link/iroh`：Rust P2P / relay 原型](https://github.com/arcships/rutis-network/issues/9) | [09](09-link-iroh-and-p2p.md) | [PR #19](https://github.com/arcships/rutis-network/pull/19) | P3 | 1 |
+| 10 | [#10 链接层插件生态：模板、一致性测试、适配器目录](https://github.com/arcships/rutis-network/issues/10) | [10](10-link-ecosystem.md) | [PR #20](https://github.com/arcships/rutis-network/pull/20) | P2 | 1、3–6 |
 
 拆分说明：
 
@@ -45,7 +45,7 @@
 
 ## 设计稿与 PR
 
-每个 issue 有一份设计稿，放在 `docs/design/`（中英各一份），并在对应 issue 里链接到 draft PR。设计稿记录：问题、决策、接口/帧格式、准入、生命周期、错误、测试、非目标和开放问题。设计稿是评审材料，不是实现；实现仍按 issue 的验收走。
+每个 issue 有一份设计稿（中英各一份），放在对应 issue 的 draft PR 里；合并后落在 `docs/design/`。本表的“设计稿”列直接链接到 PR。设计稿记录：问题、决策、接口/帧格式、准入、生命周期、错误、测试、非目标和开放问题。设计稿是评审材料，不是实现；实现仍按 issue 的验收走。
 
 ## 发布状态
 

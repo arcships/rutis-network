@@ -1,6 +1,6 @@
 # research(link): 跨网络 link 方案全景、场景与优先级
 
-状态：已发布为 [#2](https://github.com/arcships/rutis-network/issues/2)。优先级 P0。依赖契约 issue #1。设计稿：[docs/design/02-link-landscape.md](../../design/02-link-landscape.md)。
+状态：已发布为 [#2](https://github.com/arcships/rutis-network/issues/2)。优先级 P0。依赖契约 issue #1。设计稿：[PR #12](https://github.com/arcships/rutis-network/pull/12)。
 
 版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。
 
@@ -53,7 +53,7 @@
 
 ## 关联
 
-- 设计稿：[docs/design/02-link-landscape.md](../../design/02-link-landscape.md)
+- 设计稿：[PR #12](https://github.com/arcships/rutis-network/pull/12)
 - [链接层 link plugin 契约](01-link-plugin-contract.md)
 - [远程连接：只留一个会话插件](https://github.com/arcships/rutis/blob/main/docs/design-remote-session-2026-10-28.md)
 - [连接节点](https://github.com/arcships/rutis/blob/main/docs/guide/nodes.md)

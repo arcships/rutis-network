@@ -1,6 +1,6 @@
 # feat(link): `link/cloudflared` 用 Cloudflare Tunnel 做链接层
 
-状态：已发布为 [#5](https://github.com/arcships/rutis-network/issues/5)。优先级 P1。依赖契约 #1 与 `link/tcp` #6。设计稿：[docs/design/05-link-cloudflared.md](../../design/05-link-cloudflared.md)。
+状态：已发布为 [#5](https://github.com/arcships/rutis-network/issues/5)。优先级 P1。依赖契约 #1 与 `link/tcp` #6。设计稿：[PR #15](https://github.com/arcships/rutis-network/pull/15)。
 
 版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。
 
@@ -50,7 +50,7 @@
 
 ## 关联
 
-- 设计稿：[docs/design/05-link-cloudflared.md](../../design/05-link-cloudflared.md)
+- 设计稿：[PR #15](https://github.com/arcships/rutis-network/pull/15)
 - [链接层 link plugin 契约](01-link-plugin-contract.md)
 - [`link/tcp` 与反向隧道](06-link-tcp-and-reverse-tunnels.md)
 - [`link/tailscale`](04-link-tailscale.md)

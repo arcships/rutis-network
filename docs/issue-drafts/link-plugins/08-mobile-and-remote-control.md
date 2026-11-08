@@ -1,6 +1,6 @@
 # feat(link): 移动设备链路与远控服务（ADB/usbmuxd/WebRTC + screen/input）
 
-状态：已发布为 [#8](https://github.com/arcships/rutis-network/issues/8)。优先级 P2（8a 设备链路）/ P3（8b 远控服务）。依赖契约 #1 与 `link/tcp` #6。设计稿：[docs/design/08-mobile.md](../../design/08-mobile.md)。
+状态：已发布为 [#8](https://github.com/arcships/rutis-network/issues/8)。优先级 P2（8a 设备链路）/ P3（8b 远控服务）。依赖契约 #1 与 `link/tcp` #6。设计稿：[PR #18](https://github.com/arcships/rutis-network/pull/18)。
 
 版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。
 
@@ -75,7 +75,7 @@
 
 ## 关联
 
-- 设计稿：[docs/design/08-mobile.md](../../design/08-mobile.md)
+- 设计稿：[PR #18](https://github.com/arcships/rutis-network/pull/18)
 - [链接层 link plugin 契约](01-link-plugin-contract.md)
 - [`link/tcp` 与反向隧道](06-link-tcp-and-reverse-tunnels.md)
 - [`link/iroh` 与 P2P](09-link-iroh-and-p2p.md)

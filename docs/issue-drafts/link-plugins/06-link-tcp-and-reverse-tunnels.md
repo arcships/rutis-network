@@ -1,6 +1,6 @@
 # feat(link): `link/tcp` 通用字节流 bridge 与反向隧道 wrapper
 
-状态：已发布为 [#6](https://github.com/arcships/rutis-network/issues/6)。优先级 **P0**（所有 TCP 类 adapter 的地基）。依赖契约 #1。设计稿：[docs/design/06-link-tcp.md](../../design/06-link-tcp.md)。
+状态：已发布为 [#6](https://github.com/arcships/rutis-network/issues/6)。优先级 **P0**（所有 TCP 类 adapter 的地基）。依赖契约 #1。设计稿：[PR #16](https://github.com/arcships/rutis-network/pull/16)。
 
 版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。
 
@@ -51,7 +51,7 @@
 
 ## 关联
 
-- 设计稿：[docs/design/06-link-tcp.md](../../design/06-link-tcp.md)
+- 设计稿：[PR #16](https://github.com/arcships/rutis-network/pull/16)
 - [链接层 link plugin 契约](01-link-plugin-contract.md)
 - [`link/ssh`](03-link-ssh.md)
 - [`link/tailscale`](04-link-tailscale.md)

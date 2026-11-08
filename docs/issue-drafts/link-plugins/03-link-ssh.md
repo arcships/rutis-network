@@ -1,6 +1,6 @@
 # feat(link): `link/ssh` 用 SSH 做链接层
 
-状态：已发布为 [#3](https://github.com/arcships/rutis-network/issues/3)。优先级 P1。依赖契约 #1 与 `link/tcp` #6（forward 模式）。设计稿：[docs/design/03-link-ssh.md](../../design/03-link-ssh.md)。
+状态：已发布为 [#3](https://github.com/arcships/rutis-network/issues/3)。优先级 P1。依赖契约 #1 与 `link/tcp` #6（forward 模式）。设计稿：[PR #13](https://github.com/arcships/rutis-network/pull/13)。
 
 版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。
 
@@ -47,7 +47,7 @@
 
 ## 关联
 
-- 设计稿：[docs/design/03-link-ssh.md](../../design/03-link-ssh.md)
+- 设计稿：[PR #13](https://github.com/arcships/rutis-network/pull/13)
 - [链接层 link plugin 契约](01-link-plugin-contract.md)
 - [`link/tcp` 与反向隧道](06-link-tcp-and-reverse-tunnels.md)
 - [插件 API：自建连接](https://github.com/arcships/rutis/blob/main/docs/guide/plugin-api.md#自建连接rutissessionsopen)
