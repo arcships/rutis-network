@@ -40,6 +40,7 @@ host link/tcp ── 127.0.0.1:<local> ── adb forward tcp:<local> tcp:<devic
 ### 2.4 Listen side
 
 - Rust uses `Session::handshake` for same-id replacement; non-Rust `open(far)` does not expose the id, and `session_key(row)` is first-wins, so a second session under the same row registers no handle. Non-Rust listeners do not support same-id replacement and must be Rust (O1). Do not write "coexist".
+- Non-Rust also cannot get structured handshake errors; before O1 it falls back to transport backoff and must not treat an ADB/iproxy/WebRTC disconnect reason as a handshake result.
 - Do not parse `Hello`; do not substitute a device name/ADB serial for the id.
 
 ## 3. 8b Remote-control services

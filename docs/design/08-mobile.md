@@ -40,6 +40,7 @@
 ### 2.4 listen 侧
 
 - Rust 用 `Session::handshake` 才能同 id 顶替；非 Rust `open(far)` 不暴露 id，`session_key(row)` 先到先得，第二条同 row 的 session 不会注册 handle，所以非 Rust 监听不支持同 id 顶替，必须用 Rust（O1）。不要写“并存”。
+- 非 Rust 也拿不到结构化握手错误；O1 前只能按传输错误退避，不要把 ADB/iproxy/WebRTC 断开原因当握手结果。
 - 不解析 session `Hello`；不拿设备名/ADB 序列号代替 id。
 
 ## 3. 8b 远控服务
