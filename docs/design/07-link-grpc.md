@@ -13,7 +13,7 @@ gRPC 不是 NAT 穿透，也不是设备互联。它是“到一个可达云端�
 - K8s/service mesh 内部；
 - 分布式云的多区域 relay/故障切换。
 
-优先级：**只在云业务成立时 P1；否则 P2/P3**。不阻塞 #3–#6。
+优先级：**只在云业务成立时 P1；否则 P2**。不阻塞 #3–#6。
 
 ## 2. 协议形状
 
@@ -49,7 +49,7 @@ message Frame {
 
 ## 4. 限制
 
-- gRPC 默认消息上限一般 4 MiB；rutis 是 16 MiB。服务端/客户端都要调大（`max_receive_message_length` / `max_send_message_length`），或明确分片策略。
+- 消息上限不是 rutis 的事实，而是所选 gRPC 实现的配置（很多默认 4 MiB）；服务端/客户端都要显式配置到至少 16 MiB，或明确分片策略。
 - HTTP/2 中间层/负载均衡有超时、缓冲、最大流时长；长连接要 keepalive，避免被 idle 超时切断。
 - serverless（scale-to-zero）不适合长流；要么常驻，要么接受重连。
 - gRPC-Web 不支持 bidi；浏览器场景用 WebSocket/WebTransport。
@@ -78,11 +78,12 @@ message Frame {
 - 多租户：租户 id 来自准入，不进 session；
 - 配对失败：两端都收到明确错误；
 - relay 不做身份；身份仍由两端 `Hello` 决定。
+- **边界**：relay/控制面是独立的云服务或应用，不是本地链接层的 manager/注册表；它不参与本地 link 的组合，也不替 link 管凭据。这样不违反 #1 D11。
 
 ### 6.3 云运行时
 
 - gRPC stream 到云上的 rutis 运行时；和本地 `rutis-host/spawn` 的语义一致；
-- 运行时问候有时限（0.20 起 30 秒）；
+- 运行时问候：session 握手 10 秒；`Process::mount` / `rutis-host/spawn` 的 30 秒只适用于本端启动运行时进程。
 - 插件运行在云上，session 仍按 `<id>:<plugin>` 命名。
 
 ### 6.4 多区域
@@ -105,7 +106,7 @@ message Frame {
 | 消息超 4 MiB | 调大限制或分片；报清楚 |
 | 代理超时/GOAWAY | `near.end`；退避重连 |
 | relay 配对失败 | 两端明确错误；不挂起 |
-| 云运行时问候超时 | 30 秒内失败并结束进程 |
+| 云运行时问候超时 | 10 秒 session 握手超时；`Process::mount` 的 30 秒只用于本端 spawn |
 | 协议版本不兼容 | 报版本；不重试 |
 
 错误按 gRPC status + 结构化 detail；0.21 的 rutis 错误文本不是契约。
@@ -130,7 +131,7 @@ message Frame {
 ## 11. 开放问题
 
 - O1：proto 归 rutis-network 还是 rutis 主仓库？版本策略？
-- O2：relay 是否要解析 `payload` 做路由？建议不解析，只按 metadata/租户。
+- O2（已关闭）：relay 不解析 `payload`；只按 metadata/租户路由。
 - O3：一条 stream 一个 session 的成本（每 session 一个 HTTP/2 stream）是否可接受。
 - O4：多区域故障切换时，是否允许 session 状态迁移？先不做。
 

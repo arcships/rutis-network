@@ -13,7 +13,7 @@ gRPC is not NAT traversal or device interconnect. It is an application protocol 
 - inside K8s/service mesh;
 - multi-region relay/failover for distributed cloud.
 
-Priority: **P1 only when the cloud business exists; otherwise P2/P3.** It does not block #3–#6.
+Priority: **P1 only when the cloud business exists; otherwise P2.** It does not block #3–#6.
 
 ## 2. Protocol shape
 
@@ -49,7 +49,7 @@ The session `Hello` still registers identity; the gRPC principal is not mapped t
 
 ## 4. Limits
 
-- The default gRPC message limit is usually 4 MiB; rutis is 16 MiB. Raise `max_receive_message_length` / `max_send_message_length` on both sides, or define a split strategy.
+- The message limit is not a rutis fact; it is the chosen gRPC implementation's configuration (many default to 4 MiB). Configure both sides to at least 16 MiB explicitly, or define a split strategy.
 - HTTP/2 proxies/load balancers have timeouts, buffering and maximum stream durations; use keepalive so an idle timeout does not cut a live session.
 - Serverless scale-to-zero does not suit long streams; be always-on or accept reconnects.
 - gRPC-Web does not support bidi; browsers use WebSocket/WebTransport.
@@ -78,11 +78,12 @@ The session `Hello` still registers identity; the gRPC principal is not mapped t
 - Multi-tenant: the tenant id comes from admission, not from the session;
 - Pairing failure: both ends get a clear error;
 - The relay does not own identity; the two `Hello`s do.
+- **Boundary**: the relay/control plane is a separate cloud service or application, not the local link layer's manager/registry; it does not take part in local link composition and does not hold link credentials. This keeps #1 D11 intact.
 
 ### 6.3 Cloud runtime
 
 - A gRPC stream to a rutis runtime in the cloud; semantics match local `rutis-host/spawn`;
-- The runtime greeting has a limit (30 s since 0.20);
+- The runtime greeting: the session handshake is 10 s; the 30 s `Process::mount` / `rutis-host/spawn` limit only applies when this end starts a runtime process.
 - Plugins run in the cloud; the session still names them `<id>:<plugin>`.
 
 ### 6.4 Multi-region
@@ -105,7 +106,7 @@ The session `Hello` still registers identity; the gRPC principal is not mapped t
 | Message over 4 MiB | Raise the limit or split; report clearly |
 | Proxy timeout/GOAWAY | `near.end`; reconnect with backoff |
 | Relay pairing failure | Clear error on both ends; do not hang |
-| Cloud runtime greeting timeout | Fail within 30 s and end the process |
+| Cloud runtime greeting timeout | 10 s session handshake timeout; the 30 s `Process::mount` limit only applies to local spawn |
 | Protocol version mismatch | Report the version; do not retry |
 
 Errors use gRPC status plus structured details; rutis 0.21 error texts are not a contract.
@@ -130,7 +131,7 @@ Errors use gRPC status plus structured details; rutis 0.21 error texts are not a
 ## 11. Open questions
 
 - O1: Does the proto live in rutis-network or the rutis repository? What version policy?
-- O2: Should the relay parse `payload` for routing? Suggest no; route by metadata/tenant.
+- O2 (closed): the relay does not parse `payload`; route by metadata/tenant only.
 - O3: Is one stream per session (one HTTP/2 stream each) acceptable?
 - O4: Should failover migrate session state? Not first.
 
