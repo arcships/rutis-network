@@ -93,6 +93,22 @@ link plugin
 - The reference bridge starts with localhost TCP (#6) or the existing WebSocket; both bind `127.0.0.1`, and loopback still needs a random port or one-time token.
 - Plain HTTP request/response has no duplex long-lived stream or message boundaries; HTTP only carries a WebSocket upgrade or gRPC.
 
+### D11 Composition is row + session + service name; no cross-link center
+
+- A link plugin exposes exactly two things: one configuration row in `rutis.json`, and the session it mounts.
+- Business plugins do not know link plugins. A `<link row>:<plugin>` row makes the far end run a plugin; once its service is up, business plugins `inject` / `use` it by service name.
+- No global `links` manager, global `connect` service, cross-link registry, or central credential store. Each row owns its admission, credentials, retries, listeners and child processes.
+- Dynamic changes go through `rutis/loader` / `rutis.json`; that is deployment/operations, not a link-layer runtime API. Prefer always-on rows with reconnect.
+- Each link may have an optional `status` / `doctor` / CLI as its own external tool; do not build a cross-link central manager.
+
+```text
+business plugin ── use ──> far service
+                             ▲
+                        session (rutis/sessions)
+                             ▲
+link row (link/ssh etc.) ── transport/admission/framing/reconnect ──> far end
+```
+
 ## 3. Interface
 
 Rust:
@@ -129,6 +145,7 @@ connection.onClose(() => near.end({ kind: 'done' }))
 - No peer/token/credential on `open`.
 - No authentication in the session.
 - No Rust-only link layer.
+- No cross-link `links` manager, global `connect` service or central credential store; composition is row + session + service name.
 - No templates, catalogue or CI here (#10).
 
 ## 6. Open questions

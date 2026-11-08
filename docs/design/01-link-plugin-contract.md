@@ -93,6 +93,22 @@ link plugin
 - 参考 bridge 先用 localhost TCP（#6）或现有 WebSocket 验证；两者都只绑 `127.0.0.1`，回环也要随机端口/一次性 token 准入。
 - 纯 HTTP 请求/响应没有双向长连接和消息边界，不是 link；HTTP 只作为 WebSocket 升级或 gRPC 的承载。
 
+### D11 组合靠 row + session + 服务名，不做跨 link 中心
+
+- 链接插件的公开面只有两样：一行配置（`rutis.json` 的 row）和它挂上的 session。
+- 业务插件不认识链接插件。对面要跑什么插件由 `<link row>:<plugin>` 行决定；服务起来后，业务插件按服务名 `inject` / `use`。
+- 不设全局 `links` manager、全局 `connect` 服务、跨 link 注册表或中心凭据库。每个 row 自己管准入、凭据、重试、listen 和子进程。
+- 动态增删用 `rutis/loader` / `rutis.json`，这是部署/运维层，不是链接层的运行时 API。优先常驻 + 重连。
+- 每条 link 可以有可选的 `status` / `doctor` / CLI，作为该 link 自己的外部工具；不做跨 link 的中心管理工具。
+
+```text
+业务 plugin ── use ──> 远端服务
+                         ▲
+                    session（rutis/sessions）
+                         ▲
+link row（link/ssh 等）── 传输/准入/framing/重连 ──> 对面
+```
+
 ## 3. 接口
 
 Rust：
@@ -129,6 +145,7 @@ connection.onClose(() => near.end({ kind: 'done' }))
 - 不给 `open` 加 peer/token/credential。
 - 不让 session 做认证。
 - 不把链接层限制在 Rust。
+- 不做跨 link 的 `links` manager / 全局 `connect` 服务 / 中心凭据库；组合只靠 row + session + 服务名。
 - 不在本设计里实现模板、目录和 CI（#10）。
 
 ## 6. 开放问题
