@@ -46,7 +46,7 @@
 ## 5. 生命周期与重连
 
 - tailnet TCP 断开 → `near.end`；session 卸载 → 关闭连接。
-- 重连在 link plugin：指数退避（0.5s → 30s）；ACL 拒绝/证书过期不要无限重试，报清楚。
+- 重连在 link plugin：指数退避（0.5s → 30s）；ACL 拒绝/证书过期/认证拒绝每 30s 再试；协议不兼容停止；连接满 60s 重置退避。
 - 0.20 卸载顺序：连接/daemon 句柄清理只注册一次；不在 cleanup 里注册/等待 cleanup。
 - direct 与 DERP：`tailscale status` 区分；DERP 回退时吞吐/延迟会变差，日志里要能看出当前路径。
 
@@ -63,7 +63,7 @@
 | --- | --- |
 | Tailscale 未启动/未登录 | 报 `tailscale status` 的状态和建议 |
 | MagicDNS 不解析 | 报名字和 DNS 错误；提示用 `100.x` |
-| ACL 拒绝 | 报拒绝；不要当成网络超时重试 |
+| ACL 拒绝 | 报拒绝；每 30s 再试，不忙等 |
 | DERP 回退 | 正常连接但记录路径；文档写清性能风险 |
 | 证书/密钥过期 | 报过期；提示重新登录 |
 | sidecar 未启动 | 报 sidecar 地址和启动方式 |
@@ -80,8 +80,8 @@
 - unit：fake TCP + 长度前缀 framing；边界/顺序/16 MiB/close/背压。
 - system 模式：两台 tailnet 机器，一台 dial、一台 listen，跑通 `open`。
 - tsnet 或 sidecar 至少一种跑通，证明不依赖系统 daemon。
-- ACL 拒绝：连接失败，错误清楚。
-- 断线重连：退避、认证失败不无限重试。
+- ACL 拒绝：连接失败，错误清楚；按 30s 重试。
+- 断线重连：退避、认证/权限拒绝每 30s、协议不兼容停止、连接满 60s 重置退避。
 - CI 不依赖真实 tailnet；手工 e2e 步骤写进文档。
 
 ## 10. 非目标

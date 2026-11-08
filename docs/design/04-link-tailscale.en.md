@@ -46,7 +46,7 @@ Give individuals and small teams a cross-NAT path without public ports, certific
 ## 5. Lifecycle and reconnect
 
 - tailnet TCP closes → `near.end`; session unloads → close the connection.
-- Reconnect lives in the link plugin: exponential backoff (0.5 s → 30 s); do not retry forever on ACL denial/certificate expiry.
+- Reconnect lives in the link plugin: exponential backoff (0.5 s → 30 s); ACL denial/certificate expiry/auth rejection retries every 30 s; a protocol mismatch stops; the backoff resets after 60 s connected.
 - 0.20 unload order: register connection/daemon cleanup once; do not register or wait for another cleanup.
 - direct vs DERP: `tailscale status` distinguishes them; DERP fallback changes throughput/latency; the log must show the current path.
 
@@ -63,7 +63,7 @@ Give individuals and small teams a cross-NAT path without public ports, certific
 | --- | --- |
 | Tailscale not running/logged in | Report `tailscale status` and what to do |
 | MagicDNS does not resolve | Report the name and DNS error; suggest `100.x` |
-| ACL denial | Report it; do not treat it as a timeout and retry |
+| ACL denial | Report it; retry every 30 s, no busy loop |
 | DERP fallback | Connect but record the path; document the performance risk |
 | Certificate/key expiry | Report expiry; ask for a new login |
 | Sidecar not running | Report the sidecar address and how to start it |
@@ -80,8 +80,8 @@ Give individuals and small teams a cross-NAT path without public ports, certific
 - Unit: fake TCP + length-prefix framing; boundaries/order/16 MiB/close/backpressure.
 - system mode: two tailnet machines, one dials and one listens, `open` works.
 - tsnet or sidecar at least once, proving no system daemon dependency.
-- ACL denial: connection fails with a clear error.
-- Reconnect: backoff, no endless retry on auth failure.
+- ACL denial: connection fails with a clear error; retry every 30 s.
+- Reconnect: backoff, auth/permission rejection every 30 s, stop on protocol mismatch, reset after 60 s connected.
 - CI does not depend on a real tailnet; manual e2e steps live in the docs.
 
 ## 10. Non-goals
