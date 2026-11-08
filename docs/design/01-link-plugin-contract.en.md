@@ -66,13 +66,14 @@ link plugin
 - `Channel` closes → session unloads; session unloads → close the channel.
 - Reconnect/backoff lives in the link layer; the session never reconnects.
 - Since 0.20, unloading is one reverse stack: register the adapter cleanup once; a cleanup cannot register or wait for another cleanup.
-- Since 0.20, a session sends on its own writer thread and `open(far)` leaves the outbound backlog unbounded; the bridge must bound its own queue.
+- Since 0.20, a session has its own writer thread and an unbounded outbound queue by default. Rust uses `Session::options(SessionOptions { outbound_limit: Some(bytes) })`; non-Rust `open(far)` has no such option, and a bridge-side queue **cannot** bound the session queue — this is O2 and blocks production use of non-Rust links.
 - Since 0.21, received functions are asynchronous by default: `send` may be async, the session awaits it, and transport write blocking applies backpressure.
+- Heartbeat belongs to the adapter: SSH keepalive, WebSocket ping, gRPC keepalive, Tailscale's own heartbeat; the bridge does not invent a generic heartbeat frame. A failed heartbeat closes the connection and maps to `near.end`.
 
 ### D7 Listen replacement
 
 - Rust: `Session::handshake(&ctx, channel).await` → `Greeted::id()`; unload the old session of that id, then `ctx.plugin(greeted)`, closing the old channel with `Close::Replaced` (4002).
-- Other languages: in 0.21.0 `open(far)` returns only `{ receive, end }` and does not expose the far id. Same-id replacement is therefore **not possible**; open one session per connection and document that two connections from the same far id coexist.
+- Other languages: in 0.21.0 `open(far)` returns only `{ receive, end }` and does not expose the far id, so same-id replacement is impossible. Do **not** say "two connections from the same id coexist": `session_key(row)` is first-wins (`crates/rutis-bridge/src/session/plugin/mod.rs`), so a second session under the same row registers no handle and `<row>:<plugin>` only addresses the first. A listener that needs replacement must be Rust; O1 is blocking, not an optional optimization.
 - Do not parse `Hello` in the bridge and do not substitute the adapter's admission identity.
 
 ### D8 Errors
@@ -84,8 +85,8 @@ link plugin
 
 ### D9 Reference implementation and conformance contract
 
-- Ship one reference bridge (Rust or TS); language templates belong to #10.
-- Conformance contract: boundaries, order, 16 MiB limit, async send, backpressure, close/half-close, `<id>:<plugin>` naming, admission failure before `open`, unload closes the connection, Rust listen replacement.
+- The reference bridge is #6's TS `link/tcp`; the Rust snippet only shows listen replacement with `Session::handshake`. Language templates belong to #10.
+- Conformance contract: boundaries, order, maximum message (an adapter/bridge policy, not a `Channel` contract), async send, backpressure, close; the session has **no half-close**, only `near.end`, and EOF maps to `done` with both directions closed; `<id>:<plugin>` naming, admission failure before `open`, unload closes the connection, Rust listen replacement.
 
 ### D10 localhost TCP / WebSocket are first; HTTP is not a link
 
@@ -100,6 +101,7 @@ link plugin
 - No global `links` manager, global `connect` service, cross-link registry, or central credential store. Each row owns its admission, credentials, retries, listeners and child processes.
 - Dynamic changes go through `rutis/loader` / `rutis.json`; that is deployment/operations, not a link-layer runtime API. Prefer always-on rows with reconnect.
 - Each link may have an optional `status` / `doctor` / CLI as its own external tool; do not build a cross-link central manager.
+- The link-layer guide lives in **this repository** at `docs/guide/link-plugins.md`; the rutis repository only links to it from the "Your own connection" sections of `docs/guide/plugin-api.md` / `nodes.md`.
 
 ```text
 business plugin ── use ──> far service
@@ -121,7 +123,7 @@ let session = ctx.plugin(Session::new(channel));  // session lifecycle == channe
 TypeScript:
 
 ```ts
-const near = ctx.use('rutis/sessions').open({
+const near = await ctx.use('rutis/sessions').open({
   send: message => connection.send(message), // 0.21: may be async
   close: why => connection.close(why),
 })
@@ -150,8 +152,9 @@ connection.onClose(() => near.end({ kind: 'done' }))
 
 ## 6. Open questions
 
-- **O1 (blocks non-Rust listen replacement)**: rutis needs to expose the far id after the handshake through `rutis/sessions.open` (for example `near.id` / `ready()`). Until then, non-Rust listeners do not replace. This is a separate rutis API discussion; parsing `Hello` is not a workaround.
-- **O2**: 4-byte or 8-byte frame length? Design #6 chooses 4 bytes; 16 MiB is enough, and a larger frame can extend it later.
+- **O1 (blocks non-Rust listen replacement)**: rutis needs to expose the far id after the handshake through `rutis/sessions.open` (for example `near.id` / `ready()`). Until then, non-Rust listeners do not replace; `session_key(row)` is first-wins, so a second session under the same row registers no handle. This is a separate rutis API discussion; parsing `Hello` is not a workaround.
+- **O2 (blocks non-Rust outbound bounds)**: `open(far)` cannot set `SessionOptions::outbound_limit`, and the session's outbound queue is unbounded by default; a bridge-side queue cannot bound it. Rust uses `Session::options(...)`. Non-Rust needs rutis to add the option to `open`, or a transport that applies backpressure.
+- **O3 (closed)**: `link/tcp` uses a fixed 4-byte big-endian length; 8 bytes is a future extension, not a current choice.
 - **O3**: 0.21 async callbacks run synchronously on a 0.20 runtime; a bridge must not assume `send` is always async.
 
 ## 7. Version impact

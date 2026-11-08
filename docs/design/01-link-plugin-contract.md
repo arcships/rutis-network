@@ -66,13 +66,14 @@ link plugin
 - `Channel` 关闭 → session 卸载；session 卸载 → 关闭 channel。
 - 重连/退避在链接层；session 从不重连。
 - 0.20 起卸载是一条逆序栈：adapter 清理只注册一次，不在 cleanup 里注册/等待 cleanup。
-- 0.20 起 session 有自己的写线程，`open(far)` 的出站积压默认无上限；bridge 必须自己限流。
+- 0.20 起 session 有自己的写线程，出站队列默认无上限。Rust 用 `Session::options(SessionOptions { outbound_limit: Some(bytes) })`；非 Rust 的 `open(far)` 没有这个参数，bridge 自己的队列**不能**限制 session 的队列——这是 O2，生产用非 Rust link 前必须解决。
 - 0.21 起收到的函数默认异步：`send` 可以是 async，session 会 await，传输写阻塞由此回压。
+- 心跳是 adapter 的事：SSH keepalive、WebSocket ping、gRPC keepalive、Tailscale 自己的心跳；bridge 不发明通用心跳帧。心跳失败就关闭连接并映射为 `near.end`。
 
 ### D7 listen 顶替
 
 - Rust：`Session::handshake(&ctx, channel).await` → `Greeted::id()`；先卸同 id 旧 session，再用 `ctx.plugin(greeted)` 挂新的；旧 channel 以 `Close::Replaced`（4002）关闭。
-- 非 Rust：0.21.0 的 `open(far)` 只返回 `{ receive, end }`，没有远端 id。因此**不能**按 `Hello` id 顶替；只能一条连接一个 session，并在文档里写明“同 id 的多条连接并存”。
+- 非 Rust：0.21.0 的 `open(far)` 只返回 `{ receive, end }`，没有远端 id，做不了同 id 顶替。也**不要**说“同 id 的多条连接并存”：`session_key(row)` 是先到先得（`crates/rutis-bridge/src/session/plugin/mod.rs`），同一个 row 下第二个 session 不再注册 handle，`<row>:<plugin>` 只会找到第一个。需要顶替的监听侧必须用 Rust；O1 是阻塞项，不是可选优化。
 - 禁止在 bridge 里解析 `Hello` 来拿 id；禁止用 adapter 的准入身份代替。
 
 ### D8 错误
@@ -84,8 +85,8 @@ link plugin
 
 ### D9 参考实现与一致性契约
 
-- 先做 Rust 或 TS 一份参考 bridge；各语言模板归 #10。
-- 一致性契约：边界、顺序、16 MiB 上限、异步 send、背压、close/半关闭、远端 id 命名、准入失败不建 session、卸载关闭连接、Rust listen 顶替。
+- 参考 bridge 定为 #6 的 TS `link/tcp`；Rust 片段只用来演示 `Session::handshake` 的 listen 顶替。各语言模板归 #10。
+- 一致性契约：边界、顺序、最大消息（adapter/bridge 自己的策略，不是 `Channel` 的契约）、异步 send、背压、close；session **没有 half-close**，只有 `near.end`，EOF 映射为 `done` 并关闭双向；远端 id 命名、准入失败不建 session、卸载关闭连接、Rust listen 顶替。
 
 ### D10 localhost TCP / WebSocket 是第一波，HTTP 不是
 
@@ -100,6 +101,7 @@ link plugin
 - 不设全局 `links` manager、全局 `connect` 服务、跨 link 注册表或中心凭据库。每个 row 自己管准入、凭据、重试、listen 和子进程。
 - 动态增删用 `rutis/loader` / `rutis.json`，这是部署/运维层，不是链接层的运行时 API。优先常驻 + 重连。
 - 每条 link 可以有可选的 `status` / `doctor` / CLI，作为该 link 自己的外部工具；不做跨 link 的中心管理工具。
+- 链接层指南放在**本仓库**的 `docs/guide/link-plugins.md`；rutis 主仓库只在 `docs/guide/plugin-api.md` / `nodes.md` 的“自建连接”里加链接。
 
 ```text
 业务 plugin ── use ──> 远端服务
@@ -121,7 +123,7 @@ let session = ctx.plugin(Session::new(channel));  // session 生命周期 == cha
 TS：
 
 ```ts
-const near = ctx.use('rutis/sessions').open({
+const near = await ctx.use('rutis/sessions').open({
   send: message => connection.send(message), // 0.21：可以是 async
   close: why => connection.close(why),
 })
@@ -150,8 +152,9 @@ connection.onClose(() => near.end({ kind: 'done' }))
 
 ## 6. 开放问题
 
-- **O1（阻塞非 Rust listen 顶替）**：需要 rutis 在 `rutis/sessions.open` 上暴露握手后的远端 id（例如 `near.id` / `ready()`）。在它出现前，非 Rust listen 不顶替。该 API 变更应作为 rutis 的独立 issue 讨论，不能靠解析 `Hello` 绕过。
-- **O2**：`link/tcp` 的帧长度用 4 字节还是 8 字节？设计稿 #6 取 4 字节（16 MiB 上限足够），若以后要传大帧再扩。
+- **O1（阻塞非 Rust listen 顶替）**：需要 rutis 在 `rutis/sessions.open` 上暴露握手后的远端 id（例如 `near.id` / `ready()`）。在它出现前，非 Rust listen 不做同 id 顶替；`session_key(row)` 先到先得，第二条同 row 的 session 不会注册 handle。该 API 变更应作为 rutis 的独立 issue 讨论，不能靠解析 `Hello` 绕过。
+- **O2（阻塞非 Rust 出站限流）**：`open(far)` 不能设置 `SessionOptions::outbound_limit`，session 的出站队列默认无上限；bridge 自己的队列无法限制它。Rust 用 `Session::options(...)`；非 Rust 需要 rutis 在 `open` 上补这个参数，或明确非 Rust 生产链接必须由传输层回压。
+- **O3（已关闭）**：`link/tcp` 帧长度固定 4 字节大端；8 字节留作未来扩展，不作为当前可选项。
 - **O3**：0.21 的异步回调在旧 runtime（0.20）上按同步处理；bridge 不能假设 `send` 一定异步。
 
 ## 7. 版本影响
