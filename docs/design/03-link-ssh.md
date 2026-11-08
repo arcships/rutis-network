@@ -16,10 +16,10 @@
                  stdin/stdout 当字节流
 ```
 
-- 本端起 `ssh host -- <命令>`，把 stdin/stdout 当双向字节流；bridge 做长度前缀 framing，然后 `rutis/sessions.open(far)`。
+- 本端起 `ssh host -- <命令>`，把 stdin/stdout 当双向字节流；framing 由远端命令决定：远端是 `pipe::framed` 兼容的 rutis 运行时/桥就用换行 framing，远端是 #6 bridge 就用 4 字节长度前缀。然后 `rutis/sessions.open(far)`。
 - 远端命令必须是能说 session 协议的一端：一个 rutis 运行时、一个带 `rutis-bridge/session` 的桥，或另一个 rutis。
 - 优点：不需要 `sshd` 开额外端口，不需要 `-L`/`-R`；SSH 的 host key、agent、`authorized_keys` 直接复用。
-- 0.20 起 `Process::mount` 等运行时问候有时限（30 秒）；SSH 进程迟迟不问候要报错并结束进程，不能无限等。
+- session 握手本身是 10 秒（`Session::handshake`）；`Process::mount` / `rutis-host/spawn` 的 30 秒问候时限只适用于本端启动运行时进程，不适用于 SSH stdio。SSH 进程迟迟不问候要报错并结束进程，不能无限等。
 
 ### 2.2 forward
 
@@ -50,11 +50,12 @@
 
 ## 4. 帧格式
 
-stdio 是字节流，必须 framing：
+stdio 是字节流，必须 framing，规则由远端命令决定：
 
-- 4 字节大端长度 + payload；最大 16 MiB；超长在分配前拒绝并关闭。
+- 远端是 `pipe::framed` 兼容的 rutis 运行时/桥：用换行 framing，单条最大 16 MiB。session JSON 会转义字符串里的换行，token 之间不产生裸换行，所以换行分帧是安全的，和核心 `pipe::lines` 一致。
+- 远端是 #6 bridge：用 4 字节大端长度 + payload，单条最大 16 MiB，超长在分配前拒绝。
+- 两种不能混用；`ssh` 启动命令的配置里必须写清远端是哪一种。
 - 空消息允许（长度 0）。
-- 不做换行 framing（session JSON 可能包含换行，虽然会转义，但长度前缀更稳）。
 - 读到 EOF：`near.end({kind:'done'})`；写失败：关闭并让 session 卸载。
 
 ## 5. 生命周期与重连
@@ -77,7 +78,7 @@ stdio 是字节流，必须 framing：
 | --- | --- |
 | SSH 连接失败 / 认证失败 | 报 host、port、SSH 原始错误；不 `open` |
 | 远端命令不存在 | 报远端命令和退出码 |
-| 远端不问候 | 30 秒内报 `the runtime process ... started but did not greet within 30s` 一类错误，并结束进程 |
+| 远端不问候 | 10 秒内报 session 握手超时（`the far end did not greet in time` 一类错误），并结束 SSH 进程 |
 | 帧超长 | 关闭，报上限 |
 | SSH 断开 | `near.end({kind:'done'})`；按退避重连 |
 | 协议不兼容 | 报版本；不重试 |
@@ -93,11 +94,12 @@ stdio 是字节流，必须 framing：
 
 ## 9. 测试
 
-- 本地 sshd 或 fake channel：stdio 双向、边界/顺序、16 MiB 上限、close、half-close。
-- 远端不问候：30 秒超时并结束进程。
+- 本地 sshd 或 fake channel：stdio 双向、边界/顺序、16 MiB 上限、close/EOF；两种 framing（换行、4 字节）各跑一次。
+- 远端不问候：10 秒 session 握手超时并结束进程；`Process::mount` 的 30 秒只用于本端 spawn。
 - 认证失败：不创建 session。
 - `ssh -L` / `-R` + `link/tcp`：同一套 session 跑通。
 - 断线重连：退避、认证失败不重试、协议不兼容停止。
+- 平台矩阵：Linux + macOS 必跑；Windows OpenSSH 手工或 CI（如果可用），记录信号/进程行为差异。
 - 不依赖公网 SSH 服务。
 
 ## 10. 非目标

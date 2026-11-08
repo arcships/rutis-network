@@ -16,10 +16,10 @@ this end link/ssh ── ssh host -- <rutis runtime/bridge> ── far end
                      stdin/stdout as a byte stream
 ```
 
-- Start `ssh host -- <command>`; treat stdin/stdout as a duplex byte stream; the bridge frames with a length prefix, then calls `rutis/sessions.open(far)`.
+- Start `ssh host -- <command>`; treat stdin/stdout as a duplex byte stream. Framing is chosen by the remote command: a `pipe::framed`-compatible rutis runtime/bridge uses newline framing; a #6 bridge uses the 4-byte length prefix. Then call `rutis/sessions.open(far)`.
 - The remote command must speak the session protocol: a rutis runtime, a bridge with `rutis-bridge/session`, or another rutis.
 - Advantage: no extra `sshd` port, no `-L`/`-R`; host key, agent and `authorized_keys` are reused.
-- Since 0.20, `Process::mount` has a 30 s greeting limit. An SSH process that never greets must fail and end the process, not wait forever.
+- The session handshake itself is 10 s (`Session::handshake`); the 30 s greeting limit of `Process::mount` / `rutis-host/spawn` only applies when this end starts a runtime process, not to SSH stdio. An SSH process that never greets must fail and end the process, not wait forever.
 
 ### 2.2 forward
 
@@ -50,11 +50,12 @@ Do not pass the SSH user, host-key fingerprint or agent identity into the sessio
 
 ## 4. Framing
 
-stdio is a byte stream, so frame it:
+stdio is a byte stream, so frame it; the remote command decides the rule:
 
-- 4-byte big-endian length + payload; max 16 MiB; reject an over-limit length before allocating; close.
+- A `pipe::framed`-compatible rutis runtime/bridge uses newline framing, max 16 MiB. The session JSON escapes newlines inside strings and emits none between tokens, so newline framing is safe and matches the core `pipe::lines`.
+- A #6 bridge uses a 4-byte big-endian length + payload, max 16 MiB; reject an over-limit length before allocating.
+- Do not mix the two; the SSH command configuration must say which one the far end uses.
 - Empty messages (length 0) are allowed.
-- Do not use newline framing; the session JSON may contain newlines even when escaped. A length prefix is stricter.
 - EOF: `near.end({kind:'done'})`. Write failure: close and let the session unload.
 
 ## 5. Lifecycle and reconnect
@@ -77,7 +78,7 @@ stdio is a byte stream, so frame it:
 | --- | --- |
 | SSH connect/auth failure | Report host, port and the SSH error; do not `open` |
 | Remote command missing | Report the command and exit code |
-| Far end never greets | Fail within 30 s (`... did not greet within 30s`) and end the process |
+| Far end never greets | Fail within 10 s with a session handshake timeout (`the far end did not greet in time`) and end the SSH process |
 | Frame over limit | Close, report the limit |
 | SSH disconnect | `near.end({kind:'done'})`; reconnect with backoff |
 | Protocol mismatch | Report the version; do not retry |
@@ -93,11 +94,12 @@ stdio is a byte stream, so frame it:
 
 ## 9. Tests
 
-- Local sshd or fake channel: stdio duplex, boundaries/order, 16 MiB limit, close, half-close.
-- No greeting: 30 s timeout and process end.
+- Local sshd or fake channel: stdio duplex, boundaries/order, 16 MiB limit, close/EOF; both framings (newline, 4-byte) once each.
+- No greeting: 10 s session handshake timeout and process end; the 30 s `Process::mount` limit only applies to local spawn.
 - Auth failure: no session.
 - `ssh -L` / `-R` + `link/tcp`: the same session works.
 - Disconnect: backoff, no retry on auth failure, stop on protocol mismatch.
+- Platform matrix: Linux + macOS required; Windows OpenSSH manual or CI if available, with signal/process differences recorded.
 - No public SSH service in CI.
 
 ## 10. Non-goals
