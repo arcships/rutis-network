@@ -21,6 +21,8 @@
 - 建议形态：**adapter + bridge**。adapter 是网络工具相关的一层；bridge 是 framing + `rutis/sessions.open(far)` + 生命周期，每种语言一份。
 - listen 顶替需要握手后的远端 id。Rust 用 `Session::handshake` 拿 `Greeted::id()`；0.21.0 的 `open(far)` 只返回 `{ receive, end }`，其它语言拿不到 id，因此**非 Rust 的 listen 顶替暂不可实现**。契约要求：Rust 实现顶替；其它语言接受一条连接一个 session，并写明限制，不得解析 session `Hello`，也不得拿 adapter 的准入身份代替。
 - 错误按 `code` 匹配，不按文本匹配（0.21）。
+- 组合靠 `rutis.json` row + `<link row>:<plugin>` + 服务名；不做跨 link 的 `links` manager / 全局 `connect` 服务 / 中心凭据库。
+- 链接层指南放在**本仓库**的 `docs/guide/link-plugins.md`；rutis 主仓库只在 `plugin-api.md` / `nodes.md` 的“自建连接”里加链接。
 
 ## Issue 列表
 
@@ -49,4 +51,4 @@
 
 ## 发布状态
 
-已用 `gh issue create` 发布。发布时正文里的旧编号（#949–#958）和指向 `arcships/rutis/docs/issue-drafts/` 的链接已经修正，现在与本地草案一致（差异只允许出现在 issue 专用的绝对链接上）。新增或修改时，先改本地草案，再用 `gh issue edit <number> --body-file <file>` 同步；同步后复核正文里的编号和链接。
+已用 `gh issue create` 发布。发布时正文里的旧编号（`#949`–`#958`，指 rutis 主仓库）和指向 `arcships/rutis/docs/issue-drafts/` 的链接已经修正，现在与本地草案一致（差异只允许出现在 issue 专用的绝对链接上）。新增或修改时，先改本地草案，再用 `gh issue edit <number> --body-file <file>` 同步；同步后复核正文里的编号和链接。

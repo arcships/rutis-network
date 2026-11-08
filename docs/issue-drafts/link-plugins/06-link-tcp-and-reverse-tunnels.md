@@ -13,11 +13,11 @@
 ## 范围
 
 1. 新增 `link/tcp` bridge（任意语言优先 TS/Rust）：
-   - **localhost TCP 是第一个参考 adapter**：`dial 127.0.0.1:<port>` / `listen 127.0.0.1:0`，用它做一致性测试和本地开发的默认传输；回环也要准入（随机端口或一次性 token），只绑 `127.0.0.1`。
+   - **localhost TCP 是第一个参考 adapter**：`dial 127.0.0.1:<port>` / `listen 127.0.0.1:0`，用它做一致性测试和本地开发的默认传输；只绑 `127.0.0.1`。随机端口不是准入，生产用 Unix socket 权限或 token 帧；无准入的 raw TCP 只用于测试。
    - 长度前缀 framing（优先）：4 字节大端长度 + 正好这么多字节（设计稿选定；8 字节留作未来扩展）；超长在分配前拒绝；
    - 最大消息（对齐 WebSocket 默认 16 MiB）、超长关闭；
-   - close / half-close 语义；
-   - 背压：发送阻塞、接收队列有界；
+   - close / EOF 语义（session 没有 half-close）；
+   - 背压：发送阻塞、接收队列有界；Rust 用 `SessionOptions::outbound_limit`，非 Rust 的 `open(far)` 还补不了；
    - 每条连接一个 session；
    - listen 侧 accept 多条连接；Rust 按远端 `Hello` id 顶替，非 Rust 写明只能并存。
 2. 明确 `link/tcp` **不做认证**；认证在它下面的 adapter（SSH/Tailscale/frp/Cloudflare）或上面的链接层插件。
@@ -43,8 +43,8 @@
 
 ## 验收
 
-- [ ] localhost TCP dial/listen 跑通，作为一致性测试和本地开发的默认传输；回环有随机端口/一次性 token 准入，只绑 `127.0.0.1`。
-- [ ] 本地 TCP echo：消息边界、顺序、16 MiB 上限、超长关闭、half-close 全部符合契约。
+- [ ] localhost TCP dial/listen 跑通，作为一致性测试和本地开发的默认传输；只绑 `127.0.0.1`；无准入 raw TCP 只用于测试，生产用 Unix socket 权限或 token 帧。
+- [ ] 本地 TCP echo：消息边界、顺序、16 MiB 上限、超长关闭、close/EOF 全部符合契约；session 没有 half-close。
 - [ ] 背压：慢接收方不会让 bridge 无界增长；async `send` 被 await。
 - [ ] listen 侧多连接各自 session；Rust 同 id 新连接顶替旧连接；非 Rust 写明限制。
 - [ ] frp 或 rathole 任一跑通（本地 VPS 或 loopback 模拟），`link/tcp` 不需要改。

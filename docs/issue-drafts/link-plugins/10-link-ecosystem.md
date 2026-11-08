@@ -25,7 +25,7 @@
    - 注释里写清认证在 adapter、身份来自远端 `Hello`、session 不碰 token；
    - 0.21 异步 `send`、0.20 卸载顺序、错误 code 写进模板注释。
 2. 一致性测试套件：
-   - 消息边界、顺序、背压、异步 `send`、close、half-close；
+   - 消息边界、顺序、背压、异步 `send`、close/EOF（session 没有 half-close）；
    - 超长消息；
    - 远端 `Hello` id 命名 `<id>:<plugin>`；
    - listen 多连接 + 同 id 顶替（Rust；非 Rust 写明限制）；

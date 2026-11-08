@@ -40,15 +40,15 @@ Baseline: rutis 0.21.0. Use this to choose an adapter, not to decide that every 
 - Tailscale is the private-network / NAT / ACL path.
 - Cloudflare Tunnel is the “no client install / public or controlled ingress” path.
 
-**T2: frp/rathole, K8s/Docker/Fly.io/Railway, Headscale/NetBird, gRPC.**
+**T2: frp/rathole, K8s/Docker/Fly.io/Railway, Headscale/NetBird.**
 
 - frp/rathole: self-hosted, VPS, cost-sensitive, China.
 - K8s/Docker/Fly.io/Railway: deployment platforms are distribution.
 - Headscale/NetBird: self-hosted control plane / data sovereignty.
-- gRPC: T1 if the business is a cloud control plane/relay; otherwise T2/T3.
 
-**T3: iroh/WebRTC/libp2p, MQTT/NATS, enterprise zero-trust, remote control.**
+**T3: iroh/WebRTC/libp2p, MQTT/NATS, enterprise zero-trust, remote control; gRPC outside cloud business.**
 
+- gRPC: T1/T2 only for a cloud control plane/relay; otherwise T3.
 - iroh/WebRTC/libp2p: consumer apps, browser, no system VPN; technical brand and Rust ecosystem.
 - MQTT/NATS/AWS IoT/Azure Relay: IoT/outbound-only devices; later.
 - OpenZiti/Twingate/Zscaler/Teleport: enterprise zero-trust; longer sales.

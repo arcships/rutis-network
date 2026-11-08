@@ -39,7 +39,7 @@
 
 - **listen 顶替**：Rust 用 `Session::handshake` 拿 `Greeted::id()`，先卸旧 session、再挂新 session。0.21.0 的 `open(far)` 只返回 `{ receive, end }`，不暴露远端 id；因此非 Rust 的 listen bridge 不能按 `Hello` id 顶替。契约要求：Rust 实现顶替；其它语言一条连接一个 session，并写明“同 id 的多条连接并存”。禁止解析 session 协议，也禁止拿 SSH 用户 / tailnet 节点 / token 代替 `Hello` id。
 - **认证与身份分开**：adapter 做准入；`Hello` 的 `endpoint` 是身份。`open` 不加 `peer` / `token` / `credential` / `identity`。
-- **bridge 不做第二层 session**：只 framing、backpressure、close/半关闭映射和生命周期。
+- **bridge 不做第二层 session**：只 framing、backpressure、close/EOF 映射和生命周期。
 - **WebSocket 不是新 link plugin**：核心已经有 `websocket::dial` / `websocket::listen`，`rutis-host/listen` 也用它；第一波只把现有 WebSocket 连接写成参考示例，不新增 `link/websocket`。纯 HTTP 请求/响应不是 link，HTTP 只作为 WebSocket 升级或 gRPC 的承载。
 - **错误按 code**：0.21 的错误文本不是契约；`bad-value` 的 `data.reason`、`bad-result` 的 `data.service` / `method` / `expected` 才是。
 
@@ -54,7 +54,7 @@
 ## 验收
 
 - [ ] 文档写清“链接层认证 vs 远端注册身份”，并用代码/文档引用证明：`Channel` 不知道对面是谁，远端在握手时报 id。
-- [ ] Rust 和 TS（或 Python）各有一个最小 bridge，能跑通 `Session::new(channel)` / `open(far)`；示例的认证在 `open` 之前完成，session 代码里没有 token / TLS / Tailscale。
+- [ ] #6 的 TS 参考 bridge 跑通 `open(far)`；Rust 的 `Session::new` / `Session::handshake` 片段也能跑；示例的认证在 `open` 之前完成，session 代码里没有 token / TLS / Tailscale。
 - [ ] listen 侧：Rust 示例能接受多条连接、每条一个 session，并按远端 `Hello` id 顶替；非 Rust 示例写明“不做同 id 顶替”的限制，并说明原因。
 - [ ] 文档覆盖 0.20 卸载顺序（cleanup 只注册一次、不在 cleanup 里注册/等待 cleanup）、0.21 异步 `send` 和错误 code。
 - [ ] 一致性测试契约覆盖消息边界、顺序、背压、异步 `send`、close、远端 id；套件本身在 #10 实现。

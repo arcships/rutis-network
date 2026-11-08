@@ -59,6 +59,8 @@ link plugin (any language)
 | Cloud link | gRPC bidi stream, cloud relay | messages | `open(far)` per stream |
 | Mobile device | ADB `forward`/`reverse`, usbmuxd/`iproxy` | local TCP | frame; `open(far)` |
 
+WebSocket is already in the core (`websocket::dial` / `websocket::listen`, used by `rutis-host/listen`); do not add `link/websocket`. The first reference adapter is localhost TCP (#6), and plain HTTP request/response is not a link — HTTP only carries a WebSocket upgrade or gRPC.
+
 Any language works. Pick the cheapest implementation that fits the target language:
 
 - shell out to the vendor CLI and use stdio or a loopback TCP port;
@@ -90,13 +92,13 @@ If admission fails, close the connection and do not call `open`. Never pass a to
 
 `Channel` / `Near` carries messages with boundaries. If the adapter gives bytes, frame them in the bridge:
 
-- length-prefixed framing is preferred; newline framing is acceptable when the payload cannot contain a raw newline (the session JSON codec escapes them);
-- set and enforce a maximum message size (the WebSocket transport defaults to 16 MiB);
+- length-prefixed framing is preferred. Newline framing is also valid: the session JSON codec escapes newlines inside strings and emits none between tokens, so `pipe::framed`-compatible transports use newline framing. Choose one per far-end contract; never mix them.
+- set and enforce a maximum message size (the bridge's own policy; the WebSocket transport defaults to 16 MiB).
 - preserve order and backpressure; do not buffer without bound;
-- map close / half-close to `near.end` and close the far end exactly once;
+- map close and EOF to `near.end`; the session has **no half-close**, so EOF in one direction ends the whole connection and closes both directions exactly once;
 - do not parse or rewrite the session protocol; the bridge is transport, not a second session layer.
 
-A length-prefixed frame is a 4-byte or 8-byte big-endian length followed by exactly that many bytes. Reject a length over the limit before allocating it. Do not use a self-describing format: the session already carries JSON values inside the message.
+A length-prefixed frame is a **4-byte** big-endian length followed by exactly that many bytes. Reject a length over the limit before allocating it. Do not use a self-describing format: the session already carries JSON values inside the message.
 
 ## 5. Mount the session and bind its lifecycle to the channel
 
@@ -116,7 +118,7 @@ export default definePlugin({
   inject: ['rutis/sessions'],
   async apply(ctx, config) {
     const connection = await adapter.connect(config) // admission is here
-    const near = ctx.use('rutis/sessions').open({
+    const near = await ctx.use('rutis/sessions').open({
       send: message => connection.send(message), // may be async in 0.21
       close: why => connection.close(why),
     })
@@ -131,11 +133,12 @@ export default definePlugin({
 - `Channel` closes → session unloads; session unloads → close the channel. Do not create a second lifecycle for identity or authentication.
 - Reconnect/backoff lives in the link plugin, not in the session. The session never reconnects.
 - Register the adapter cleanup once, in `apply` / `ctx.effect`. Since 0.20, a cleanup cannot register or wait for another cleanup.
+- Since 0.20, a session has its own writer thread and an unbounded outbound queue by default. Rust sets `Session::options(SessionOptions { outbound_limit: Some(bytes) })`; non-Rust `open(far)` has no such option, so a bridge-side queue does not bound the session queue. Treat that as a blocking API gap for production non-Rust links.
+- Heartbeat belongs to the adapter (SSH keepalive, WebSocket ping, gRPC keepalive, Tailscale's own); the bridge does not invent a generic heartbeat frame. A failed heartbeat closes the connection and maps to `near.end`.
 
-**Listen-side replacement.** In Rust, `Session::handshake(&ctx, channel).await` gives `Greeted::id()` before mounting; this is how `rutis-host/listen` unloads an older session of the same far id first, closes it with `Close::Replaced` (4002), then mounts the new one. In other languages, `rutis/sessions.open(far)` returns only `{ receive, end }` as of 0.21.0 and does **not** expose the far end's id, so a non-Rust listen bridge cannot implement same-id replacement without parsing the session protocol (forbidden). Until rutis exposes the id, either:
+**Listen-side replacement.** In Rust, `Session::handshake(&ctx, channel).await` gives `Greeted::id()` before mounting; this is how `rutis-host/listen` unloads an older session of the same far id first, closes it with `Close::Replaced` (4002), then mounts the new one. In other languages, `rutis/sessions.open(far)` returns only `{ receive, end }` as of 0.21.0 and does **not** expose the far end's id, so a non-Rust listen bridge cannot implement same-id replacement without parsing the session protocol (forbidden).
 
-- write the listener in Rust with `Session::handshake`, or
-- accept one session per connection and document that two connections from the same far id coexist.
+Do not write "two connections from the same far id coexist": `session_key(row)` is first-wins, so a second session under the same row registers no handle and `<row>:<plugin>` only addresses the first. A listener that needs replacement must be Rust. O1 (far id through `open`) and O2 (outbound limit through `open`) are blocking API gaps, not optional optimizations.
 
 Do not guess the id from the adapter (SSH user, tailnet node, token): that is admission identity, not the far end's `Hello` id.
 
@@ -145,10 +148,10 @@ Use a fake `Far` / `Near` or a local echo for the bridge:
 
 - [ ] message boundaries and order survive;
 - [ ] maximum message is enforced; over-limit closes cleanly;
-- [ ] backpressure: a slow receiver does not grow memory without bound; an async `send` is awaited;
-- [ ] close: far end closes → `near.end`; near end ends → far end closes;
+- [ ] backpressure: a slow receiver does not grow memory without bound; an async `send` is awaited; Rust sets `outbound_limit`;
+- [ ] close/EOF: far end closes → `near.end`; near end ends → far end closes; no half-close protocol;
 - [ ] remote `Hello` id → `<id>:<plugin>` naming;
-- [ ] listen: multiple connections; same-id replacement (Rust, or conditional on rutis exposing the id);
+- [ ] listen: multiple connections; same-id replacement only in Rust (non-Rust unsupported);
 - [ ] admission failure happens before `open`; no session is created;
 - [ ] session unload does not leave the adapter connection open;
 - [ ] no token/credential appears in session code or output.
@@ -157,7 +160,7 @@ Then test the real adapter separately (SSH/Tailscale/Cloudflare/etc.) with a loc
 
 ## 7. Document what the user sees
 
-Write a short section in `docs/guide/link-plugins.md` (and the `.en.md` counterpart):
+Write a short section in **this repository's** `docs/guide/link-plugins.md` (and the `.en.md` counterpart):
 
 - what the adapter needs installed/configured (SSH server, Tailscale, `cloudflared`, ADB, relay);
 - admission method and what is *not* passed to rutis;
@@ -177,6 +180,9 @@ Write a short section in `docs/guide/link-plugins.md` (and the `.en.md` counterp
 - ❌ Hard-coding a vendor as a rutis dependency; keep it an adapter.
 - ❌ Matching on error text (0.21 changed it); match `error.code` and the keys of `error.data`.
 - ❌ Registering a cleanup from a cleanup, or waiting for another cleanup (0.20 unload order).
+- ❌ A cross-link `links` manager, global `connect` service, cross-link registry or central credential store; composition is row + session + service name.
+- ❌ Presenting a bridge-side queue as a bound on the session's outbound queue; non-Rust `open(far)` cannot set `outbound_limit`.
+- ❌ Treating WebSocket as a new link plugin or plain HTTP as a link.
 
 ## References
 

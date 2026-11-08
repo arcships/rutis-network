@@ -31,7 +31,7 @@ gRPC 不是 Tailscale/Cloudflare 那种“到达”方案，而是“到一个�
    - 多区域：最近区域、会话粘性、故障切换、数据驻留。
 3. 技术约束写清：
    - HTTP/2 中间层/负载均衡的超时、缓冲、最大流时长；
-   - 默认 gRPC 消息上限（一般 4 MiB）与 rutis 16 MiB 的差异；需要调大或分片；
+   - 所选 gRPC 实现的消息上限（很多默认 4 MiB）与 rutis 16 MiB 的差异；显式配置到至少 16 MiB 或分片；
    - 长连接与 serverless scale-to-zero；
    - gRPC-Web 不支持 bidi；浏览器用 WebSocket/WebTransport；
    - keepalive、重连、会话粘性；

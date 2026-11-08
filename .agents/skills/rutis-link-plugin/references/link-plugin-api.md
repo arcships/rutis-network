@@ -41,7 +41,7 @@ let session = ctx.plugin(greeted);
 
 The host provides `LocalId` at the root context (`rutis-host` does this from `rutis.json`'s `id`). There is no default: a session without one fails with `the host provides no id for its sessions`.
 
-`Channel` is the 0.19 transport contract: sender, receiver, closer; ordered, reliable, keeps message boundaries. `pipe::framed(read, write, closer)` frames a byte stream as newline-delimited messages (16 MiB limit, no raw newline in a message). For a new adapter, length-prefixed framing is preferred.
+`Channel` is the 0.19 transport contract: sender, receiver, closer; ordered, reliable, keeps message boundaries. `pipe::framed(read, write, closer)` frames a byte stream as newline-delimited messages (16 MiB limit, no raw newline in a message). For a new adapter, length-prefixed framing is preferred; newline framing is valid when the far end is `pipe::framed`-compatible, because the session codec escapes newlines inside strings. Choose one per far-end contract; never mix them.
 
 ## Any language
 
@@ -61,7 +61,7 @@ export default definePlugin({
   inject: ['rutis/sessions'],
   async apply(ctx, config) {
     const connection = await connect(config) // admission, before any session
-    const near = ctx.use('rutis/sessions').open({
+    const near = await ctx.use('rutis/sessions').open({
       send: message => connection.send(message),
       close: why => connection.close(why),
     })
@@ -77,7 +77,7 @@ export default definePlugin({
 - `receive` completes when the message is in the session's receive queue; the queue is 64 messages, and a full queue waits, carrying backpressure to the connection.
 - The far end's plugins here are called `<far id>:<plugin>`; to make the far end run a plugin, write a row `<connection row>:<plugin>` (for example `relay:contacts`). While the far end is absent, that row waits.
 - There is no `peer`, `token`, `credential` or `identity` parameter. Do not add one.
-- `open(far)` returns `Near` immediately and does not expose the far end's `Hello` id. Only Rust's `Session::handshake` gives `Greeted::id()` before mounting. A non-Rust listen bridge therefore cannot do same-id replacement as of 0.21.0; see "Listen-side replacement" below.
+- `open(far)` returns `Near` immediately and does not expose the far end's `Hello` id. Only Rust's `Session::handshake` gives `Greeted::id()` before mounting. A non-Rust listen bridge therefore cannot do same-id replacement as of 0.21.0. `session_key(row)` is first-wins: a second session under the same row registers no handle, so `<row>:<plugin>` only addresses the first. Do not write "coexist"; see "Listen-side replacement" below.
 
 ## Callbacks and 0.21
 
@@ -97,13 +97,16 @@ Since 0.21, a function handed over by reference is asynchronous by default: the 
 
 Rust `Channel` has `Close::Done`, `Close::Replaced`, `Close::Rejected(reason)`; map them to the transport's close code where it has one (WebSocket: 1000, 4002, 4003).
 
+The session has **no half-close**: `near.end` ends everything. EOF in one direction ends the whole connection and closes both directions exactly once; do not wait for a FIN in the other direction.
+
 ## Lifecycle rules
 
 - One channel = one session. A listen side opens one session per accepted connection.
 - `Channel` closes → session unloads; session unloads → channel closes. Do not create a second lifecycle.
 - Reconnect/backoff belongs to the link plugin. The session never reconnects.
+- Heartbeat belongs to the adapter (SSH keepalive, WebSocket ping, gRPC keepalive, Tailscale's own); the bridge does not invent a generic heartbeat frame. A failed heartbeat closes the connection and maps to `near.end`.
 - Since 0.20, unloading runs one reverse stack, one entry at a time: register the adapter cleanup once (in `apply`, `ctx.effect`, or the cleanup `apply` returns); a cleanup cannot register another cleanup or wait for another one.
-- Since 0.20, a session sends on its own writer thread. `rutis/sessions.open(far)` leaves the outbound backlog unbounded (`SessionOptions::outbound_limit` is a host option), so the link plugin must bound its own queue; a blocked `far.send` holds that session's writer, not the process.
+- Since 0.20, a session sends on its own writer thread. `rutis/sessions.open(far)` leaves the outbound queue unbounded (`SessionOptions::outbound_limit` is a host option), and a bridge-side queue does **not** bound it. Rust sets `Session::options(SessionOptions { outbound_limit: Some(bytes) })`; non-Rust `open(far)` has no such option, so this is a blocking API gap (O2).
 - `rutis-host/listen` uses the far end's `Hello` id for replacement: a newer connection with the same id unloads the old session's remote plugins, closes the old connection with 4002, then mounts the new session. This is Rust-only today; the session core keeps no ids and replaces nothing.
 - A handshake failure on a listen side does not print; the dialer writes the reason.
 
@@ -114,10 +117,7 @@ Replacement needs the far end's `Hello` id **after** the handshake and **before*
 - Rust: `Session::handshake` → `Greeted::id()` → unload the old session → `ctx.plugin(greeted)`.
 - Other languages: `open(far)` returns `{ receive, end }`; there is no id. Parsing the session `Hello` in the bridge is forbidden (the bridge is transport, not a second session layer). Do not substitute the adapter's admission identity (SSH user, tailnet node, token): the contract's id is the far end's registration.
 
-Until rutis exposes the id to `open`, use one of these:
-
-1. implement the listener in Rust (`Session::handshake`), or
-2. accept one session per connection and document that two connections from the same far id coexist.
+Until rutis exposes the id to `open` (O1), a non-Rust listener cannot replace. Do **not** fall back to "one session per connection, same id coexists": `session_key(row)` is first-wins, so the second session registers no handle and `<row>:<plugin>` only addresses the first. Implement the listener in Rust (`Session::handshake`).
 
 ## Errors
 
