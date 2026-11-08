@@ -62,7 +62,7 @@ Note: WebSocket is already in the core (`websocket::dial` / `websocket::listen`,
 Issues #2/#10 use T1/T2/T3; the README and this design use P0–P3. They are the same order in two scales:
 
 - **T1 = P1**: must-have main scenarios (SSH, Tailscale, Cloudflare Tunnel).
-- **T2 = P2**: clear scenarios with extra conditions (frp/rathole, Headscale/NetBird, K8s/Fly.io; gRPC moves to P1 only for cloud business).
+- **T2 = P2**: clear scenarios with extra conditions (frp/rathole, Headscale/NetBird, K8s/Fly.io; gRPC outside cloud business; gRPC moves to P1 only for cloud business).
 - **T3 = P3**: early or application layer (iroh/WebRTC, MQTT/NATS, enterprise zero-trust, remote control).
 - **P0** is not a T tier: it is the contract + TCP bridge foundation, before T1.
 

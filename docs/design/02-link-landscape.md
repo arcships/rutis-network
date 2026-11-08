@@ -62,7 +62,7 @@
 issue #2/#10 用 T1/T2/T3，README 和本设计用 P0–P3；两者是同一顺序的两种刻度：
 
 - **T1 = P1**：主场景必须做（SSH、Tailscale、Cloudflare Tunnel）。
-- **T2 = P2**：有明确场景但依赖额外条件（frp/rathole、Headscale/NetBird、K8s/Fly.io；gRPC 仅在云业务时提到 P1）。
+- **T2 = P2**：有明确场景但依赖额外条件（frp/rathole、Headscale/NetBird、K8s/Fly.io；gRPC 非云业务；gRPC 仅云业务时提到 P1）。
 - **T3 = P3**：早期或应用层（iroh/WebRTC、MQTT/NATS、企业零信任、远控）。
 - **P0** 不是 T 层：它是契约 + TCP bridge 的地基，先于 T1。
 
