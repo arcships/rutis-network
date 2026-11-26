@@ -40,11 +40,11 @@ Configure the dialing host with the listener’s port, its trusted CA and a clie
 }
 ```
 
-## Control a connection from a local management plugin
+## Use connection controls from any rutis plugin language
 
-Add `"controlService": "office-tcp"` to the TCP row's `config` and `"inject": ["office-tcp"]` to the manager's row. **Set `"isolate": {"office-tcp": "management"}` on both rows** to keep the controls in the local management scope. Ordinary root-scope services are exported over sessions.
+Set `controlService` on the TCP row, for example `"office-tcp"`. To control the connection, add that name to the existing caller’s `inject` and map it to the same `isolate` label on both rows. The caller uses its own SDK to configure an endpoint, start or stop the transport, and read or wait for status changes. The TCP row can also start on its own with a configured port.
 
-The manager uses `ctx.use('office-tcp')` to call `configure({host, port})`, `start()`, `stop()`, `status()` and `waitForChange(cursor)`. A managed dialer connects and retries automatically by default. It can load before a port is available. Updating the endpoint switches immediately while running. After an explicit stop, edits take effect on the next start. Reload restores deployment settings. [Complete deployment example and status fields](../design/06-link-tcp-integration.en.md)
+Managed dialers connect and retry automatically by default. Updating the endpoint switches immediately while running. After an explicit stop, edits take effect on the next start. Reload restores deployment settings. Plugins can also mount and unload TCP instances through the host’s `rutis/loader` at runtime. [Host configuration, dynamic mounting and control API](../design/06-link-tcp-integration.en.md)
 
 ## TCP byte-stream bridge
 

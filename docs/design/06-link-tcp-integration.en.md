@@ -1,49 +1,63 @@
 # Managing a TCP plugin connection
 
-A local integration can change the endpoint, start and stop the transport, and observe its state. Each managed Go dial or listen instance provides its own rutis service for the lifetime of the row, including while disconnected. This API targets rutis 0.23.0. [中文](06-link-tcp-integration.md) · [Build and deployment](../guide/link-plugins.en.md)
+A plugin in any language supported by rutis can use this interface. The Go binary provides TCP dial and listen. Each managed instance publishes its own rutis service, which remains available while disconnected. This API targets rutis 0.23.0. [中文](06-link-tcp-integration.md) · [Build and deployment](../guide/link-plugins.en.md)
 
-## Connect a management plugin
+## Mount the plugin through the host
 
-Add these rows to a host configured with the Go and management plugin runtimes. Replace `./plugins/settings.mjs` with your management plugin entry point. To control another link, install another TCP instance with its own service name.
+Place the Go binary in `plugins/go` and register its runtime and TCP row in `rutis.json`. The host can now load the instance. This example waits for the caller to set a target. To dial at load time, supply `host` and `port` in `config`.
 
 ```json
 {
+  "runtimes": { "go": { "dir": "plugins/go" } },
   "rows": [
     {
       "id": "wire",
       "name": "go:link-tcp-dial",
-      "isolate": { "office-tcp": "management" },
+      "isolate": {
+        "office-tcp": "management"
+      },
       "config": {
         "controlService": "office-tcp",
         "ca": "/etc/link/peer-ca.pem",
         "cert": "/etc/link/client.pem",
         "key": "/etc/link/client.key"
       }
-    },
-    {
-      "id": "settings",
-      "name": "./plugins/settings.mjs",
-      "inject": ["office-tcp"],
-      "isolate": { "office-tcp": "management" }
     }
   ]
 }
 ```
 
-**Give both rows the same service name and `isolate` label.** rutis publishes ordinary root-scope services to connected peers. Omitting `isolate` on the provider exposes connection controls to peers. The host enforces isolation, the manager injects the service, and business plugins continue to inject their application services. The host suite verifies isolation and a successful remote application call on the same link. [Host export rules](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/services.rs) · [Integration tests](../../link/tcp/test/control.test.mjs)
+## Call the service from an existing plugin
 
-A management plugin can handle a request to connect and a subsequent disconnect action:
+Merge these fields into the existing local caller's row, keeping its runtime, entry point, other dependencies and scope mappings. Use the caller's rutis SDK to acquire `office-tcp` by name. Plugins that only use a remote application service can continue to inject that service directly.
 
-```js
-const tcp = ctx.use('office-tcp')
-await tcp.configure({ host: 'office.example.com', port: 7443 })
-let state = await tcp.status()
-while (state.phase !== 'connected' && state.phase !== 'failed') {
-  state = await tcp.waitForChange(state.cursor)
+```json
+{
+  "inject": ["office-tcp"],
+  "isolate": { "office-tcp": "management" }
 }
-// When the user requests a disconnect
-await tcp.stop()
 ```
+
+For example, when a user selects a server, pass the object `{"host":"office.example.com","port":7443}` to `configure`. Call `status()` for a snapshot, then pass its `cursor` string to `waitForChange`. Call `stop()` when the user disconnects. The methods, arguments and results are shared across SDKs.
+
+**Keep the control service and caller in the same local isolation scope.** The example maps the same service name to the same `isolate` label on both rows. The host exports ordinary root-scope services to connected peers. [Host export rules](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/services.rs) · [Integration tests](../../link/tcp/test/control.test.mjs)
+
+## Mount from plugin code at runtime
+
+In an application running under `rutis-host run`, a plugin in any supported language can inject the host's `rutis/loader` service to create and remove TCP instances. In 0.23.0, `create` accepts `id`, `name`, `config`, `disabled` and `inject` as row options. To mount an instance with a control service, declare an isolated group in the host's `rows` first. [Upstream method signature](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-loader/src/loader/service.rs)
+
+```json
+{
+  "id": "local-links",
+  "group": true,
+  "isolate": { "office-tcp": "management" },
+  "config": []
+}
+```
+
+1. The mounting plugin declares `inject: ["rutis/loader"]`. From an event or service method after startup, call `create(options, "local-links")`. Pass the TCP row's `id`, `name` and `config` from the example above as the first argument. The second argument is the parent group ID. The new instance inherits the group's isolation. The call returns the row ID.
+2. The plugin using the connection injects `office-tcp` as shown above. The entry point that creates the instance must be able to run before this service exists. A required dependency on the service would leave the creator waiting for itself.
+3. Call `stop()` to disconnect and retain the instance. To unload it, call `remove(row ID)` on `rutis/loader`. In `run` mode the host writes row additions and removals back to `rutis.json`.
 
 ## Methods
 

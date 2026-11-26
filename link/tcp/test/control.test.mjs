@@ -50,6 +50,29 @@ async function managed(env, id, mode, config, otherRows = []) {
   return { ...host, ...link, rows }
 }
 
+test('a TCP row mounted by the loader inherits the group’s local control scope', { timeout: 25000 }, async t => {
+  const env = await setup(t)
+  const harbor = await managed(env, 'harbor', 'listen', { port: 0 }, [
+    row('beacon', 'test/fixtures/witness.mjs', { proof: 'harbor' }),
+  ])
+  const { boundPort } = await harbor.until(s => s.phase === 'listening')
+  const link = instance(env, 'coast', 'dial')
+  const [wire, caller] = link.rows
+  const group = { id: 'local-links', group: true, isolate: wire.isolate, config: [] }
+  const coast = await startHost(env, 'coast', [group, caller])
+  const options = { id: wire.id, name: wire.name, config: wire.config }
+  await coast.waitFor(/running|waiting/)
+  const result = await coast.rootCall('rutis/loader.create', [options, group.id])
+  assert.equal(JSON.parse(result.stdout), wire.id)
+  await coast.waitFor(/management socket ready/)
+  await link.invoke('configure', { port: boundPort })
+  await coast.call('harbor')
+  await harbor.until(s => s.connections === 1)
+  await assert.rejects(harbor.rootCall(link.service + '.status'), /no row provides coast-control/)
+  await coast.rootCall('rutis/loader.remove', [wire.id])
+  await harbor.until(s => s.connections === 0)
+})
+
 test('managed controls stay local and usable across stop, reconfigure and reload', { timeout: 45000 }, async t => {
   const env = await setup(t)
   const harbor = await managed(env, 'harbor', 'listen', { port: 0 }, [

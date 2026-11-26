@@ -40,11 +40,11 @@ go -C link/tcp build -o ../../plugins/go/link-tcp ./cmd/link-tcp
 }
 ```
 
-## 从本地管理插件控制连接
+## 从任意 rutis 插件语言控制连接
 
-给 TCP 行的 `config` 增加 `"controlService": "office-tcp"`，管理行声明 `"inject": ["office-tcp"]`。**两行都配置 `"isolate": {"office-tcp": "management"}`**，使宿主将控制方法限定在本地管理作用域。根作用域的普通服务会随会话导出。
+在 TCP 行配置 `controlService`，例如 `"office-tcp"`。需要控制连接时，把该服务名加入已有调用方的 `inject`，并在两行中为它设置相同的 `isolate` 标签。调用方用自身语言的 SDK 配置目标、启停传输、查询或等待状态变化。只需自动连接时，也可直接给 TCP 行配置端口，由宿主独立启动。
 
-管理插件通过 `ctx.use('office-tcp')` 调用 `configure({host, port})`、`start()`、`stop()`、`status()` 和 `waitForChange(cursor)`。托管拨号默认自动连接并重试，可以先加载、再提供端口。运行中改址立即切换，显式停止后改址则等待下次启动。重载后使用部署配置。[完整部署示例和状态字段](../design/06-link-tcp-integration.md)
+托管拨号默认自动连接并重试。运行中改址立即切换，显式停止后改址则等待下次启动。重载后使用部署配置。也可以在插件运行中通过宿主的 `rutis/loader` 挂载和卸载 TCP 实例。[宿主配置、动态挂载与控制接口](../design/06-link-tcp-integration.md)
 
 ## TCP 字节流 bridge
 

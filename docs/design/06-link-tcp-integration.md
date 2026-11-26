@@ -1,49 +1,63 @@
 # TCP 插件的连接管理接口
 
-集成方可以在本机改地址、连接、断开和观察状态。每个 Go 拨号或监听实例按部署配置提供一个 rutis 服务，随该实例存活。即使对端离线，管理插件也能调用它。适用于 rutis 0.23.0。[English](06-link-tcp-integration.en.md) · [构建和部署](../guide/link-plugins.md)
+任何 rutis 支持的插件语言都可以使用这套接口。TCP 拨号和监听由 Go 二进制提供。每个托管实例发布自己的 rutis 服务，即使连接断开仍可调用。适用于 rutis 0.23.0。[English](06-link-tcp-integration.en.md) · [构建和部署](../guide/link-plugins.md)
 
-## 接入管理插件
+## 用宿主配置挂载
 
-在已有的 Go 和管理插件运行时配置中加入下面两行。将 `./plugins/settings.mjs` 换成自己的管理插件入口。第二条链路可以用另一个 TCP 实例和另一个服务名。
+将 Go 二进制放入 `plugins/go`，在 `rutis.json` 中注册运行时和 TCP 行。宿主即可加载该实例。下例先等待调用方设置目标，若要在加载时拨号，可在 `config` 中给出 `host` 和 `port`。
 
 ```json
 {
+  "runtimes": { "go": { "dir": "plugins/go" } },
   "rows": [
     {
       "id": "wire",
       "name": "go:link-tcp-dial",
-      "isolate": { "office-tcp": "management" },
+      "isolate": {
+        "office-tcp": "management"
+      },
       "config": {
         "controlService": "office-tcp",
         "ca": "/etc/link/peer-ca.pem",
         "cert": "/etc/link/client.pem",
         "key": "/etc/link/client.key"
       }
-    },
-    {
-      "id": "settings",
-      "name": "./plugins/settings.mjs",
-      "inject": ["office-tcp"],
-      "isolate": { "office-tcp": "management" }
     }
   ]
 }
 ```
 
-**两行都要配置相同的服务名与 `isolate` 标签。** rutis 会向已连接的对端发布根作用域中的普通服务。提供方省略 `isolate` 会把连接控制权暴露给对端。隔离由宿主执行，管理插件通过 `inject` 获取服务，业务插件继续按服务名调用业务。两端宿主的隔离与远端业务调用在同一个测试中验证。[宿主导出规则](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/services.rs) · [集成测试](../../link/tcp/test/control.test.mjs)
+## 从已有插件调用
 
-在管理插件中可以这样响应“连接到服务器”和“断开”：
+在需要控制该实例的本地插件行中合并以下字段，保留调用方原有的语言运行时、插件入口、依赖和作用域。调用方使用自身语言的 rutis SDK 按服务名获取 `office-tcp`。仅使用远端业务服务的插件继续注入业务服务即可。
 
-```js
-const tcp = ctx.use('office-tcp')
-await tcp.configure({ host: 'office.example.com', port: 7443 })
-let state = await tcp.status()
-while (state.phase !== 'connected' && state.phase !== 'failed') {
-  state = await tcp.waitForChange(state.cursor)
+```json
+{
+  "inject": ["office-tcp"],
+  "isolate": { "office-tcp": "management" }
 }
-// 用户点击断开时
-await tcp.stop()
 ```
+
+例如，用户选定服务器后，将对象 `{"host":"office.example.com","port":7443}` 传给 `configure`。调用 `status()` 取得快照，再把其中的字符串 `cursor` 传给 `waitForChange`。用户断开时调用 `stop()`。方法、参数和返回值在各语言间共用。
+
+**让控制服务和调用方处于同一个本地隔离作用域。** 上例在两行中为相同服务名指定了相同的 `isolate` 标签。宿主会将根作用域中的普通服务导出给已连接对端。[宿主导出规则](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/services.rs) · [集成测试](../../link/tcp/test/control.test.mjs)
+
+## 从插件代码动态挂载
+
+在使用 `rutis-host run` 的应用中，任何受支持语言的插件都可以注入宿主服务 `rutis/loader` 来创建、卸载 TCP 实例。0.23.0 的 `create` 只接受 `id`、`name`、`config`、`disabled`、`inject` 作为行选项。要动态挂载带控制服务的实例，先在宿主的 `rows` 中声明一个隔离组。[上游方法签名](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-loader/src/loader/service.rs)
+
+```json
+{
+  "id": "local-links",
+  "group": true,
+  "isolate": { "office-tcp": "management" },
+  "config": []
+}
+```
+
+1. 挂载方声明 `inject: ["rutis/loader"]`。在启动完成后的事件或服务方法中调用 `create(options, "local-links")`。第一个参数取上面 TCP 行的 `id`、`name`、`config`，第二个参数是父组 ID。新实例继承组的隔离设置，调用返回行 ID。
+2. 使用连接的插件按上面的调用方配置注入 `office-tcp`。创建实例的入口应能在该服务尚未提供时运行，否则会因等待自己的依赖而无法启动。
+3. `stop()` 用于断开并保留实例。需要卸载时，挂载方调用 `rutis/loader` 的 `remove(行 ID)`。在 `run` 模式下，宿主会将行的增删写回 `rutis.json`。
 
 ## 方法
 
