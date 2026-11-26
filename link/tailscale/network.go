@@ -1,0 +1,168 @@
+// Package tailscale mounts a TCP stream from an admitted tailnet node as a rutis session.
+package tailscale
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net"
+	"net/netip"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
+	"tailscale.com/client/local"
+	"tailscale.com/ipn/ipnstate"
+	"tailscale.com/tsnet"
+)
+
+var errKeyExpired = errors.New("node-key-expired")
+
+// System rows share the daemon's LocalAPI connection pool across reloads.
+var systemAPI local.Client
+
+type tailnet struct {
+	api    *local.Client
+	dialIP func(context.Context, string, uint16) (net.Conn, error)
+	listen func(context.Context, string, string) (net.Listener, error)
+	close  func() error
+}
+
+func openNetwork(ctx context.Context, opts *embeddedNode) (*tailnet, error) {
+	if opts == nil {
+		var lc net.ListenConfig
+		return &tailnet{api: &systemAPI, dialIP: systemAPI.DialTCP, listen: lc.Listen}, nil
+	}
+	server := &tsnet.Server{Dir: opts.StateDir, Hostname: opts.Hostname}
+	if _, err := server.Up(ctx); err != nil {
+		server.Close()
+		return nil, fmt.Errorf("tsnet-start: %w", err)
+	}
+	api, err := server.LocalClient()
+	if err != nil {
+		server.Close()
+		return nil, err
+	}
+	return &tailnet{api: api, close: server.Close, dialIP: func(ctx context.Context, ip string, port uint16) (net.Conn, error) {
+		return server.Dial(ctx, "tcp", net.JoinHostPort(ip, strconv.Itoa(int(port))))
+	}, listen: func(_ context.Context, network, address string) (net.Listener, error) {
+		return server.Listen(network, address)
+	}}, nil
+}
+
+func (n *tailnet) status(ctx context.Context) (*ipnstate.Status, error) {
+	s, err := n.api.Status(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("tailscaled-unavailable: %w", err)
+	}
+	if s.BackendState != "Running" || s.Self == nil || len(s.TailscaleIPs) == 0 {
+		return nil, fmt.Errorf("tailnet-not-ready: %s", s.BackendState)
+	}
+	if s.Self.Expired {
+		return nil, errKeyExpired
+	}
+	return s, nil
+}
+
+// Resolve only node addresses from the daemon's network map. Subnet routes,
+// exit-node routes and public DNS addresses cannot select a peer.
+func nodeAddress(target string, node *ipnstate.PeerStatus, suffix string) (netip.Addr, bool) {
+	if node == nil || len(node.TailscaleIPs) == 0 {
+		return netip.Addr{}, false
+	}
+	if ip, err := netip.ParseAddr(target); err == nil {
+		return ip, slices.Contains(node.TailscaleIPs, ip)
+	}
+	name := strings.TrimSuffix(target, ".")
+	if !strings.Contains(name, ".") && suffix != "" {
+		name += "." + strings.Trim(suffix, ".")
+	}
+	return node.TailscaleIPs[0], strings.EqualFold(name, strings.TrimSuffix(node.DNSName, "."))
+}
+
+func findPeer(s *ipnstate.Status, target string) (*ipnstate.PeerStatus, netip.Addr) {
+	suffix := s.MagicDNSSuffix
+	if s.CurrentTailnet != nil {
+		suffix = s.CurrentTailnet.MagicDNSSuffix
+	}
+	if ip, ok := nodeAddress(target, s.Self, suffix); ok {
+		return s.Self, ip
+	}
+	for _, p := range s.Peer {
+		if ip, ok := nodeAddress(target, p, suffix); ok {
+			return p, ip
+		}
+	}
+	return nil, netip.Addr{}
+}
+
+func (n *tailnet) dial(ctx context.Context, target string, port uint16) (net.Conn, error) {
+	s, err := n.status(ctx)
+	if err != nil {
+		return nil, err
+	}
+	node, ip := findPeer(s, target)
+	if node == nil {
+		return nil, fmt.Errorf("peer-not-found: %s", target)
+	}
+	if node.Expired {
+		return nil, errKeyExpired
+	}
+	conn, err := n.dialIP(ctx, ip.String(), port)
+	if err != nil {
+		return nil, fmt.Errorf("tailnet-dial: %w", err)
+	}
+	return conn, nil
+}
+
+func (n *tailnet) admit(ctx context.Context, addr net.Addr, allowed string) error {
+	source, err := netip.ParseAddrPort(addr.String())
+	if err != nil {
+		return fmt.Errorf("unknown-peer: %w", err)
+	}
+	w, err := n.api.WhoIsProto(ctx, "tcp", addr.String())
+	if err != nil {
+		return fmt.Errorf("unknown-peer: %w", err)
+	}
+	if w.Node == nil || w.Node.Expired || !w.Node.KeyExpiry.IsZero() && !time.Now().Before(w.Node.KeyExpiry) {
+		return errors.New("invalid-peer-identity")
+	}
+	ip := source.Addr().Unmap()
+	if !slices.Contains(w.Node.Addresses, netip.PrefixFrom(ip, ip.BitLen())) {
+		return errors.New("source-is-not-node-address")
+	}
+	s, err := n.status(ctx)
+	if err != nil {
+		return err
+	}
+	node, _ := findPeer(s, allowed)
+	if node == nil || node.Expired || w.Node.StableID == "" || node.ID != w.Node.StableID {
+		return errors.New("peer-not-allowed")
+	}
+	return nil
+}
+
+func (n *tailnet) path(ctx context.Context, target string) string {
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	s, err := n.status(ctx)
+	if err != nil {
+		return "unknown"
+	}
+	p, _ := findPeer(s, target)
+	switch {
+	case p == s.Self:
+		return "local"
+	case p == nil || !p.Active:
+		return "unknown"
+	case p.CurAddr != "":
+		return "direct"
+	case p.PeerRelay != "":
+		return "peer-relay"
+	case p.Relay != "":
+		return "DERP"
+	default:
+		return "unknown"
+	}
+}

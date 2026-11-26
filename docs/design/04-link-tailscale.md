@@ -1,107 +1,70 @@
-# `link/tailscale`：设计稿
+# Go 版 Tailscale 连接插件
 
-状态：草案。日期：2026-11-08。基线：rutis 0.21.0。
-关联 issue：[#4](https://github.com/arcships/rutis-network/issues/4)。依赖：[#1](https://github.com/arcships/rutis-network/issues/1)、[#6](https://github.com/arcships/rutis-network/issues/6)。
+[English](04-link-tailscale.en.md)
 
-## 1. 目标
+`go:link-tailscale` 把两个已加入同一 tailnet 的 rutis 0.23.0 宿主连接起来。系统模式复用已登录的 `tailscaled`。需要独立节点身份时，可以给同一行配置 `tsnet`。连接由 Tailscale 的访问策略和监听行的 `allowPeer` 共同控制。远端 rutis ID 由会话握手决定。[Tailscale 访问策略](https://tailscale.com/docs/features/access-control) · [tsnet](https://tailscale.com/kb/1244/tsnet)
 
-给个人/小团队一个不用开公网端口、不用自己管证书和 DNS 的跨 NAT 方案。Tailscale 是 adapter，不是 rutis 的 underlay：link plugin 用 tailnet TCP 建连接，bridge 做 framing，交给 `rutis/sessions`。
+## 系统模式
 
-## 2. 三种形态
+在仓库根目录用 Go 1.27.4 或更高版本编译。把同一个二进制放到两个宿主的 `plugins/go` 目录，并在两端 `rutis.json` 中配置 `"runtimes": {"go": {"dir": "plugins/go"}}`。
 
-### 2.1 system（首选）
+```sh
+mkdir -p plugins/go
+go -C link/tailscale build -o ../../plugins/go/link-tailscale ./cmd/link-tailscale
+```
 
-- 使用系统 `tailscaled`；link plugin dial/listen tailnet TCP 地址（MagicDNS 名或 `100.x`）。
-- 需要用户在机器上装 Tailscale 并登录；link plugin 只依赖本机 tailnet。
-- 优点：不引入 Go 依赖；`tailscale status` 能看 direct/relay。
-- 缺点：要求系统 daemon；容器/无 root 环境麻烦。
+假设 tailnet 节点名分别是 `alpha` 和 `bravo`，访问策略允许 alpha 连接 bravo 的 TCP 7443 端口。双方的宿主进程需要可读取本机 Tailscale LocalAPI。bravo 的系统模式需要操作系统可以绑定本机 tailnet IP。先把监听行加入 bravo 的 `rows`。
 
-### 2.2 tsnet（Go，可选）
+```json
+{"id":"from-alpha","name":"go:link-tailscale","config":{"listen":":7443","allowPeer":"alpha"}}
+```
 
-- 用 `tailscale.com/tsnet` 在进程内加入 tailnet；`Listen`/`Dial` 直接拿 TCP。
-- 优点：不依赖系统 daemon；适合嵌入式/容器。
-- 缺点：Go 依赖体积；控制面/状态目录要配置；不同语言要包一层。
+再把拨号行加入 alpha 的 `rows`。
 
-### 2.3 sidecar（其他语言）
+```json
+{"id":"to-bravo","name":"go:link-tailscale","config":{"dial":"bravo:7443"}}
+```
 
-- 本机跑一个 `tsnet` sidecar，link plugin 连本地回环 TCP；sidecar 的地址/端口由配置给出。
-- 优点：任何语言可用；sidecar 生命周期可以跟 link plugin 走。
-- 缺点：多一个进程；本地回环的准入要限制（只绑 127.0.0.1，随机端口/令牌）。
+`dial` 和 `allowPeer` 接受节点的 tailnet IP、MagicDNS 短名或完整域名。拨号只选本机守护进程网络图里的节点地址。`:7443` 只绑定本节点的首个 tailnet IP。若要指定 IPv6，可写 `[本机 tailnet IPv6]:7443`。端口 `0` 会在日志中输出实际地址。监听端对每条连接执行 TCP WhoIs，校验源 IP 属于该节点，再校验 `allowPeer`。同一获准节点重新连接时，监听端结束前一条传输后再挂新会话，不需要解析 rutis 的 Hello。
 
-## 3. 准入
+## 独立节点
 
-| 项 | 做法 |
+在拨号或监听行的 `config` 中加入以下字段。给每行配置唯一的节点名和私有持久化绝对目录。首次注册可通过插件进程的 `TS_AUTHKEY` 环境变量注入授权密钥。已注册节点重启时沿用目录里的身份。卸载该行会关闭它自己的 tsnet 节点。系统模式下，卸载只释放插件的连接与监听。
+
+```json
+{"tsnet":{"hostname":"rutis-bravo","stateDir":"/var/lib/rutis/tailscale/bravo"}}
+```
+
+对端的 `dial` 或 `allowPeer` 使用这个独立节点在 tailnet 中的实际名称或 IP。拨号端和监听端可以分别选择系统模式或 tsnet。
+
+## 通过管理插件启停
+
+管理插件声明并注入 `rutis/loader`，复用上面的行配置。以下代码在管理插件里创建并启动拨号行。保留返回的行 ID，作为后续管理操作的参数。
+
+```ts
+const loader = ctx.use('rutis/loader')
+const id = await loader.create({
+  id: 'to-bravo', name: 'go:link-tailscale', config: { dial: 'bravo:7443' }
+})
+```
+
+调用 `loader.status()` 查看行的加载状态，`loader.reload(id)` 重启，`loader.remove(id)` 停止并移除该行。再次启动时用保存的配置调用 `create`。对于随宿主启动的静态行，也可以直接编辑 `rutis.json` 并重载。绑定失败会使监听行加载失败。拨号行在后台等待对端，连接结束后从 0.5 秒开始指数退避，最长 30 秒；稳定连接一分钟后重置退避。行处于运行状态时可能正在重试。验证业务可用性时，调用一次远端服务。
+
+## 诊断与验证
+
+| 现象 | 检查项 |
 | --- | --- |
-| 网络准入 | tailnet ACL / 设备身份；不引入 rutis token |
-| 设备授权 | Tailscale 登录/节点授权；失败在 link 层报错 |
-| 身份 | 仍由 session `Hello` 注册；不把 tailnet 节点名/用户映射成 session identity |
-| sidecar | 只绑 127.0.0.1；用随机端口或一次性令牌，避免本机其它进程乱连 |
+| `tailscaled-unavailable` / `tailnet-not-ready` | 检查本机守护进程、登录状态和 LocalAPI 权限。 |
+| `peer-not-found` / `node-key-expired` | 核对节点名、网络策略可见性和节点密钥有效期。 |
+| `tailnet-dial` / 超时 | 核对目标端口、监听进程、设备在线状态和访问策略。ACL 丢包也可能表现为超时。 |
+| `peer-not-allowed` / `unknown-peer` | 检查监听行允许的节点与实际连接来源。 |
+| `path=direct` / `DERP` / `peer-relay` | 日志记录传输挂载时观测到的路径，尚无路径信息时为 `unknown`。中继的时延和吞吐可能变化，系统节点可用 `tailscale status` 查看当前路径。 |
 
-## 4. 连接与 framing
+适配器复用 Go TCP bridge 的 4 字节大端长度前缀和 16 MiB 单帧上限。会话断开后重新建立，旧消息不会重放。rutis 0.23 的 Go 接口无法读取握手后声明的 rutis ID 或配置会话发送队列上限。[TCP bridge](../../link/tcp/bridge.go) · [Tailscale CLI](https://tailscale.com/docs/reference/tailscale-cli)
 
-- 一条 tailnet TCP = 一个 session；用 #6 的长度前缀 framing（4 字节大端 + payload，最大 16 MiB）。
-- 不要把现有 WebSocket 直接跑在 Tailscale 上再叫它 link/tailscale；adapter 只负责到达，bridge 负责消息边界。
-- 0.21 异步 `send`：TCP 写阻塞通过 async `send` 回压；bridge 队列有界。
+在仓库根目录运行以下命令。集成测试需要 PATH 中的 rutis-host 0.23.0，也可通过 `RUTIS_HOST` 指定二进制。它启动本地测试控制面、DERP 和两个独立节点，验证远端调用、移除、重建、对端准入和自动重连。另设 `RUTIS_TAILSCALE_SYSTEM_TEST=1` 可在已登录的本机节点上用两个宿主进程验证系统模式。
 
-## 5. 生命周期与重连
-
-- tailnet TCP 断开 → `near.end`；session 卸载 → 关闭连接。
-- 重连在 link plugin：指数退避（0.5s → 30s）；ACL 拒绝/证书过期/认证拒绝每 30s 再试；协议不兼容停止；连接满 60s 重置退避。
-- 0.20 卸载顺序：连接/daemon 句柄清理只注册一次；不在 cleanup 里注册/等待 cleanup。
-- direct 与 DERP：`tailscale status` 区分；DERP 回退时吞吐/延迟会变差，日志里要能看出当前路径。
-
-## 6. listen 侧
-
-- system 模式可以用 Rust 的 `Session::handshake` 做同 id 顶替；非 Rust `open(far)` 不暴露 id，`session_key(row)` 先到先得，所以非 Rust 监听不支持同 id 顶替，必须用 Rust（O1）。不要写“并存”。
-- 非 Rust 也拿不到结构化握手错误；O1 前只能按传输错误退避，不要把 tailnet 断开原因当握手结果。
-- tsnet/sidecar 的 Listener 在 adapter 层 accept，仍然要遵守“一个连接一个 session”。
-- 不解析 session `Hello`；不拿 tailnet 节点名代替 id。
-
-## 7. 错误
-
-| 场景 | 处理 |
-| --- | --- |
-| Tailscale 未启动/未登录 | 报 `tailscale status` 的状态和建议 |
-| MagicDNS 不解析 | 报名字和 DNS 错误；提示用 `100.x` |
-| ACL 拒绝 | 报拒绝；每 30s 再试，不忙等 |
-| DERP 回退 | 正常连接但记录路径；文档写清性能风险 |
-| 证书/密钥过期 | 报过期；提示重新登录 |
-| sidecar 未启动 | 报 sidecar 地址和启动方式 |
-
-## 8. 安全边界
-
-- tailnet ACL 是准入边界；rutis 信任 tailnet 放进来的连接。
-- 不把 tailnet 身份传给 session；不在日志里写 auth key。
-- sidecar 只绑回环，避免把本地端口暴露给整个 tailnet/局域网。
-- Tailscale Funnel/Serve 是入口/部署，不是 link plugin；不要混进来。
-
-## 9. 测试
-
-- unit：fake TCP + 长度前缀 framing；边界/顺序/16 MiB/close/背压。
-- system 模式：两台 tailnet 机器，一台 dial、一台 listen，跑通 `open`。
-- tsnet 或 sidecar 至少一种跑通，证明不依赖系统 daemon。
-- ACL 拒绝：连接失败，错误清楚；按 30s 重试。
-- 断线重连：退避、认证/权限拒绝每 30s、协议不兼容停止、连接满 60s 重置退避。
-- CI 不依赖真实 tailnet；手工 e2e 步骤写进文档。
-
-## 10. 非目标
-
-- 不把 Tailscale 变成核心依赖。
-- 不要求所有 rutis 用户装 Tailscale。
-- 不做 Tailscale Serve/Funnel 封装。
-- 不实现 Headscale 控制面；只写兼容性。
-- 不把 tailnet 身份映射成 session identity。
-
-## 11. 开放问题
-
-- O1：sidecar 用固定协议还是直接暴露本地 TCP？固定协议可以限制只跑 tailnet 转发。
-- O2：tsnet 的 Go 依赖是否值得为“无 daemon”场景引入，还是 sidecar 足够。
-- O3：Headscale 的兼容性测试是否进 CI（本地容器）。
-
-## 关联
-
-- issue [#4](https://github.com/arcships/rutis-network/issues/4)
-- [契约设计稿](01-link-plugin-contract.md)
-- [TCP bridge 设计稿](06-link-tcp.md)
-- [Cloudflare 设计稿](05-link-cloudflared.md)
-- rutis `docs/guide/nodes.md`
+```sh
+go -C link/tailscale test -race ./...
+go -C link/tailscale test -tags rutishost -run TestHosts ./...
+```

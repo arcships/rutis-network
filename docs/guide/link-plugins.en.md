@@ -13,6 +13,10 @@ The plugins and examples pin rutis 0.23.0, session protocol 5 and plugin API 3. 
 
 Admitting a peer grants trust in the identity it registers. Complete admission before handoff and close a denied connection. The adapter keeps certificates and tokens. A random port selects an address. Rust's Channel carries opaque messages with boundaries. Greeted provides the identity after handshake. [Channel](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/channel/mod.rs) · [Session and Greeted](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/mod.rs)
 
+## Go Tailscale
+
+`go:link-tailscale` connects to one tailnet node over TCP using the system daemon or an embedded tsnet node. A management plugin can create, reload and remove a row through `rutis/loader`. [Configure and manage a Tailscale link](../design/04-link-tailscale.en.md)
+
 ## Go libp2p
 
 `go:link-libp2p` connects to one pinned peer over direct QUIC or a configured Circuit Relay v2 and mounts its stream as a session. Use Go 1.26 and rutis-host 0.23.0. [Build, configure and control the plugin](../design/09-p2p-plugins.en.md)
