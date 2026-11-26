@@ -2,11 +2,18 @@
 
 [English](09-p2p-plugins.en.md)
 
-**提案。** 用一个 go-libp2p 二进制提供 `go:link-libp2p`，每行配置连接一个对端。拨号方按地址末尾的 Peer ID 校验对端，监听方只接受 `allowPeer` 指定的 Peer ID。双方通过 `/rutis/link/1` 打开双向流，准入成功后交给 `rutis/sessions.open(far)`。
+Go 插件使用 go-libp2p 0.52.0，适配 rutis-host 0.23.0。一个二进制提供 `go:link-libp2p`，每行配置连接一个对端。拨号方按地址末尾的 Peer ID 校验对端，监听方只接受 `allowPeer` 指定的 Peer ID。双方通过 `/rutis/link/1` 打开双向流，准入成功后交给 `rutis/sessions.open(far)`。
 
 ## 双端配置
 
-将插件放入 `plugins/go`，在两台宿主的 `rutis.json` 设置 `"runtimes": {"go": {"dir": "plugins/go"}}`。两端使用各自预配的持久密钥，交换公开的 Peer ID。A 的 `rows` 加入拨号行，将示例地址换成 B 可达的地址。
+使用 Go 1.26 或更高版本，在仓库根目录构建插件。在 A、B 两端分别运行一次 `keygen`，它以仅所有者可读写的权限创建密钥文件，输出公开 Peer ID。已有密钥不会被覆盖。
+
+```sh
+(cd link/libp2p && go build -o ../../plugins/go/link-libp2p ./cmd/link-libp2p)
+./plugins/go/link-libp2p keygen ./peer.key
+```
+
+将插件放入 `plugins/go`，在两台宿主的 `rutis.json` 设置 `"runtimes": {"go": {"dir": "plugins/go"}}`。将各行的 `keyFile` 改为生成的密钥文件的绝对路径，交换公开的 Peer ID。A 的 `rows` 加入拨号行，将示例地址换成 B 可达的地址。
 
 ```json
 {
@@ -39,7 +46,7 @@ B 的 `rows` 加入监听行。
 
 ## 插件管理
 
-配置加载后自动启动。管理插件注入 `office-link`，并设置相同的 `"isolate": {"office-link": "local"}`。首版提供三个方法，改地址或密钥通过编辑配置并重载该行完成。
+配置加载后自动启动。拨号端每次启动尝试一次，断线后用 `start()` 重拨。监听端继续接受同一对端的新连接。管理插件注入 `office-link`，并设置相同的 `"isolate": {"office-link": "local"}`。根作用域的服务会导出给对端，启用控制服务时请保留示例中的隔离配置。改地址或密钥时，编辑配置并重载该行。
 
 | 方法 | 行为 |
 | --- | --- |
@@ -49,4 +56,4 @@ B 的 `rows` 加入监听行。
 
 一条流挂一个会话，使用 4 字节大端长度前缀，单帧上限 16 MiB。rutis 0.23 的 Go 接口无法读取握手后的 rutis ID，也不能设置会话发送队列上限。因此每行仅接受一条活动流，旧流结束后再接受新流。[会话接口](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/open.rs)
 
-已在本机用两个 Go 节点经 Circuit Relay v2 验证分帧往返。双宿主插件挂载和管理调用待实现验证。
+运行 `(cd link/libp2p && go test -race ./...)` 可验证本机 QUIC 直连、中继、拒绝未授权和重复流、分帧与停止后重启。将 rutis-host 0.23.0 放入 PATH 或通过 `RUTIS_HOST` 指定路径，再运行 `(cd link/libp2p && go test -tags rutishost -run TestTwoHosts)`，可在两个真实宿主上验证远端服务调用、停止、恢复和控制服务的隔离。

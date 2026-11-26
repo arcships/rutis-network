@@ -1,5 +1,7 @@
 # `link/iroh` Rust P2P / relay prototype: design
 
+Historical design draft. This PR implements the [Go libp2p plugin](09-p2p-plugins.en.md), which includes configuration for both ends.
+
 Status: draft. Date: 2026-11-08. Baseline: rutis 0.21.0.
 Issue: [#9](https://github.com/arcships/rutis-network/issues/9). Depends on [#1](https://github.com/arcships/rutis-network/issues/1).
 
@@ -98,5 +100,5 @@ Logs must show direct vs relay; document relay privacy/cost.
 
 - Issue [#9](https://github.com/arcships/rutis-network/issues/9)
 - [Contract design](01-link-plugin-contract.en.md)
-- [TCP bridge design](06-link-tcp.en.md)
-- [gRPC design](07-link-grpc.en.md)
+- [TCP bridge design](https://github.com/arcships/rutis-network/pull/16)
+- [gRPC design](https://github.com/arcships/rutis-network/pull/17)

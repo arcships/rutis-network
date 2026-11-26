@@ -1,5 +1,7 @@
 # `link/iroh` Rust P2P / relay 原型：设计稿
 
+历史设计稿。此 PR 的可运行实现与双端配置见 [Go 版 libp2p 插件](09-p2p-plugins.md)。
+
 状态：草案。日期：2026-11-08。基线：rutis 0.21.0。
 关联 issue：[#9](https://github.com/arcships/rutis-network/issues/9)。依赖：[#1](https://github.com/arcships/rutis-network/issues/1)。
 
@@ -98,5 +100,5 @@ Endpoint A ── QUIC (ALPN rutis/link/1) ── Endpoint B
 
 - issue [#9](https://github.com/arcships/rutis-network/issues/9)
 - [契约设计稿](01-link-plugin-contract.md)
-- [TCP bridge 设计稿](06-link-tcp.md)
-- [gRPC 设计稿](07-link-grpc.md)
+- [TCP bridge 设计稿](https://github.com/arcships/rutis-network/pull/16)
+- [gRPC 设计稿](https://github.com/arcships/rutis-network/pull/17)

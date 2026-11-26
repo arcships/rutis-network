@@ -2,7 +2,7 @@
 
 [English](link-plugins.en.md)
 
-本指南的可运行示例固定在 rutis 0.21.0（会话协议 4、插件 API 3）。两端使用同一会话协议。0.23.0 使用协议 5，与协议 4 的端点握手会失败。[版本迁移](https://github.com/arcships/rutis/blob/v0.23.0/docs/migration-0.23.md)
+本指南的 TCP 和 Rust 参考示例固定在 rutis 0.21.0（会话协议 4、插件 API 3）。两端使用同一会话协议。0.23.0 使用协议 5，与协议 4 的端点握手会失败。[版本迁移](https://github.com/arcships/rutis/blob/v0.23.0/docs/migration-0.23.md)
 
 | 组件 | 职责 |
 | --- | --- |
@@ -12,6 +12,10 @@
 | 应用插件 | 使用服务。配置行 `<连接行>:<插件>` 指定要在对端运行的插件。 |
 
 准入成功等于信任对端注册的身份。adapter 必须在交接前完成验证；失败即关闭连接。证书和 token 只在 adapter 内使用。随机端口只参与寻址。Rust 的 Channel 收发有边界的不透明字节，Greeted 在握手完成后提供身份。[Channel](https://github.com/arcships/rutis/blob/v0.21.0/crates/rutis-bridge/src/channel/mod.rs) · [Session 与 Greeted](https://github.com/arcships/rutis/blob/v0.21.0/crates/rutis-bridge/src/session/plugin/mod.rs)
+
+## Go 版 libp2p
+
+`go:link-libp2p` 使用 QUIC 直连或指定的 Circuit Relay v2，将一个通过 Peer ID 校验的对端挂为会话。需要 Go 1.26 和 rutis-host 0.23.0。[构建、配置和管理接口](../design/09-p2p-plugins.md)
 
 ## 运行参考实现
 
