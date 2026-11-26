@@ -78,14 +78,14 @@ export async function startHost(env, id, rows) {
     await rename(path + '.tmp', path)
     proc.child.kill('SIGUSR1')
   }
-  function invoke(method, argument) {
-    return exec(process.execPath, [host, 'call', '--config', path, method, String(argument)], { timeout: 30000 })
+  function rootCall(method, args = [], timeout = 30000) {
+    return exec(process.execPath, [host, 'call', '--config', path, method, ...args.map(x => JSON.stringify(x))], { timeout })
   }
-  async function call(expected, argument = 37, method = 'witness.echo') {
+  async function call(expected, argument = 37) {
     let last
     for (let i = 0; i < 80; i++) {
       try {
-        const result = await invoke(method, argument)
+        const result = await rootCall('witness.echo', [argument])
         assert.deepEqual(JSON.parse(result.stdout), [expected, argument])
         return
       } catch (error) {
@@ -95,5 +95,5 @@ export async function startHost(env, id, rows) {
     }
     assert.fail([last, proc.output()].join('\n'))
   }
-  return { ...proc, reload, call }
+  return { ...proc, reload, call, rootCall }
 }

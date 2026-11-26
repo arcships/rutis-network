@@ -40,9 +40,15 @@ Configure the dialing host with the listener’s port, its trusted CA and a clie
 }
 ```
 
+## Control a connection from a local management plugin
+
+Add `"controlService": "office-tcp"` to the TCP row's `config` and `"inject": ["office-tcp"]` to the manager's row. **Set `"isolate": {"office-tcp": "management"}` on both rows** to keep the controls in the local management scope. Ordinary root-scope services are exported over sessions.
+
+The manager uses `ctx.use('office-tcp')` to call `configure({host, port})`, `start()`, `stop()`, `status()` and `waitForChange(cursor)`. A managed dialer connects and retries automatically by default. It can load before a port is available. Updating the endpoint switches immediately while running. After an explicit stop, edits take effect on the next start. Reload restores deployment settings. [Complete deployment example and status fields](../design/06-link-tcp-integration.en.md)
+
 ## TCP byte-stream bridge
 
-On the accepting host, use the same runtime configuration and a row named `go:link-tcp-listen`. Supply the server certificate and key and a CA dedicated to admitted clients. Both plugins use IPv4 loopback. Port zero lets the listener choose and report a free port as `link/tcp listening 127.0.0.1:<port>`. Each verified client gets a separate session. Unloading the row closes the listener, pending TLS handshakes and admitted sockets. [Go adapters](../../link/tcp/adapter.go) · [Go bridge](../../link/tcp/bridge.go)
+On the accepting host, use the same runtime configuration and a row named `go:link-tcp-listen`. Supply the server certificate and key and a CA dedicated to admitted clients. The listener binds to IPv4 loopback. The dialer accepts a DNS name, IPv4 address or IPv6 address in `host`. Port zero lets the listener choose and report a free port as `link/tcp listening 127.0.0.1:<port>`. Each verified client gets a separate session. Unloading the row closes the listener, pending TLS handshakes and admitted sockets. [Go adapters](../../link/tcp/adapter.go) · [Go bridge](../../link/tcp/bridge.go)
 
 Run the checks below from the repository root. Integration tests use Node ≥22.18, npm, OpenSSL and a Unix host with control-socket support. They build the Go binary, start real rutis hosts and call a remote service through both the Go dialer and the single-dial TypeScript reference. The Rust example uses Cargo. [TypeScript reference](../../link/tcp/dial.ts) · [Host tests](../../link/tcp/test/hosts.test.mjs)
 
@@ -54,7 +60,7 @@ npm --prefix link/tcp test
 cargo test --locked --manifest-path examples/rust-listen/Cargo.toml
 ```
 
-Set `"reconnect": true` in the dial config for a persistent row. The dialer checks the server name `localhost` by default. Set `servername` to the expected DNS name on the peer certificate when forwarding a different service to loopback. Each attempt rereads the key and certificates, including after rotation. A disconnect starts a fresh session and a fresh frame stream. A temporary failure prints, for example, `link/tcp 127.0.0.1:7443 ECONNREFUSED (retry in 500ms)`. Certificate rejection waits 30 seconds. Removing the row cancels the retry and releases its socket. See the [TCP design](../design/06-link-tcp.en.md) for the state and framing rules.
+Set `"reconnect": true` in the dial config for a persistent row. A port-only dialer verifies `localhost`. An explicit `host` defaults to verifying that name or IP. Set `servername` to the expected DNS name on the peer certificate when forwarding a different service to loopback. Each attempt rereads the key and certificates, including after rotation. A disconnect starts a fresh session and a fresh frame stream. A temporary failure prints, for example, `link/tcp 127.0.0.1:7443 ECONNREFUSED (retry in 500ms)`. Certificate rejection waits 30 seconds. Removing the row cancels the retry and releases its socket. See the [TCP design](../design/06-link-tcp.en.md) for the state and framing rules.
 
 TCP accepts empty frames and carries up to 16 MiB per frame. On 0.23.0, applications can send a large value in successive chunks on one session and reassemble them in order. Leave room for encoding and metadata in each message. The integration example transfers 17 MiB using chunks of up to 4 MiB. Transparent chunking of a single large call depends on `sessions.open` exposing the frame limit. [Chunked echo example](../../link/tcp/test/fixtures/large.mjs) · [Upstream issue](https://github.com/arcships/rutis/issues/1411)
 

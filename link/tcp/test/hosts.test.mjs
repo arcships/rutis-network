@@ -40,7 +40,11 @@ test('Go and TypeScript clients, mTLS admission, chunked echo, row unload and re
   const reference = await startHost(env, 'reference', [row('dial', 'dial.ts', config)])
   await Promise.all([coast.call(proof), island.call(proof), reference.call(proof)])
 
-  await island.call(proof, 17 * 1024 * 1024, 'probe.roundTripChunks')
+  // The witness is reachable. Run the large transfer once, including under
+  // the Go race detector, which instruments every byte crossing the SDK.
+  const bytes = 17 * 1024 * 1024
+  const transfer = await island.rootCall('probe.roundTripChunks', [bytes], 180000)
+  assert.deepEqual(JSON.parse(transfer.stdout), [proof, bytes])
   // This row dials once. A subsequent call must travel over the same connection.
   await island.call(proof, 73)
   await coast.call(proof)

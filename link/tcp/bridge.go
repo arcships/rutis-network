@@ -94,9 +94,14 @@ func receiveFrames(ctx context.Context, conn net.Conn, near Near) error {
 }
 
 // Open takes ownership of conn after admission. Pass the row's lifetime context.
-// The returned channel reports the
-// result of the read loop after closing both directions and releasing the session.
+// The returned channel reports the result after the connection and session end.
 func Open(parent context.Context, conn net.Conn, sessions Sessions) (<-chan error, error) {
+	return openStream(parent, parent, conn, sessions)
+}
+
+// Stopping a managed transport leaves its row alive. End the old session using
+// that row's context even after cancellation has interrupted the transport.
+func openStream(parent, row context.Context, conn net.Conn, sessions Sessions) (<-chan error, error) {
 	ctx, cancel := context.WithCancelCause(parent)
 	closeConn := sync.OnceFunc(func() { conn.Close() })
 	stopClose := context.AfterFunc(ctx, closeConn)
@@ -144,8 +149,8 @@ func Open(parent context.Context, conn net.Conn, sessions Sessions) (<-chan erro
 			if errors.Is(err, io.EOF) {
 				err = nil
 			}
-			if parent.Err() == nil {
-				endErr := near.End(parent, CloseReason{Kind: "done"})
+			if row.Err() == nil {
+				endErr := near.End(row, CloseReason{Kind: "done"})
 				if err == nil {
 					err = endErr
 				}

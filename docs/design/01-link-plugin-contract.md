@@ -97,10 +97,10 @@ link plugin
 
 ### D11 组合靠 row + session + 服务名，不做跨 link 中心
 
-- 链接插件的公开面只有两样：一行配置（`rutis.json` 的 row）和它挂上的 session。
+- 链接插件通过一行配置（`rutis.json` 的 row）挂载 session。需要运行时控制时，可由该行提供独立的本地管理服务。[TCP 控制接口](06-link-tcp-integration.md)
 - 业务插件不认识链接插件。对面要跑什么插件由 `<link row>:<plugin>` 行决定；服务起来后，业务插件按服务名 `inject` / `use`。
 - 不设全局 `links` manager、全局 `connect` 服务、跨 link 注册表或中心凭据库。每个 row 自己管准入、凭据、重试、listen 和子进程。
-- 动态增删用 `rutis/loader` / `rutis.json`，这是部署/运维层，不是链接层的运行时 API。优先常驻 + 重连。
+- 动态增删行用 `rutis/loader` / `rutis.json`，这是部署/运维层，不是链接层的运行时 API。优先常驻 + 重连。
 - 每条 link 可以有可选的 `status` / `doctor` / CLI，作为该 link 自己的外部工具；不做跨 link 的中心管理工具。
 - 链接层指南放在**本仓库**的 `docs/guide/link-plugins.md`；rutis 主仓库只在 `docs/guide/plugin-api.md` / `nodes.md` 的“自建连接”里加链接。
 

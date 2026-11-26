@@ -24,10 +24,11 @@ func TestListenerDeniesMissingClientCertificateBeforeOpen(t *testing.T) {
 	opened := false
 	result := make(chan error, 1)
 	go func() {
-		result <- serveConn(t.Context(), local, server, Sessions{Open: func(context.Context, Far) (Near, error) {
+		c := &control{row: t.Context(), sessions: Sessions{Open: func(context.Context, Far) (Near, error) {
 			opened = true
 			return Near{}, errors.New("admitted without a client certificate")
-		}})
+		}}}
+		result <- c.serveConn(t.Context(), local, server)
 	}()
 	peer.SetDeadline(time.Now().Add(3 * time.Second))
 	client := tls.Client(peer, &tls.Config{RootCAs: roots, ServerName: "example.com", MaxVersion: tls.VersionTLS12})

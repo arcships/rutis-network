@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
@@ -19,39 +19,9 @@ const handshakeTimeout = 10 * time.Second
 const initialDelay = 500 * time.Millisecond
 const maxDelay = 30 * time.Second
 
-type endpoint struct {
-	Port int    `json:"port"`
-	CA   string `json:"ca"`
-	Cert string `json:"cert"`
-	Key  string `json:"key"`
-}
-
-type dialConfig struct {
-	endpoint
-	Reconnect  bool   `json:"reconnect"`
-	ServerName string `json:"servername"`
-}
-
-func schema(dial bool) map[string]any {
-	minPort := 0
-	props := map[string]any{}
-	if dial {
-		minPort = 1
-		props["reconnect"] = map[string]any{"type": "boolean"}
-		props["servername"] = map[string]any{"type": "string", "minLength": 1}
-	}
-	props["port"] = map[string]any{"type": "integer", "minimum": minPort, "maximum": 65535}
-	for _, key := range []string{"ca", "cert", "key"} {
-		props[key] = map[string]any{"type": "string", "minLength": 1}
-	}
-	return map[string]any{"type": "object", "required": []string{"port", "ca", "cert", "key"}, "properties": props}
-}
-
-func (e endpoint) address() string { return net.JoinHostPort("127.0.0.1", strconv.Itoa(e.Port)) }
-
 var errCredentials = errors.New("invalid-credentials")
 
-func (e endpoint) credentials() (*tls.Config, error) {
+func (e config) credentials() (*tls.Config, error) {
 	pem, err := os.ReadFile(e.CA)
 	if err != nil {
 		return nil, fmt.Errorf("%w: CA: %w", errCredentials, err)
@@ -85,6 +55,7 @@ func remoteAlert(err error, numbers ...tls.AlertError) bool {
 func errorCode(err error) string {
 	var cert *tls.CertificateVerificationError
 	var header tls.RecordHeaderError
+	var dns *net.DNSError
 	switch {
 	case err == nil:
 		return "connection-closed"
@@ -98,6 +69,16 @@ func errorCode(err error) string {
 		return "ECONNREFUSED"
 	case errors.Is(err, syscall.ECONNRESET):
 		return "ECONNRESET"
+	case errors.Is(err, syscall.EADDRINUSE):
+		return "EADDRINUSE"
+	case errors.Is(err, syscall.EACCES):
+		return "EACCES"
+	case errors.Is(err, syscall.ENETUNREACH):
+		return "ENETUNREACH"
+	case errors.Is(err, syscall.EHOSTUNREACH):
+		return "EHOSTUNREACH"
+	case errors.As(err, &dns) && dns.IsNotFound:
+		return "ENOTFOUND"
 	case errors.Is(err, syscall.EPIPE):
 		return "EPIPE"
 	case errors.Is(err, context.DeadlineExceeded), os.IsTimeout(err):
@@ -120,25 +101,6 @@ func wait(ctx context.Context, d time.Duration) bool {
 	}
 }
 
-func dial(ctx context.Context, config dialConfig, sessions Sessions) (<-chan error, error) {
-	identity, err := config.credentials()
-	if err != nil {
-		return nil, err
-	}
-	identity.ServerName = config.ServerName
-	if identity.ServerName == "" {
-		identity.ServerName = "localhost"
-	}
-	connectCtx, cancel := context.WithTimeout(ctx, handshakeTimeout)
-	defer cancel()
-	d := tls.Dialer{Config: identity}
-	conn, err := d.DialContext(connectCtx, "tcp4", config.address())
-	if err != nil {
-		return nil, err
-	}
-	return Open(ctx, conn, sessions)
-}
-
 func retryDelay(code string, backoff time.Duration) time.Duration {
 	switch code {
 	case "incompatible-tls":
@@ -150,55 +112,102 @@ func retryDelay(code string, backoff time.Duration) time.Duration {
 	}
 }
 
-func applyDial(row *rutis.Ctx, config dialConfig) error {
-	var sessions Sessions
-	if err := row.Use("rutis/sessions", &sessions); err != nil {
-		return err
+// openDial admits a fresh socket and attaches it to the row's session service.
+func (c *control) openDial(ctx context.Context, dest target) (<-chan error, error) {
+	c.phase("dialing")
+	identity, err := c.config.credentials()
+	if err != nil {
+		return nil, err
 	}
-	if !config.Reconnect {
-		done, err := dial(row, config, sessions)
-		if err != nil {
-			return fmt.Errorf("link/tcp %s %s", config.address(), errorCode(err))
-		}
-		row.Go(func(ctx context.Context) error {
-			if err := <-done; err != nil && ctx.Err() == nil {
-				return fmt.Errorf("link/tcp %s %s", config.address(), errorCode(err))
-			}
-			return nil
-		})
-		return nil
+	identity.ServerName = dest.tlsName()
+	connectCtx, cancel := context.WithTimeout(ctx, handshakeTimeout)
+	defer cancel()
+	raw, err := (&net.Dialer{}).DialContext(connectCtx, "tcp", dest.address())
+	if err != nil {
+		return nil, err
 	}
-	row.Go(func(ctx context.Context) error {
-		backoff := initialDelay
-		for ctx.Err() == nil {
-			done, err := dial(ctx, config, sessions)
-			if err == nil {
-				started := time.Now()
-				err = <-done
-				if time.Since(started) >= time.Minute {
-					backoff = initialDelay
-				}
-			}
-			if ctx.Err() != nil {
-				break
-			}
-			code := errorCode(err)
-			delay := retryDelay(code, backoff)
-			if delay == 0 {
-				return fmt.Errorf("link/tcp %s %s (stopped)", config.address(), code)
-			}
-			fmt.Fprintf(os.Stderr, "link/tcp %s %s (retry in %v)\n", config.address(), code, delay)
-			if !wait(ctx, delay) {
-				break
-			}
-			backoff = min(maxDelay, backoff*2)
-		}
-		return nil
+	c.update(func(s *snapshot) {
+		s.Phase = "handshaking"
+		s.LocalAddress = raw.LocalAddr().String()
+		s.RemoteAddress = raw.RemoteAddr().String()
 	})
-	return nil
+	secure := tls.Client(raw, identity)
+	if err = secure.HandshakeContext(connectCtx); err != nil {
+		raw.Close()
+		return nil, err
+	}
+	done, err := openStream(ctx, c.row, secure, c.sessions)
+	if err == nil {
+		c.phase("connected")
+	}
+	return done, err
 }
 
-func serveConn(ctx context.Context, conn net.Conn, identity *tls.Config, sessions Sessions) error {
+func (c *control) dialLoop(ctx context.Context, dest target) {
+	backoff := initialDelay
+	for ctx.Err() == nil {
+		done, err := c.openDial(ctx, dest)
+		if err == nil {
+			started := time.Now()
+			err = <-done
+			if time.Since(started) >= time.Minute {
+				backoff = initialDelay
+			}
+		}
+		if ctx.Err() != nil {
+			return
+		}
+		code := errorCode(err)
+		delay := retryDelay(code, backoff)
+		c.mu.Lock()
+		retry := c.state.Config.Reconnect && delay > 0
+		c.state.LastError = code
+		c.state.LocalAddress = ""
+		c.state.RemoteAddress = ""
+		if retry {
+			c.state.Phase = "retrying"
+			c.state.RetryCount++
+			c.state.RetryAt = time.Now().Add(delay).UTC().Format(time.RFC3339Nano)
+		} else {
+			c.state.Phase = "failed"
+			c.state.RetryAt = ""
+		}
+		c.notify()
+		c.mu.Unlock()
+		if !retry {
+			fmt.Fprintf(os.Stderr, "link/tcp %s %s (stopped)\n", dest.address(), code)
+			return
+		}
+		fmt.Fprintf(os.Stderr, "link/tcp %s %s (retry in %v)\n", dest.address(), code, delay)
+		if !wait(ctx, delay) {
+			return
+		}
+		backoff = min(maxDelay, backoff*2)
+	}
+}
+
+func (c *control) bind(ctx context.Context, dest target) (net.Listener, *tls.Config, error) {
+	c.phase("starting")
+	identity, err := c.config.credentials()
+	if err != nil {
+		return nil, nil, err
+	}
+	identity.ClientAuth = tls.RequireAndVerifyClientCert
+	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp4", dest.address())
+	if err != nil {
+		return nil, nil, err
+	}
+	addr := listener.Addr().String()
+	fmt.Fprintf(os.Stderr, "link/tcp listening %s\n", addr)
+	c.update(func(s *snapshot) {
+		s.Phase = "listening"
+		s.LocalAddress = addr
+		s.BoundPort = listener.Addr().(*net.TCPAddr).Port
+	})
+	return listener, identity, nil
+}
+
+func (c *control) serveConn(ctx context.Context, conn net.Conn, identity *tls.Config) error {
 	secure := tls.Server(conn, identity)
 	handshake, cancel := context.WithTimeout(ctx, handshakeTimeout)
 	err := secure.HandshakeContext(handshake)
@@ -207,59 +216,129 @@ func serveConn(ctx context.Context, conn net.Conn, identity *tls.Config, session
 		conn.Close()
 		return err
 	}
-	done, err := Open(ctx, secure, sessions)
+	done, err := openStream(ctx, c.row, secure, c.sessions)
 	if err != nil {
 		return err
 	}
+	c.update(func(s *snapshot) { s.Connections++ })
+	defer c.update(func(s *snapshot) { s.Connections-- })
 	return <-done
 }
 
-func applyListen(row *rutis.Ctx, config endpoint) error {
+func (c *control) accept(ctx context.Context, listener net.Listener, identity *tls.Config) {
+	var clients sync.WaitGroup
+	defer clients.Wait()
+	stop := context.AfterFunc(ctx, func() { listener.Close() })
+	defer stop()
+	defer listener.Close()
+	backoff := initialDelay
+	for ctx.Err() == nil {
+		conn, err := listener.Accept()
+		if err != nil {
+			if ctx.Err() != nil {
+				break
+			}
+			code := errorCode(err)
+			c.update(func(s *snapshot) {
+				s.Phase = "retrying"
+				s.LastError = code
+				s.RetryCount++
+				s.RetryAt = time.Now().Add(backoff).UTC().Format(time.RFC3339Nano)
+			})
+			fmt.Fprintf(os.Stderr, "link/tcp listen %s %s (retry in %v)\n", listener.Addr(), code, backoff)
+			if !wait(ctx, backoff) {
+				break
+			}
+			c.phase("listening")
+			backoff = min(maxDelay, backoff*2)
+			continue
+		}
+		backoff = initialDelay
+		clients.Add(1)
+		go func() {
+			defer clients.Done()
+			if err := c.serveConn(ctx, conn, identity); err != nil && ctx.Err() == nil {
+				code := errorCode(err)
+				c.update(func(s *snapshot) { s.LastError = code })
+				fmt.Fprintf(os.Stderr, "link/tcp listen %s %s\n", listener.Addr(), code)
+			}
+		}()
+	}
+}
+
+func apply(row *rutis.Ctx, cfg config, dial bool) error {
 	var sessions Sessions
 	if err := row.Use("rutis/sessions", &sessions); err != nil {
 		return err
 	}
-	identity, err := config.credentials()
-	if err != nil {
+	managed := cfg.ControlService != ""
+	if !managed && cfg.Port == nil {
+		return errors.New("port is required for static rows")
+	}
+	if !managed && cfg.AutoStart != nil {
+		return errors.New("autoStart requires controlService")
+	}
+	if !dial && cfg.Reconnect != nil {
+		return errors.New("listen only accepts port")
+	}
+	dest := target{Host: cfg.Host, Port: cfg.Port, ServerName: cfg.ServerName}
+	if err := dest.validate(dial); err != nil {
 		return err
 	}
-	identity.ClientAuth = tls.RequireAndVerifyClientCert
-	listener, err := net.Listen("tcp4", config.address())
-	if err != nil {
-		return err
+	if managed && !validServiceName(cfg.ControlService) {
+		return errors.New("invalid controlService name")
 	}
-	addr := listener.Addr()
-	fmt.Fprintf(os.Stderr, "link/tcp listening %s\n", addr)
-	row.Go(func(ctx context.Context) error {
-		stop := context.AfterFunc(ctx, func() { listener.Close() })
-		defer stop()
-		defer listener.Close()
-		backoff := initialDelay
-		for ctx.Err() == nil {
-			conn, err := listener.Accept()
-			if err != nil {
-				if ctx.Err() != nil {
-					break
-				}
-				fmt.Fprintf(os.Stderr, "link/tcp listen %s %s (retry in %v)\n", addr, errorCode(err), backoff)
-				if !wait(ctx, backoff) {
-					break
-				}
-				backoff = min(maxDelay, backoff*2)
-				continue
-			}
-			backoff = initialDelay
-			row.Go(func(ctx context.Context) error {
-				if err := serveConn(ctx, conn, identity, sessions); err != nil && ctx.Err() == nil {
-					return fmt.Errorf("link/tcp listen %s %s", addr, errorCode(err))
-				}
-				return nil
-			})
+	reconnect := managed && dial
+	if cfg.Reconnect != nil {
+		reconnect = *cfg.Reconnect
+	}
+	c := newControl(row, cfg, sessions, dial, settings{target: dest, Reconnect: reconnect})
+	if managed {
+		if cfg.AutoStart == nil || *cfg.AutoStart {
+			c.setRunning()
 		}
+		row.Effect(func(context.Context) error { return c.Stop() })
+		row.Provide(cfg.ControlService, c)
+		return nil
+	}
+	// Static single dials and initial binds surface failure during row load.
+	if !dial {
+		listener, identity, err := c.bind(row, dest)
+		if err != nil {
+			return err
+		}
+		row.Go(func(ctx context.Context) error {
+			c.accept(ctx, listener, identity)
+			return nil
+		})
+		return nil
+	}
+	if !reconnect {
+		done, err := c.openDial(row, dest)
+		if err != nil {
+			return fmt.Errorf("link/tcp %s %s", dest.address(), errorCode(err))
+		}
+		row.Go(func(ctx context.Context) error {
+			if err := <-done; err != nil && ctx.Err() == nil {
+				return fmt.Errorf("link/tcp %s %s", dest.address(), errorCode(err))
+			}
+			return nil
+		})
+		return nil
+	}
+	row.Go(func(ctx context.Context) error {
+		c.dialLoop(ctx, dest)
 		return nil
 	})
 	return nil
 }
 
-var Dial = rutis.Define(rutis.Plugin[dialConfig]{Name: "link-tcp-dial", Inject: []string{"rutis/sessions"}, Schema: schema(true), Apply: applyDial})
-var Listen = rutis.Define(rutis.Plugin[endpoint]{Name: "link-tcp-listen", Inject: []string{"rutis/sessions"}, Schema: schema(false), Apply: applyListen})
+var Dial = rutis.Define(rutis.Plugin[config]{
+	Name: "link-tcp-dial", Inject: []string{"rutis/sessions"}, Schema: schema(true),
+	Apply: func(row *rutis.Ctx, cfg config) error { return apply(row, cfg, true) },
+})
+
+var Listen = rutis.Define(rutis.Plugin[config]{
+	Name: "link-tcp-listen", Inject: []string{"rutis/sessions"}, Schema: schema(false),
+	Apply: func(row *rutis.Ctx, cfg config) error { return apply(row, cfg, false) },
+})

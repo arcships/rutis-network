@@ -10,7 +10,7 @@ The plugins target rutis 0.23.0 (session protocol 5, plugin API 3). Upgrade both
 
 ## Status
 
-The [connection plugin guide](docs/guide/link-plugins.en.md) includes the Go TCP bridge and its loopback dial/listen plugins, the TypeScript interoperability reference, tested frp and OpenSSH forwarding configurations, and a runnable Rust listener example. The roadmap is tracked in these issues.
+The [connection plugin guide](docs/guide/link-plugins.en.md) includes the Go TCP bridge and its managed dial and loopback listen plugins, the TypeScript interoperability reference, tested frp and OpenSSH forwarding configurations, and a runnable Rust listener example. The roadmap is tracked in these issues.
 
 1. [#1](https://github.com/arcships/rutis-network/issues/1) — the link plugin contract: what a link plugin does and does not do, admission vs identity, framing, lifecycle, and one reference bridge.
 2. [#2](https://github.com/arcships/rutis-network/issues/2) — the landscape of ways to link and the scenarios that set the priorities.

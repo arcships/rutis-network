@@ -40,9 +40,15 @@ go -C link/tcp build -o ../../plugins/go/link-tcp ./cmd/link-tcp
 }
 ```
 
+## 从本地管理插件控制连接
+
+给 TCP 行的 `config` 增加 `"controlService": "office-tcp"`，管理行声明 `"inject": ["office-tcp"]`。**两行都配置 `"isolate": {"office-tcp": "management"}`**，使宿主将控制方法限定在本地管理作用域。根作用域的普通服务会随会话导出。
+
+管理插件通过 `ctx.use('office-tcp')` 调用 `configure({host, port})`、`start()`、`stop()`、`status()` 和 `waitForChange(cursor)`。托管拨号默认自动连接并重试，可以先加载、再提供端口。运行中改址立即切换，显式停止后改址则等待下次启动。重载后使用部署配置。[完整部署示例和状态字段](../design/06-link-tcp-integration.md)
+
 ## TCP 字节流 bridge
 
-监听宿主采用相同的运行时配置，行名使用 `go:link-tcp-listen`。配置服务端证书、私钥和专用于获准客户端的 CA。两端均使用 IPv4 回环。监听端口填 0 时由系统选择，启动后输出 `link/tcp listening 127.0.0.1:<port>`。每个通过准入的客户端独立挂载会话。卸载行会关闭监听器、进行中的 TLS 握手和已接入的连接。[Go 适配器](../../link/tcp/adapter.go) · [Go bridge](../../link/tcp/bridge.go)
+监听宿主采用相同的运行时配置，行名使用 `go:link-tcp-listen`。配置服务端证书、私钥和专用于获准客户端的 CA。监听端绑定 IPv4 回环，拨号端可用 `host` 指向 DNS、IPv4 或 IPv6 地址。监听端口填 0 时由系统选择，启动后输出 `link/tcp listening 127.0.0.1:<port>`。每个通过准入的客户端独立挂载会话。卸载行会关闭监听器、进行中的 TLS 握手和已接入的连接。[Go 适配器](../../link/tcp/adapter.go) · [Go bridge](../../link/tcp/bridge.go)
 
 在仓库根目录运行以下检查。集成测试使用 Node ≥22.18、npm、OpenSSL 和支持控制 socket 的 Unix 宿主。测试编译 Go 二进制，启动真实 rutis 宿主，通过 Go 拨号插件和单次拨号的 TypeScript 参考实现调用远端服务。Rust 示例使用 Cargo。[TypeScript 参考实现](../../link/tcp/dial.ts) · [宿主测试](../../link/tcp/test/hosts.test.mjs)
 
@@ -54,7 +60,7 @@ npm --prefix link/tcp test
 cargo test --locked --manifest-path examples/rust-listen/Cargo.toml
 ```
 
-在拨号配置中设置 `"reconnect": true` 即可常驻重拨。默认校验服务端名称 `localhost`。通过回环转发其他服务时，用 `servername` 指定对端证书上的预期 DNS 名称。每次尝试会重新读取证书和私钥，可在轮换后恢复连接。每次连接创建新的会话和帧流。临时错误的输出形如 `link/tcp 127.0.0.1:7443 ECONNREFUSED (retry in 500ms)`。证书拒绝等待 30 秒，移除行会取消重试并关闭 socket。完整的帧格式和状态约定见 [TCP 设计](../design/06-link-tcp.md)。
+在拨号配置中设置 `"reconnect": true` 即可常驻重拨。只给端口时校验 `localhost`，显式指定 `host` 时默认按该名称或 IP 校验证书。通过回环转发其他服务时，用 `servername` 指定对端证书上的预期 DNS 名称。每次尝试会重新读取证书和私钥，可在轮换后恢复连接。每次连接创建新的会话和帧流。临时错误的输出形如 `link/tcp 127.0.0.1:7443 ECONNREFUSED (retry in 500ms)`。证书拒绝等待 30 秒，移除行会取消重试并关闭 socket。完整的帧格式和状态约定见 [TCP 设计](../design/06-link-tcp.md)。
 
 TCP 允许空帧，每帧最多 16 MiB。在 0.23.0 上传大数据时，应用可以在同一会话上逐块发送，接收方按顺序重组。每块须为编码和元数据留出空间。集成示例用最多 4 MiB 的块完整传输了 17 MiB。单次大调用的自动分块等待 `sessions.open` 支持声明帧上限。[分块回显示例](../../link/tcp/test/fixtures/large.mjs) · [上游进展](https://github.com/arcships/rutis/issues/1411)
 
