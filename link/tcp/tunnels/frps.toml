@@ -1,0 +1,10 @@
+bindAddr = "127.0.0.1"
+bindPort = {{ .Envs.FRP_CONTROL_PORT }}
+proxyBindAddr = "127.0.0.1"
+allowPorts = [{ single = {{ .Envs.LINK_FORWARD_PORT }} }]
+auth.method = "token"
+auth.tokenSource.type = "file"
+auth.tokenSource.file.path = "{{ .Envs.FRP_TOKEN_FILE }}"
+transport.tls.force = true
+transport.tls.certFile = "{{ .Envs.FRP_CERT_FILE }}"
+transport.tls.keyFile = "{{ .Envs.FRP_KEY_FILE }}"

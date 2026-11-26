@@ -5,7 +5,8 @@
   "engines": { "node": ">=22.18" },
   "scripts": {
     "test": "node --test test/*.test.mjs",
-    "typecheck": "tsc --noEmit --strict --target es2022 --module nodenext --allowImportingTsExtensions --types node bridge.ts dial.ts"
+    "test:tunnels": "node --test test/tunnels.mjs",
+    "typecheck": "tsc --noEmit --strict --target es2022 --module nodenext --allowImportingTsExtensions --types node bridge.ts dial.ts listen.ts"
   },
   "devDependencies": {
     "@arcships/rutis": "0.21.0",

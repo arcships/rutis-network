@@ -24,7 +24,7 @@ npm --prefix link/tcp test
 cargo test --locked --manifest-path examples/rust-listen/Cargo.toml
 ```
 
-Node 测试生成临时凭据，在 `127.0.0.1` 启动两个真实宿主。拨号方校验服务端证书和主机名，监听方校验客户端证书。只有通过本端验证的 socket 才进入 bridge。测试通过另一端的 `witness.echo` 服务取回该次运行的唯一值。Rust 测试通过已有 WebSocket 传输接收三个已准入连接，验证相同 ID 的替换和不同 ID 的隔离。[TS 拨号插件](../../link/tcp/dial.ts) · [两宿主测试](../../link/tcp/test/hosts.test.mjs) · [Rust 监听示例](../../examples/rust-listen/tests/loopback.rs)
+Node 测试生成临时凭据，在 `127.0.0.1` 启动多个真实宿主。拨号方校验服务端证书和主机名，监听方校验客户端证书。只有通过本端验证的 socket 才进入 bridge。测试通过另一端的 `witness.echo` 服务取回该次运行的唯一值。Rust 测试通过已有 WebSocket 传输接收三个已准入连接，验证相同 ID 的替换和不同 ID 的隔离。[TS 拨号插件](../../link/tcp/dial.ts) · [两宿主测试](../../link/tcp/test/hosts.test.mjs) · [Rust 监听示例](../../examples/rust-listen/tests/loopback.rs)
 
 使用单次拨号示例时，在 `rutis.json` 启用 Node 运行时并添加以下行。将端口和 CA 路径指向本地 TLS 监听器，服务端证书应覆盖 `localhost`。监听方需验证客户端证书，并使用相同的分帧格式。
 
@@ -39,6 +39,28 @@ Node 测试生成临时凭据，在 `127.0.0.1` 启动两个真实宿主。拨�
     "key": "/path/to/client.key"
   }
 }
+```
+
+## TCP 字节流 bridge
+
+拨号端和监听端使用同一份二进制分帧实现。在监听宿主上启用 Node 运行时，添加指向 `link/tcp/listen.ts` 的行。配置字段与拨号示例相同，包含 `port`、`ca`、`cert` 和 `key`。监听端使用服务端证书、私钥和专用于获准客户端的 CA。端口 0 由系统分配，启动后输出 `link/tcp listening 127.0.0.1:<port>`。每个通过准入的客户端独立挂载会话。卸载行时，监听器会释放仍在 TLS 握手中的 socket 和已经挂载的连接。[监听插件](../../link/tcp/listen.ts)
+
+在拨号配置中设置 `"reconnect": true` 即可常驻重拨。默认校验服务端名称 `localhost`。通过回环转发其他服务时，用 `servername` 指定对端证书上的预期 DNS 名称。每次尝试会重新读取证书和私钥，可在轮换后恢复连接。每次连接创建新的会话和帧流。临时错误的输出形如 `link/tcp 127.0.0.1:7443 ECONNREFUSED (retry in 500ms)`。证书拒绝等待 30 秒，移除行会取消重试并关闭 socket。完整的帧格式和状态约定见 [TCP 设计](../design/06-link-tcp.md)。
+
+## 反向隧道
+
+服务端机器运行 rutis 监听行和隧道客户端。中继机器运行隧道服务端，提供本地转发端口给 rutis 拨号行。拨号行连接转发端口，仍验证服务端机器的 TLS 证书。隧道凭据控制谁能建立转发；其他本地进程若能接触转发端口，应用监听器仍需验证该进程出示的客户端证书。
+
+| 路由 | 使用方法 |
+| --- | --- |
+| frp | 中继运行 `frps -c link/tcp/tunnels/frps.toml`，服务端机器运行 `frpc -c link/tcp/tunnels/frpc.toml`。两份配置可在同一台机器直接配合使用。双方设置 `FRP_CONTROL_PORT`、`LINK_FORWARD_PORT` 和 `FRP_TOKEN_FILE`（只允许所属用户读取的文件，双方使用相同随机 token）。frps 还需 `FRP_CERT_FILE` 和 `FRP_KEY_FILE`，frpc 还需 `FRP_CA_FILE` 和 `LINK_LISTEN_PORT`。示例将控制和转发端口都绑定回环。跨机器时，把控制面的绑定地址、客户端连接地址和校验的服务端名称改为预期的私网路由。若拨号行位于中继机器，`proxyBindAddr` 保持回环。[frps](../../link/tcp/tunnels/frps.toml) · [frpc](../../link/tcp/tunnels/frpc.toml) |
+| SSH 反向转发 | 在服务端机器执行 `link/tcp/tunnels/ssh-reverse.sh ~/.ssh/config relay 17443 7443`。先配置中继别名、授权用户密钥和受信任的 SSH 宿主密钥，SSH 服务端保留 `GatewayPorts no`。中继上的拨号行连接 17443，经隧道到达服务端本机的 7443。转发端口填 0 可让中继分配端口。[OpenSSH wrapper](../../link/tcp/tunnels/ssh-reverse.sh) |
+| rathole / ngrok | rathole 将服务绑定地址转发到客户端监听端口，使用服务 token 和受保护的传输。ngrok TCP 通过账号凭据和供应商访问策略建立入口。绑定公网会让外部客户端接触转发端口，应保留应用双向 TLS 并限制入口范围。 |
+
+运行真实隧道验收时，PATH 需要包含 `frpc`、`frps`（实测 0.72.0）、`ssh` 和 `ssh-keygen`。默认使用 `/usr/sbin/sshd`，也可用 `SSHD` 指定测试守护进程的路径。当前用户须能启动测试守护进程。两项测试都在回环上生成临时密钥、启动中继与两个宿主，并校验远端服务调用返回值。无需外部账号。在仓库根目录执行：
+
+```sh
+npm --prefix link/tcp run test:tunnels
 ```
 
 ## TypeScript 与 Python 的交接

@@ -10,7 +10,7 @@ Baseline: rutis 0.21.0 (session protocol 4, plugin API 3). 0.19.3 renamed the se
 
 ## Status
 
-The [connection plugin guide](docs/guide/link-plugins.en.md) includes a TypeScript TCP bridge and a runnable Rust listener example. The roadmap is tracked in these issues.
+The [connection plugin guide](docs/guide/link-plugins.en.md) includes the TypeScript TCP bridge, loopback dial/listen plugins, tested frp and OpenSSH forwarding configurations, and a runnable Rust listener example. The roadmap is tracked in these issues.
 
 1. [#1](https://github.com/arcships/rutis-network/issues/1) — the link plugin contract: what a link plugin does and does not do, admission vs identity, framing, lifecycle, and one reference bridge.
 2. [#2](https://github.com/arcships/rutis-network/issues/2) — the landscape of ways to link and the scenarios that set the priorities.

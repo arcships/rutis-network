@@ -160,3 +160,39 @@ test('truncated input keeps its diagnostic if session cleanup also fails', async
   peer.end(Buffer.from([0, 0]))
   await assert.rejects(link.done, { code: 'truncated-frame' })
 })
+
+test('1,000 binary messages echo in order over the same TCP connection', async t => {
+  const { socket, peer } = await pair(t)
+  let count = 0
+  const complete = Promise.withResolvers()
+  const link = await attach(socket, async message => {
+    assert.equal(message.readUInt32BE(0), count++)
+    await link.far.send(message)
+    if (count === 1000) complete.resolve()
+  })
+  const frames = []
+  for (let n = 0; n < 1000; n++) {
+    const value = Buffer.alloc(4)
+    value.writeUInt32BE(n)
+    frames.push(frame(value))
+  }
+  const wire = Buffer.concat(frames)
+  const echoes = []
+  peer.on('data', chunk => echoes.push(chunk))
+  const closed = once(peer, 'close')
+  peer.write(wire)
+  await Promise.race([complete.promise, link.done])
+  peer.end()
+  await link.done
+  await closed
+  assert.equal(count, 1000)
+  assert.deepEqual(Buffer.concat(echoes), wire)
+})
+
+test('a peer reset releases the session with the socket error code', async t => {
+  const { socket, peer } = await pair(t)
+  const { done, ends } = await attach(socket)
+  peer.resetAndDestroy()
+  await assert.rejects(done, { code: 'ECONNRESET' })
+  assert.deepEqual(ends, [{ kind: 'done' }])
+})

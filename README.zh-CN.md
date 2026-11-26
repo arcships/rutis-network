@@ -10,7 +10,7 @@ rutis 自己只管会话这一侧：连接插件打开一条通道，交给服�
 
 ## 状态
 
-[开发指南](docs/guide/link-plugins.md)包含 TypeScript TCP bridge 和可运行的 Rust 监听示例。其余工作按以下 issue 跟踪。
+[开发指南](docs/guide/link-plugins.md)包含 TypeScript TCP bridge、回环拨号与监听插件、经过验证的 frp 和 OpenSSH 转发配置，以及可运行的 Rust 监听示例。其余工作按以下 issue 跟踪。
 
 1. [#1](https://github.com/arcships/rutis-network/issues/1)：链接插件的契约——它做什么、不做什么；准入与身份；分帧、生命周期；一份参考 bridge。
 2. [#2](https://github.com/arcships/rutis-network/issues/2)：各种链接方式的全景，以及决定优先级的场景。

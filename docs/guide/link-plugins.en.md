@@ -24,7 +24,7 @@ npm --prefix link/tcp test
 cargo test --locked --manifest-path examples/rust-listen/Cargo.toml
 ```
 
-The Node test generates temporary credentials and starts two hosts on `127.0.0.1`. The dialer verifies the server certificate and hostname. The listener verifies the client certificate. Only locally authenticated sockets reach the bridge. A call to the remote `witness.echo` returns a value unique to this run. The Rust test admits three connections over the existing WebSocket transport and checks replacement of one ID while another stays connected. [TS dial plugin](../../link/tcp/dial.ts) · [Two-host test](../../link/tcp/test/hosts.test.mjs) · [Rust listener example](../../examples/rust-listen/tests/loopback.rs)
+The Node test generates temporary credentials and starts hosts on `127.0.0.1`. The dialer verifies the server certificate and hostname. The listener verifies the client certificate. Only locally authenticated sockets reach the bridge. A call to the remote `witness.echo` returns a value unique to this run. The Rust test admits three connections over the existing WebSocket transport and checks replacement of one ID while another stays connected. [TS dial plugin](../../link/tcp/dial.ts) · [Two-host test](../../link/tcp/test/hosts.test.mjs) · [Rust listener example](../../examples/rust-listen/tests/loopback.rs)
 
 For a single dial, enable the Node runtime and add the following row to `rutis.json`. Set the port to the local TLS listener and use its trusted CA. The server certificate must cover `localhost`. The listener must require an authorized client certificate and speak the same framing.
 
@@ -39,6 +39,28 @@ For a single dial, enable the Node runtime and add the following row to `rutis.j
     "key": "/path/to/client.key"
   }
 }
+```
+
+## TCP byte-stream bridge
+
+The dial and listen rows use the same binary framing. Configure a listening host with a Node runtime and a row pointing to `link/tcp/listen.ts`. Its config has the same `port`, `ca`, `cert` and `key` fields as the dial example. Supply the server certificate and key and a CA dedicated to admitted clients. Port zero chooses an available port. On startup the listener prints `link/tcp listening 127.0.0.1:<port>`. Each authenticated client receives its own bridge and session. The adapter releases pending TLS handshakes and all attached sockets when the row unloads. [Listener](../../link/tcp/listen.ts)
+
+Set `"reconnect": true` in the dial config for a persistent row. The dialer checks the server name `localhost` by default. Set `servername` to the expected DNS name on the peer certificate when forwarding a different service to loopback. Each attempt rereads the key and certificates, including after rotation. A disconnect starts a fresh session and a fresh frame stream. A temporary failure prints, for example, `link/tcp 127.0.0.1:7443 ECONNREFUSED (retry in 500ms)`. Certificate rejection waits 30 seconds. Removing the row cancels the retry and releases its socket. See the [TCP design](../design/06-link-tcp.en.md) for the state and framing rules.
+
+## Reverse tunnels
+
+The service machine runs the rutis listener and the forwarding client. The relay runs the forwarding server and exposes a loopback port to the rutis dialer. Point the dial row at that forwarded port and keep verifying the service machine's TLS certificate. A tunnel credential controls tunnel creation. The application listener verifies each incoming client's certificate even when another local process reaches the forwarded port.
+
+| Route | How to use it |
+| --- | --- |
+| frp | Run `frps -c link/tcp/tunnels/frps.toml` on the relay and `frpc -c link/tcp/tunnels/frpc.toml` on the service machine. Both configurations are runnable on one machine. Both processes need `FRP_CONTROL_PORT`, `LINK_FORWARD_PORT` and `FRP_TOKEN_FILE` (a private file containing the same random token on both sides). frps needs `FRP_CERT_FILE` and `FRP_KEY_FILE`; frpc needs `FRP_CA_FILE` and `LINK_LISTEN_PORT`. These examples bind the control and forwarded ports to loopback. For a separate relay, set the control bind address, client server address and expected TLS server name to the intended private route. Keep `proxyBindAddr` on loopback for a dialer on the relay. [frps](../../link/tcp/tunnels/frps.toml) · [frpc](../../link/tcp/tunnels/frpc.toml) |
+| SSH remote forwarding | On the service machine run `link/tcp/tunnels/ssh-reverse.sh ~/.ssh/config relay 17443 7443`. Configure the relay alias, authorized user key and trusted SSH host key first. Leave `GatewayPorts no` on the SSH server. The dialer on the relay connects to port 17443, which forwards to the local listener on port 7443. Port zero requests a relay-assigned port. [OpenSSH wrapper](../../link/tcp/tunnels/ssh-reverse.sh) |
+| rathole / ngrok | A rathole service maps its server bind address to the client listener using a service token and protected transport. An ngrok TCP endpoint uses an account token and provider access policy. A public endpoint makes the forwarded port reachable by external clients. Retain application-level mutual TLS and restrict the ingress. |
+
+To run both real tunnel tests, put `frpc`, `frps` (tested with 0.72.0), `ssh` and `ssh-keygen` on PATH. The tests use `/usr/sbin/sshd` by default, or the executable in `SSHD`. The local user must be able to run a test daemon. No external accounts are required. Each test creates temporary keys and a loopback relay, starts two rutis hosts and verifies the reply to a remote service call. From the repository root:
+
+```sh
+npm --prefix link/tcp run test:tunnels
 ```
 
 ## Handoff in TypeScript and Python
