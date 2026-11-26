@@ -15,7 +15,7 @@
 
 ## Go 版 Tailscale
 
-`go:link-tailscale` 使用系统 tailscaled 或独立 tsnet 节点，通过 tailnet TCP 连接指定设备。管理插件通过 `rutis/loader` 创建、重载和移除连接行。[配置双端与管理连接](../design/04-link-tailscale.md)
+`go:link-tailscale` 通过本机 tailnet 按标签发现 worker，为每台建立独立连接，也支持指定单个节点。两种配置都可使用系统 tailscaled 或独立 tsnet 节点。管理插件通过 `rutis/loader` 创建、重载和移除连接行。[配置双端与管理连接](../design/04-link-tailscale.md)
 
 ## Go 版 libp2p
 

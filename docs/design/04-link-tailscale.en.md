@@ -2,16 +2,52 @@
 
 [中文](04-link-tailscale.md)
 
-`go:link-tailscale` connects two rutis 0.23.0 hosts on a tailnet. By default, the row uses the signed-in system `tailscaled`. Configure `tsnet` on a row to give it a separate node identity. The tailnet access policy and the listener's `allowPeer` govern admission. The session handshake supplies the remote rutis ID. [Tailscale access controls](https://tailscale.com/docs/features/access-control) · [tsnet](https://tailscale.com/kb/1244/tsnet)
+`go:link-tailscale` lets rutis 0.23.0 hosts discover and connect to other hosts on a tailnet. It uses the signed-in system `tailscaled` by default and also supports independent tsnet nodes. The session Hello supplies the remote rutis ID.
 
-## System mode
+## Installation
 
-Build from the repository root with Go 1.27.4 or later. Install the binary in `plugins/go` on each host and set `"runtimes": {"go": {"dir": "plugins/go"}}` in both `rutis.json` files.
+Build from the repository root with Go 1.27.4 or later. Install the binary in `plugins/go` on each host and set `"runtimes": {"go": {"dir": "plugins/go"}}` in each host’s `rutis.json`.
 
 ```sh
 mkdir -p plugins/go
 go -C link/tailscale build -o ../../plugins/go/link-tailscale ./cmd/link-tailscale
 ```
+
+## Discover workers by tag
+
+Define two tags in the tailnet policy and grant controllers access to TCP 7443 on workers. Merge the following entries into the existing policy. Assign each node its role tag, or enroll new nodes with a tagged auth key. [Tailscale tags](https://tailscale.com/docs/features/tags) · [Access grants](https://tailscale.com/docs/features/access-control/grants)
+
+```json
+{
+  "tagOwners": {
+    "tag:rutis-controller": ["autogroup:admin"],
+    "tag:rutis-worker": ["autogroup:admin"]
+  },
+  "grants": [{
+    "src": ["tag:rutis-controller"],
+    "dst": ["tag:rutis-worker"],
+    "ip": ["tcp:7443"]
+  }]
+}
+```
+
+Add this row to the controller’s `rutis.json`.
+
+```json
+{"id":"workers","name":"go:link-tailscale","config":{"discover":{"tag":"tag:rutis-worker"}}}
+```
+
+Install the same plugin and deploy this row on every worker.
+
+```json
+{"id":"controllers","name":"go:link-tailscale","config":{"allowTag":"tag:rutis-controller"}}
+```
+
+The controller subscribes to changes in its local Tailscale peer map and opens one rutis session per matching worker, keyed by stable node ID. Each worker binds its first tailnet IP and checks the incoming node address and tag with WhoIs. Adding a tagged worker connects it automatically. Renaming it preserves the connection. Removing its tag or withdrawing it from the map closes its connection. The plugin also reconciles every 30 seconds. If LocalAPI cannot confirm node status, it closes these connections and rediscovers peers on recovery. LocalAPI access suffices without a tailnet admin token or an address list. To change ports, set `discover.port`, the worker’s `listen` and the tailnet grant to the same port.
+
+Once connected, call services by their rutis service names. Give independently callable services from different workers distinct names within a shared rutis scope. In rutis 0.23, `<link-row>:<plugin>` targets the first session on a row. Use a dedicated single-node row when loading a plugin on a particular worker through that syntax.
+
+## Connect to a single node by name or IP
 
 Suppose the tailnet nodes are named `alpha` and `bravo` and the access policy permits TCP from alpha to bravo on port 7443. Each plugin process needs access to the local Tailscale API. A system listener needs a tailnet IP that the OS can bind. Add this listener to bravo's `rows`.
 
@@ -29,7 +65,7 @@ Both `dial` and `allowPeer` accept a node IP, MagicDNS short name or full name. 
 
 ## Embedded node
 
-Add the following field to either row's `config`. Give each row its own hostname and private absolute state directory. Supply an auth key through the plugin process's `TS_AUTHKEY` environment for initial enrollment. Restarts use the stored node identity. Unloading an embedded row shuts down its tsnet node. In system mode, unloading releases the plugin's listener and connections.
+Add the following field to the discovery, dial or listener row's `config`. Give each row its own hostname and private absolute state directory. Supply an auth key through the plugin process's `TS_AUTHKEY` environment for initial enrollment. Restarts use the stored node identity. Unloading an embedded row shuts down its tsnet node. In system mode, unloading releases the plugin's listener and connections.
 
 ```json
 {"tsnet":{"hostname":"rutis-bravo","stateDir":"/var/lib/rutis/tailscale/bravo"}}
@@ -39,12 +75,12 @@ Use the embedded node's actual tailnet name or IP in the other row's `dial` or `
 
 ## Manage a row from another plugin
 
-Inject `rutis/loader` in the management plugin. This example creates and starts the dialer. Keep its returned row ID for subsequent operations.
+Inject `rutis/loader` in the management plugin. This example creates and starts the discovery row. Keep its returned row ID for subsequent operations.
 
 ```ts
 const loader = ctx.use('rutis/loader')
 const id = await loader.create({
-  id: 'to-bravo', name: 'go:link-tailscale', config: { dial: 'bravo:7443' }
+  id: 'workers', name: 'go:link-tailscale', config: { discover: { tag: 'tag:rutis-worker' } }
 })
 ```
 
@@ -62,7 +98,7 @@ Use `loader.status()` for the row's load state, `loader.reload(id)` to restart i
 
 The shared Go TCP bridge uses a four-byte big-endian length prefix and a 16 MiB frame limit. Reconnection starts a fresh session without replay. The rutis 0.23 Go API exposes neither the peer's rutis Hello ID nor a session outbound queue limit. [TCP bridge](../../link/tcp/bridge.go) · [Tailscale CLI](https://tailscale.com/docs/reference/tailscale-cli)
 
-Run these checks from the repository root. The integration test uses rutis-host 0.23.0 from PATH or `RUTIS_HOST`. It starts a local test control server, DERP and two independent nodes, then checks remote calls, removal, recreation, admission and reconnection. Set `RUTIS_TAILSCALE_SYSTEM_TEST=1` to additionally exercise two host processes using the local enrolled system node.
+Run these checks from the repository root. The integration test uses rutis-host 0.23.0 from PATH or `RUTIS_HOST`. A local test control server and DERP exercise pinned connections and reconnects, discovery of two workers by one controller, tag revocation and restoration, node renames and removal. Set `RUTIS_TAILSCALE_SYSTEM_TEST=1` to additionally exercise two host processes using the local enrolled system node.
 
 ```sh
 go -C link/tailscale test -race ./...

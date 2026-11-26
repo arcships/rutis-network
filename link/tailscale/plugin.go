@@ -15,6 +15,7 @@ import (
 
 	"github.com/arcships/rutis-network/link/tcp"
 	"github.com/arcships/rutis/go/rutis"
+	"tailscale.com/tailcfg"
 	"tailscale.com/util/dnsname"
 )
 
@@ -23,7 +24,16 @@ type embeddedNode struct {
 	StateDir string `json:"stateDir"`
 }
 
+const defaultPort = 7443
+
+type discovery struct {
+	Tag  string `json:"tag"`
+	Port uint16 `json:"port,omitempty"`
+}
+
 type config struct {
+	Discover  *discovery    `json:"discover,omitempty"`
+	AllowTag  string        `json:"allowTag,omitempty"`
 	Dial      string        `json:"dial,omitempty"`
 	Listen    string        `json:"listen,omitempty"`
 	AllowPeer string        `json:"allowPeer,omitempty"`
@@ -41,17 +51,38 @@ func (c config) endpoint() (host string, port uint16, err error) {
 	if c.TSNet != nil && (dnsname.ValidLabel(c.TSNet.Hostname) != nil || !filepath.IsAbs(c.TSNet.StateDir)) {
 		return "", 0, errors.New("tsnet requires hostname and an absolute stateDir unique to this row")
 	}
-	if (c.Dial == "") == (c.Listen == "") {
-		return "", 0, errors.New("set exactly one of dial or listen")
+	if c.Discover != nil {
+		if c.Dial != "" || c.Listen != "" || c.AllowTag != "" || c.AllowPeer != "" {
+			return "", 0, errors.New("discover cannot be combined with dial, listen, allowTag or allowPeer")
+		}
+		if err := tailcfg.CheckTag(c.Discover.Tag); err != nil {
+			return "", 0, fmt.Errorf("discover.tag: %w", err)
+		}
+		if c.Discover.Port == 0 {
+			return "", defaultPort, nil
+		}
+		return "", c.Discover.Port, nil
 	}
 	address := c.Dial
-	if c.Listen != "" {
-		if !validPeer(c.AllowPeer) {
-			return "", 0, errors.New("listen requires a node IP or MagicDNS name in allowPeer")
+	if c.Dial != "" {
+		if c.Listen != "" || c.AllowTag != "" || c.AllowPeer != "" {
+			return "", 0, errors.New("dial cannot be combined with listener settings")
 		}
+	} else {
 		address = c.Listen
-	} else if c.AllowPeer != "" {
-		return "", 0, errors.New("allowPeer is a listener setting")
+		if c.AllowTag != "" {
+			if c.AllowPeer != "" {
+				return "", 0, errors.New("choose one of allowPeer and allowTag")
+			}
+			if err := tailcfg.CheckTag(c.AllowTag); err != nil {
+				return "", 0, fmt.Errorf("allowTag: %w", err)
+			}
+			if address == "" {
+				return "", defaultPort, nil
+			}
+		} else if address == "" || !validPeer(c.AllowPeer) {
+			return "", 0, errors.New("configure dial, discover or a listener with an allowed peer or tag")
+		}
 	}
 	host, raw, err := net.SplitHostPort(address)
 	if err != nil {
@@ -97,8 +128,16 @@ var Plugin = rutis.Define(rutis.Plugin[config]{
 		if err != nil {
 			return err
 		}
+		if cfg.Discover != nil {
+			workers.Go(func() { n.runTagged(ctx, sessions, cfg.Discover.Tag, port, nil) })
+			return nil
+		}
 		if cfg.Dial != "" {
-			workers.Go(func() { n.dialLoop(ctx, sessions, host, port) })
+			workers.Go(func() {
+				n.dialLoop(ctx, ctx, sessions, host, func(attempt context.Context) (net.Conn, error) {
+					return n.dial(attempt, host, port)
+				})
+			})
 			return nil
 		}
 		ip := s.TailscaleIPs[0]
@@ -113,20 +152,24 @@ var Plugin = rutis.Define(rutis.Plugin[config]{
 			return fmt.Errorf("tailnet-listen: %w", err)
 		}
 		fmt.Fprintln(os.Stderr, "link/tailscale listening", listener.Addr())
-		workers.Go(func() { n.accept(ctx, sessions, listener, cfg.AllowPeer) })
+		if cfg.AllowTag != "" {
+			workers.Go(func() { n.runTagged(ctx, sessions, cfg.AllowTag, port, listener) })
+		} else {
+			workers.Go(func() { n.accept(ctx, sessions, listener, cfg.AllowPeer) })
+		}
 		return nil
 	},
 })
 
-func (n *tailnet) dialLoop(ctx context.Context, sessions tcp.Sessions, host string, port uint16) {
+func (n *tailnet) dialLoop(ctx, row context.Context, sessions tcp.Sessions, host string, dial func(context.Context) (net.Conn, error)) {
 	delay := 500 * time.Millisecond
 	for ctx.Err() == nil {
 		attempt, cancel := context.WithTimeout(ctx, 10*time.Second)
-		conn, err := n.dial(attempt, host, port)
+		conn, err := dial(attempt)
 		cancel()
 		if err == nil {
 			start := time.Now()
-			err = n.session(ctx, sessions, conn, host)
+			err = n.peerSession(ctx, row, sessions, conn, host)
 			if time.Since(start) >= time.Minute {
 				delay = 500 * time.Millisecond
 			}
@@ -192,6 +235,17 @@ func (n *tailnet) accept(ctx context.Context, sessions tcp.Sessions, listener ne
 			}
 		})
 	}
+}
+
+// Closing only the peer socket leaves the row alive for tcp.Open to send near.end.
+func (n *tailnet) peerSession(peer, row context.Context, sessions tcp.Sessions, conn net.Conn, address string) error {
+	if err := peer.Err(); err != nil {
+		conn.Close()
+		return err
+	}
+	stop := context.AfterFunc(peer, func() { conn.Close() })
+	defer stop()
+	return n.session(row, sessions, conn, address)
 }
 
 func (n *tailnet) session(ctx context.Context, sessions tcp.Sessions, conn net.Conn, peer string) error {

@@ -14,6 +14,7 @@ import (
 
 	"tailscale.com/client/local"
 	"tailscale.com/ipn/ipnstate"
+	"tailscale.com/tailcfg"
 	"tailscale.com/tsnet"
 )
 
@@ -116,28 +117,36 @@ func (n *tailnet) dial(ctx context.Context, target string, port uint16) (net.Con
 	return conn, nil
 }
 
-func (n *tailnet) admit(ctx context.Context, addr net.Addr, allowed string) error {
-	source, err := netip.ParseAddrPort(addr.String())
+func (n *tailnet) identify(ctx context.Context, addr string) (*tailcfg.Node, error) {
+	source, err := netip.ParseAddrPort(addr)
 	if err != nil {
-		return fmt.Errorf("unknown-peer: %w", err)
+		return nil, fmt.Errorf("unknown-peer: %w", err)
 	}
-	w, err := n.api.WhoIsProto(ctx, "tcp", addr.String())
+	w, err := n.api.WhoIsProto(ctx, "tcp", addr)
 	if err != nil {
-		return fmt.Errorf("unknown-peer: %w", err)
+		return nil, fmt.Errorf("unknown-peer: %w", err)
 	}
-	if w.Node == nil || w.Node.Expired || !w.Node.KeyExpiry.IsZero() && !time.Now().Before(w.Node.KeyExpiry) {
-		return errors.New("invalid-peer-identity")
+	if w == nil || w.Node == nil || w.Node.StableID == "" || w.Node.Expired || !w.Node.KeyExpiry.IsZero() && !time.Now().Before(w.Node.KeyExpiry) {
+		return nil, errors.New("invalid-peer-identity")
 	}
 	ip := source.Addr().Unmap()
 	if !slices.Contains(w.Node.Addresses, netip.PrefixFrom(ip, ip.BitLen())) {
-		return errors.New("source-is-not-node-address")
+		return nil, errors.New("source-is-not-node-address")
+	}
+	return w.Node, nil
+}
+
+func (n *tailnet) admit(ctx context.Context, addr net.Addr, allowed string) error {
+	peer, err := n.identify(ctx, addr.String())
+	if err != nil {
+		return err
 	}
 	s, err := n.status(ctx)
 	if err != nil {
 		return err
 	}
 	node, _ := findPeer(s, allowed)
-	if node == nil || node.Expired || w.Node.StableID == "" || node.ID != w.Node.StableID {
+	if node == nil || node.Expired || node.ID != peer.StableID {
 		return errors.New("peer-not-allowed")
 	}
 	return nil

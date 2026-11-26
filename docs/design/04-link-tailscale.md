@@ -2,16 +2,52 @@
 
 [English](04-link-tailscale.en.md)
 
-`go:link-tailscale` 把两个已加入同一 tailnet 的 rutis 0.23.0 宿主连接起来。系统模式复用已登录的 `tailscaled`。需要独立节点身份时，可以给同一行配置 `tsnet`。连接由 Tailscale 的访问策略和监听行的 `allowPeer` 共同控制。远端 rutis ID 由会话握手决定。[Tailscale 访问策略](https://tailscale.com/docs/features/access-control) · [tsnet](https://tailscale.com/kb/1244/tsnet)
+`go:link-tailscale` 让 rutis 0.23.0 宿主通过 tailnet 发现并连接其他宿主。默认复用已登录的系统 `tailscaled`，也支持独立的 tsnet 节点。远端 rutis ID 由会话 Hello 提供。
 
-## 系统模式
+## 安装
 
-在仓库根目录用 Go 1.27.4 或更高版本编译。把同一个二进制放到两个宿主的 `plugins/go` 目录，并在两端 `rutis.json` 中配置 `"runtimes": {"go": {"dir": "plugins/go"}}`。
+在仓库根目录用 Go 1.27.4 或更高版本编译。把二进制放到各宿主的 `plugins/go` 目录，并在各自的 `rutis.json` 中配置 `"runtimes": {"go": {"dir": "plugins/go"}}`。
 
 ```sh
 mkdir -p plugins/go
 go -C link/tailscale build -o ../../plugins/go/link-tailscale ./cmd/link-tailscale
 ```
+
+## 按标签自动发现
+
+在 tailnet 策略中定义两个标签，并允许管理端访问 worker 的 TCP 7443。把以下字段合入现有策略。将对应标签分配给各节点，也可以使用带标签的 auth key 注册新节点。[Tailscale 标签](https://tailscale.com/docs/features/tags) · [访问授权](https://tailscale.com/docs/features/access-control/grants)
+
+```json
+{
+  "tagOwners": {
+    "tag:rutis-controller": ["autogroup:admin"],
+    "tag:rutis-worker": ["autogroup:admin"]
+  },
+  "grants": [{
+    "src": ["tag:rutis-controller"],
+    "dst": ["tag:rutis-worker"],
+    "ip": ["tcp:7443"]
+  }]
+}
+```
+
+在管理端的 `rutis.json` 中加入这一行。
+
+```json
+{"id":"workers","name":"go:link-tailscale","config":{"discover":{"tag":"tag:rutis-worker"}}}
+```
+
+每台 worker 安装同一个插件，使用同一行配置。
+
+```json
+{"id":"controllers","name":"go:link-tailscale","config":{"allowTag":"tag:rutis-controller"}}
+```
+
+管理端订阅本机 Tailscale 可见节点的变化，按稳定节点 ID 为每台匹配的 worker 建立一个 rutis 会话。worker 监听自己首个 tailnet IP，逐连接使用 WhoIs 校验来源节点与标签。新增带标签的 worker 会自动接入，改名会保留原连接，撤销标签或移出网络图会关闭对应连接。每 30 秒也会重新核对一次。本机 LocalAPI 无法确认节点状态时会关闭这些连接，恢复后重新发现。插件只需本机 LocalAPI，无需 tailnet 管理令牌或节点地址清单。要换端口，同时修改 `discover.port`、worker 的 `listen` 和 tailnet 授权。
+
+连接建立后，集成方按 rutis 服务名调用。多个 worker 的服务处于同一 rutis 作用域时，给需要分别调用的服务使用不同名称。rutis 0.23 的 `<连接行>:<插件>` 只寻址该行的首个会话；需要通过这个语法在指定 worker 加载插件时，使用下面的单节点连接行。
+
+## 按名称或 IP 连接单个节点
 
 假设 tailnet 节点名分别是 `alpha` 和 `bravo`，访问策略允许 alpha 连接 bravo 的 TCP 7443 端口。双方的宿主进程需要可读取本机 Tailscale LocalAPI。bravo 的系统模式需要操作系统可以绑定本机 tailnet IP。先把监听行加入 bravo 的 `rows`。
 
@@ -29,7 +65,7 @@ go -C link/tailscale build -o ../../plugins/go/link-tailscale ./cmd/link-tailsca
 
 ## 独立节点
 
-在拨号或监听行的 `config` 中加入以下字段。给每行配置唯一的节点名和私有持久化绝对目录。首次注册可通过插件进程的 `TS_AUTHKEY` 环境变量注入授权密钥。已注册节点重启时沿用目录里的身份。卸载该行会关闭它自己的 tsnet 节点。系统模式下，卸载只释放插件的连接与监听。
+在发现、拨号或监听行的 `config` 中加入以下字段。给每行配置唯一的节点名和私有持久化绝对目录。首次注册可通过插件进程的 `TS_AUTHKEY` 环境变量注入授权密钥。已注册节点重启时沿用目录里的身份。卸载该行会关闭它自己的 tsnet 节点。系统模式下，卸载只释放插件的连接与监听。
 
 ```json
 {"tsnet":{"hostname":"rutis-bravo","stateDir":"/var/lib/rutis/tailscale/bravo"}}
@@ -39,12 +75,12 @@ go -C link/tailscale build -o ../../plugins/go/link-tailscale ./cmd/link-tailsca
 
 ## 通过管理插件启停
 
-管理插件声明并注入 `rutis/loader`，复用上面的行配置。以下代码在管理插件里创建并启动拨号行。保留返回的行 ID，作为后续管理操作的参数。
+管理插件声明并注入 `rutis/loader`，复用上面的行配置。以下代码在管理插件里创建并启动发现行。保留返回的行 ID，作为后续管理操作的参数。
 
 ```ts
 const loader = ctx.use('rutis/loader')
 const id = await loader.create({
-  id: 'to-bravo', name: 'go:link-tailscale', config: { dial: 'bravo:7443' }
+  id: 'workers', name: 'go:link-tailscale', config: { discover: { tag: 'tag:rutis-worker' } }
 })
 ```
 
@@ -62,7 +98,7 @@ const id = await loader.create({
 
 适配器复用 Go TCP bridge 的 4 字节大端长度前缀和 16 MiB 单帧上限。会话断开后重新建立，旧消息不会重放。rutis 0.23 的 Go 接口无法读取握手后声明的 rutis ID 或配置会话发送队列上限。[TCP bridge](../../link/tcp/bridge.go) · [Tailscale CLI](https://tailscale.com/docs/reference/tailscale-cli)
 
-在仓库根目录运行以下命令。集成测试需要 PATH 中的 rutis-host 0.23.0，也可通过 `RUTIS_HOST` 指定二进制。它启动本地测试控制面、DERP 和两个独立节点，验证远端调用、移除、重建、对端准入和自动重连。另设 `RUTIS_TAILSCALE_SYSTEM_TEST=1` 可在已登录的本机节点上用两个宿主进程验证系统模式。
+在仓库根目录运行以下命令。集成测试需要 PATH 中的 rutis-host 0.23.0，也可通过 `RUTIS_HOST` 指定二进制。测试使用本地控制面与 DERP，验证按名称连接和重连，以及一个管理端同时连接两台 worker、标签撤销与恢复、节点改名和移除。另设 `RUTIS_TAILSCALE_SYSTEM_TEST=1` 可在已登录的本机节点上用两个宿主进程验证系统模式。
 
 ```sh
 go -C link/tailscale test -race ./...

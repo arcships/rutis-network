@@ -15,7 +15,7 @@ Admitting a peer grants trust in the identity it registers. Complete admission b
 
 ## Go Tailscale
 
-`go:link-tailscale` connects to one tailnet node over TCP using the system daemon or an embedded tsnet node. A management plugin can create, reload and remove a row through `rutis/loader`. [Configure and manage a Tailscale link](../design/04-link-tailscale.en.md)
+`go:link-tailscale` discovers tagged workers on the local tailnet and opens a TCP session to each. It also supports a single pinned peer. Both modes work with system tailscaled or an embedded tsnet node. A management plugin can create, reload and remove a row through `rutis/loader`. [Configure and manage a Tailscale link](../design/04-link-tailscale.en.md)
 
 ## Go libp2p
 
