@@ -124,11 +124,8 @@ export async function openTcp(socket: Socket, sessions: Sessions) {
       if (!sessionClosed) remember(error as Error)
     } finally {
       socket.destroy()
-      try {
-        await endSession()
-      } finally {
-        socket.off('error', remember)
-      }
+      await endSession()?.catch(remember)
+      socket.off('error', remember)
     }
     if (failure) throw failure
   }

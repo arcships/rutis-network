@@ -150,3 +150,13 @@ test('peer closing while open is pending still ends the returned session', async
   await (await link).done
   assert.deepEqual(ended, [{ kind: 'done' }])
 })
+
+test('truncated input keeps its diagnostic if session cleanup also fails', async t => {
+  const { socket, peer } = await pair(t)
+  const link = await openTcp(socket, { open: () => ({
+    receive: assert.fail,
+    end() { throw new Error('session already gone') },
+  }) })
+  peer.end(Buffer.from([0, 0]))
+  await assert.rejects(link.done, { code: 'truncated-frame' })
+})
