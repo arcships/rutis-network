@@ -1,6 +1,6 @@
 # feat(link): `link/grpc` 云控制面 / relay / 分布式云
 
-状态：已发布为 [#7](https://github.com/arcships/rutis-network/issues/7)。优先级 **P1（云业务）/ P2（其他）**。依赖契约 #1。设计稿：[docs/design/07-link-grpc.md](../../design/07-link-grpc.md)。
+状态：已发布为 [#7](https://github.com/arcships/rutis-network/issues/7)。优先级 **P1（云业务）/ P2（其他）**。依赖契约 #1。设计稿：[PR #17](https://github.com/arcships/rutis-network/pull/17)。
 
 版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。
 
@@ -19,25 +19,25 @@ gRPC 不是 Tailscale/Cloudflare 那种“到达”方案，而是“到一个�
 ## 范围
 
 1. 新增 `link/grpc` 参考实现（先 Go 或 Rust）：
-   - 一条 gRPC bidi stream 对应一个 session；
+   - 一条 gRPC bidi stream 对应一个 session；session 只在 A/B 两端，relay 透明转发、不挂 session；
    - 消息用 `bytes`（或 `google.protobuf.BytesValue`）承载；
-   - 每条连接/流一个 `rutis/sessions.open(far)`；
+   - 每条连接/流在 A/B 端一个 `rutis/sessions.open(far)`；
    - mTLS / OAuth / JWT / API key 做链接层准入；不把身份传给 session；
    - 远端在 `Hello` 注册 id。
 2. 云端形态（文档 + 测试服务，不必先做产品）：
    - 控制面：宿主注册、路由、配额、观测；
-   - relay：两条流配对，多租户；
+   - relay：透明配对两条流；按 `x-rutis-pair` / `x-rutis-target` / `x-rutis-generation`，不挂 session、不解析 `payload`；
    - 云运行时：gRPC 流到 rutis 运行时；
    - 多区域：最近区域、会话粘性、故障切换、数据驻留。
 3. 技术约束写清：
    - HTTP/2 中间层/负载均衡的超时、缓冲、最大流时长；
-   - 默认 gRPC 消息上限（一般 4 MiB）与 rutis 16 MiB 的差异；需要调大或分片；
+   - 所选 gRPC 实现的消息上限（很多默认 4 MiB）与 rutis 16 MiB 的差异；显式配置到至少 16 MiB 或分片；
    - 长连接与 serverless scale-to-zero；
    - gRPC-Web 不支持 bidi；浏览器用 WebSocket/WebTransport；
    - keepalive、重连、会话粘性；
    - 0.21 异步 `send`：gRPC 写阻塞通过 async `send` 回压，不在 bridge 里无界排队。
 4. 文档：`docs/guide/link-plugins.md` 增加“云链接”一节；明确 gRPC 是云链接，不是设备链接。
-5. listen 侧：Rust 用 `Session::handshake` 才能同 id 顶替；非 Rust `open(far)` 不暴露 id，relay 端若要顶替需用 Rust 或写明限制。
+5. listen 侧：只有 A/B 端点挂 session；Rust 用 `Session::handshake` 才能同 id 顶替；relay 不挂 session，只按 pair/generation 配对。非 Rust `open(far)` 不暴露 id，不支持同 id 顶替。
 
 ## 非目标
 
@@ -58,7 +58,7 @@ gRPC 不是 Tailscale/Cloudflare 那种“到达”方案，而是“到一个�
 
 ## 关联
 
-- 设计稿：[docs/design/07-link-grpc.md](../../design/07-link-grpc.md)
+- 设计稿：[PR #17](https://github.com/arcships/rutis-network/pull/17)
 - [链接层 link plugin 契约](01-link-plugin-contract.md)
 - [`link/tcp` 与反向隧道](06-link-tcp-and-reverse-tunnels.md)
 - [连接节点](https://github.com/arcships/rutis/blob/main/docs/guide/nodes.md)
