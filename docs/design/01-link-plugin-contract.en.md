@@ -1,6 +1,6 @@
 # Link plugin contract: design
 
-Finalized 2026-11-26. Baseline: rutis 0.21.0 (2026-11-05), session protocol 4, `rutis.json` format 1, plugin API 3.
+This contract was finalized on 2026-11-26 against rutis 0.21.0, session protocol 4, `rutis.json` format 1 and plugin API 3. The Go implementation and interoperability tests now target rutis 0.23.0 and session protocol 5. [TCP design](06-link-tcp.en.md)
 Issue: [#1](https://github.com/arcships/rutis-network/issues/1).
 Companions: [SKILL.md](../../.agents/skills/rutis-link-plugin/SKILL.md), [link-plugin-api.md](../../.agents/skills/rutis-link-plugin/references/link-plugin-api.md).
 

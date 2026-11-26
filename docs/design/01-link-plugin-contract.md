@@ -1,6 +1,6 @@
 # 链接层 link plugin 契约：设计稿
 
-定稿于 2026-11-26。基线：rutis 0.21.0（2026-11-05），会话协议 4，`rutis.json` format 1，插件 API 3。
+本契约于 2026-11-26 按 rutis 0.21.0 定稿，当时使用会话协议 4、`rutis.json` format 1、插件 API 3。Go 实现与互通验收现已使用 rutis 0.23.0 和会话协议 5。[TCP 设计](06-link-tcp.md)
 关联 issue：[#1](https://github.com/arcships/rutis-network/issues/1)。
 配套：[SKILL.md](../../.agents/skills/rutis-link-plugin/SKILL.md)、[link-plugin-api.md](../../.agents/skills/rutis-link-plugin/references/link-plugin-api.md)。
 

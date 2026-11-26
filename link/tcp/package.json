@@ -2,15 +2,17 @@
   "name": "rutis-network-tcp-reference",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.18" },
+  "engines": {
+    "node": ">=22.18"
+  },
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "test:tunnels": "node --test test/tunnels.mjs",
-    "typecheck": "tsc --noEmit --strict --target es2022 --module nodenext --allowImportingTsExtensions --types node bridge.ts dial.ts listen.ts"
+    "typecheck": "tsc --noEmit --strict --target es2022 --module nodenext --allowImportingTsExtensions --types node bridge.ts dial.ts"
   },
   "devDependencies": {
-    "@arcships/rutis": "0.21.0",
-    "@arcships/rutis-host": "0.21.0",
+    "@arcships/rutis": "0.23.0",
+    "@arcships/rutis-host": "0.23.0",
     "@types/node": "^22.0.0",
     "typescript": "6.0.3"
   }

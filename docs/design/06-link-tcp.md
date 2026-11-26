@@ -1,18 +1,20 @@
 # TCP 字节流 bridge 与反向隧道
 
-2026-11-26 定稿。基线为 rutis 0.21.0。实现范围与验收记录在 [issue #6](https://github.com/arcships/rutis-network/issues/6)。[English](06-link-tcp.en.md)
+2026-11-26 定稿。基线为 rutis 0.23.0（会话协议 5，插件 API 3）。实现范围与验收记录在 [issue #6](https://github.com/arcships/rutis-network/issues/6)。[English](06-link-tcp.en.md)
 
 ## 边界与帧格式
 
-SSH 转发、frp、Tailscale、Cloudflare Access、ADB 和 usbmuxd 都可以提供字节流。adapter 负责到达与准入，每条已验证的流交给 #11 的 `openTcp(socket, sessions)`。bridge 负责分帧、背压、关闭和一次 `sessions.open(far)`。rutis 独自处理 Hello、远端身份和服务生命周期。已有 WebSocket 传输保留自己的消息边界。[链接插件契约](01-link-plugin-contract.md)
+SSH 转发、frp、Tailscale、Cloudflare Access、ADB 和 usbmuxd 都可以提供字节流。adapter 负责到达与准入，每条已验证的流交给 Go 的 `tcp.Open`。Go bridge 遵循 #11 的帧格式，与其 TypeScript 参考实现互通。bridge 负责分帧、背压、关闭和一次 `sessions.open(far)`。rutis 独自处理 Hello、远端身份和服务生命周期。已有 WebSocket 传输保留自己的消息边界。[链接插件契约](01-link-plugin-contract.md)
 
-每帧由四字节无符号大端长度和指定字节数的载荷组成。长度范围含 0 和 16 MiB。超长在分配前拒绝。接收端等待 `near.receive` 完成再交付下一帧。发送端一次等待一个 socket 写入，无额外待发队列，4–16 MiB 的合法帧也可以直接发送。rutis 0.21 的会话出站队列与 bridge 各自独立，非 Rust 接口无法设置会话总限额。Rust 可用 `SessionOptions::outbound_limit` 设置字节预算。
+每帧由四字节无符号大端长度和指定字节数的载荷组成。长度范围含 0 和 16 MiB。超长在分配前拒绝。接收端等待 `near.receive` 完成再交付下一帧。发送端一次等待一个 socket 写入，无额外待发队列，4–16 MiB 的合法帧也可以直接发送。rutis 0.23 的会话出站队列与 bridge 各自独立，非 Rust 接口无法设置会话总限额。Rust 可用 `SessionOptions::outbound_limit` 设置字节预算。
 
 帧边界 EOF 正常结束，半个头或半个载荷以 `truncated-frame` 失败，超长以 `frame-too-large` 失败，连接复位保留传输错误码。任何一方关闭都释放整个 socket。卸载中止等待中的读写。TCP 只承载字节与 EOF，WebSocket 的 4002/4003 关闭码留在 WebSocket 上。
 
+协议 5 可为声明了单帧上限的传输拆分大消息。0.23.0 的 `sessions.open(far)` 创建的 `FarSender` 使用默认的 `max_message() = None`。编码后的会话消息超过 16 MiB 时，宿主可能一次交给 bridge，导致该连接以 `frame-too-large` 关闭。宿主集成测试覆盖 4 MiB 二进制往返，也验证 17 MiB 调用触发此限制、其他客户端仍可通信。[上游发送端](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/open.rs) · [通道上限](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/channel/mod.rs)
+
 ## 拨号、监听与重连
 
-- 两个 TypeScript 插件固定使用 `127.0.0.1`。监听端可选端口 0 并报告实际端口。两个方向分别校验证书，只把通过本端双向 TLS 准入的 socket 交给 bridge。隔离的分帧测试可以使用原始回环 TCP。
+- 两个 Go 插件固定使用 `127.0.0.1`。监听端可选端口 0 并报告实际端口。两个方向分别校验证书，只把通过本端双向 TLS 准入的 socket 交给 bridge。隔离的分帧测试可以使用原始回环 TCP。
 - 拨号行保留 #11 单次拨号的默认行为。设置 `reconnect: true` 后，由 adapter 发起首次尝试，断开后新建 socket 和会话。旧帧不重放。瞬时网络错误从 0.5 秒指数退避至 30 秒，连接稳定 60 秒后重置。已知证书拒绝等待 30 秒；确定不兼容的传输协议停止重试。非 Rust 接口拿不到 rutis 握手结果，未知断开按传输错误处理。
 - 监听行可同时接收多条连接，每条一个会话。握手和各次读取彼此独立；行卸载同时关闭监听器、正在做 TLS 握手的套接字和已准入的连接。监听资源错误经延迟后重试，避免空转。
 - 同一行的受理句柄先到先得。非 Rust 的 `open` 没有握手后的远端 ID。需要按 ID 顶替的监听器使用 Rust 的 `Session::handshake`，待旧会话卸载后挂载新会话。[Rust 示例](../../examples/rust-listen/src/lib.rs)

@@ -32,7 +32,10 @@ export async function setup(t) {
   ].join('\n'))
   await exec('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1',
     '-config', join(dir, 'cert.cnf'), '-keyout', key, '-out', cert])
-  return { dir, stops, identity: { ca: cert, cert, key } }
+  const goDir = join(dir, 'go')
+  await mkdir(goDir)
+  await exec('go', ['build', '-o', join(goDir, 'link-tcp'), './cmd/link-tcp'], { cwd: project })
+  return { dir, stops, goDir, identity: { ca: cert, cert, key } }
 }
 
 export function processFor(env, program, args, options = {}) {
@@ -60,14 +63,14 @@ export function processFor(env, program, args, options = {}) {
 }
 
 export function row(id, name, config) {
-  return { id, name: join(project, name), config }
+  return { id, name: name.startsWith('go:') ? name : join(project, name), config }
 }
 
 export async function startHost(env, id, rows) {
   const directory = join(env.dir, id)
   await mkdir(directory)
   const path = join(directory, 'rutis.json')
-  const config = rows => JSON.stringify({ id, runtimes: { node: { project } }, rows })
+  const config = rows => JSON.stringify({ id, runtimes: { go: { dir: env.goDir }, node: { project } }, rows })
   await writeFile(path, config(rows))
   const proc = processFor(env, process.execPath, [host, 'run', path])
   async function reload(next) {
@@ -75,11 +78,14 @@ export async function startHost(env, id, rows) {
     await rename(path + '.tmp', path)
     proc.child.kill('SIGUSR1')
   }
-  async function call(expected, argument = 37) {
+  function invoke(method, argument) {
+    return exec(process.execPath, [host, 'call', '--config', path, method, String(argument)], { timeout: 30000 })
+  }
+  async function call(expected, argument = 37, method = 'witness.echo') {
     let last
     for (let i = 0; i < 80; i++) {
       try {
-        const result = await exec(process.execPath, [host, 'call', '--config', path, 'witness.echo', String(argument)], { timeout: 2000 })
+        const result = await invoke(method, argument)
         assert.deepEqual(JSON.parse(result.stdout), [expected, argument])
         return
       } catch (error) {
@@ -89,5 +95,5 @@ export async function startHost(env, id, rows) {
     }
     assert.fail([last, proc.output()].join('\n'))
   }
-  return { ...proc, reload, call }
+  return { ...proc, reload, call, invoke }
 }

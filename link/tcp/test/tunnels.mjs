@@ -67,12 +67,12 @@ for (const [name, forward] of [['frp', frp], ['OpenSSH', ssh]]) {
     const env = await setup(t)
     const proof = randomUUID()
     const receiver = await startHost(env, 'harbor', [
-      row('accept', 'listen.ts', { ...env.identity, port: 0 }),
+      row('accept', 'go:link-tcp-listen', { ...env.identity, port: 0 }),
       row('beacon', 'test/fixtures/witness.mjs', { proof }),
     ])
     const listenerPort = Number((await receiver.waitFor(/link\/tcp listening 127\.0\.0\.1:(\d+)/))[1])
     const port = await forward(env, listenerPort)
-    const sender = await startHost(env, 'coast', [row('dial', 'dial.ts', { ...env.identity, port })])
+    const sender = await startHost(env, 'coast', [row('dial', 'go:link-tcp-dial', { ...env.identity, port })])
     await sender.call(proof)
   })
 }

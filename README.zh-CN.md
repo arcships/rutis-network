@@ -6,11 +6,11 @@
 
 rutis 自己只管会话这一侧：连接插件打开一条通道，交给服务 `rutis/sessions`（`rutis/sessions.open(far)`，Rust 里是 `Session::new(channel)`）。网络上的事——到达对面、准入与认证、分帧、心跳、重连、接替 listen 的位置——都是链接插件的，放在这里。见 [rutis：自建连接](https://github.com/arcships/rutis/blob/main/docs/guide/plugin-api.md#自建连接rutissessionsopen) 与 [连接节点](https://github.com/arcships/rutis/blob/main/docs/guide/nodes.md)。
 
-版本基线：rutis 0.21.0（会话协议 4，插件 API 3）。0.19.3 把服务改名为 `rutis/sessions`；0.20 改了卸载顺序，并让会话有自己的写线程；0.21 把收到的函数改为默认异步，并改了错误文本。
+插件基于 rutis 0.23.0（会话协议 5，插件 API 3）。两端宿主及其语言运行时需要一起升级。0.19.3 把服务改名为 `rutis/sessions`；0.20 改了卸载顺序，并让会话有自己的写线程；0.21 把收到的函数改为默认异步，并改了错误文本。
 
 ## 状态
 
-[开发指南](docs/guide/link-plugins.md)包含 TypeScript TCP bridge、回环拨号与监听插件、经过验证的 frp 和 OpenSSH 转发配置，以及可运行的 Rust 监听示例。其余工作按以下 issue 跟踪。
+[开发指南](docs/guide/link-plugins.md)包含 Go TCP bridge、回环拨号与监听插件、用于互通验证的 TypeScript 参考实现、经过验证的 frp 和 OpenSSH 转发配置，以及可运行的 Rust 监听示例。其余工作按以下 issue 跟踪。
 
 1. [#1](https://github.com/arcships/rutis-network/issues/1)：链接插件的契约——它做什么、不做什么；准入与身份；分帧、生命周期；一份参考 bridge。
 2. [#2](https://github.com/arcships/rutis-network/issues/2)：各种链接方式的全景，以及决定优先级的场景。

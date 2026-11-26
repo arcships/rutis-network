@@ -7,20 +7,14 @@ import { createConnection, createServer } from 'node:net'
 import { setTimeout as delay } from 'node:timers/promises'
 import { join } from 'node:path'
 import { rootCertificates } from 'node:tls'
-import dial, { retryDelay } from '../dial.ts'
+import dial from '../dial.ts'
 import { row, setup, startHost } from './fixtures/hosts.mjs'
 
-test('retry policy distinguishes admission, incompatible TLS and unknown disconnects', () => {
-  assert.equal(retryDelay('ERR_TLS_CERT_ALTNAME_INVALID', 500), 30_000)
-  assert.equal(retryDelay('ERR_SSL_WRONG_VERSION_NUMBER', 500), null)
-  assert.equal(retryDelay('ECONNRESET', 2000), 2000)
-})
-
-test('two independent clients, denied admission, row unload and reconnection', async t => {
+test('Go and TypeScript clients, mTLS admission, frame limits, row unload and reconnection', async t => {
   const env = await setup(t)
   const proof = randomUUID()
   const witness = row('beacon', 'test/fixtures/witness.mjs', { proof })
-  const listen = port => row('accept', 'listen.ts', { ...env.identity, port })
+  const listen = port => row('accept', 'go:link-tcp-listen', { ...env.identity, port })
   const receiver = await startHost(env, 'harbor', [listen(0), witness])
   const listening = /link\/tcp listening 127\.0\.0\.1:(\d+)/
   const port = Number((await receiver.waitFor(listening))[1])
@@ -36,9 +30,22 @@ test('two independent clients, denied admission, row unload and reconnection', a
   await assert.rejects(dial.apply(ctx, { ...config, ca: wrongCa }),
     error => ['DEPTH_ZERO_SELF_SIGNED_CERT', 'SELF_SIGNED_CERT_IN_CHAIN'].includes(error.code))
   assert.equal(opened, 0)
-  const coast = await startHost(env, 'coast', [row('dial', 'dial.ts', { ...config, reconnect: true })])
-  const island = await startHost(env, 'island', [row('dial', 'dial.ts', config)])
-  await Promise.all([coast.call(proof), island.call(proof)])
+  const denied = await startHost(env, 'denied', [row('dial', 'go:link-tcp-dial', { ...config, ca: wrongCa })])
+  await denied.waitFor(/certificate-rejected/)
+  const coast = await startHost(env, 'coast', [row('dial', 'go:link-tcp-dial', { ...config, reconnect: true })])
+  const island = await startHost(env, 'island', [
+    row('dial', 'go:link-tcp-dial', config),
+    row('probe', 'test/fixtures/large.mjs', {}),
+  ])
+  const reference = await startHost(env, 'reference', [row('dial', 'dial.ts', config)])
+  await Promise.all([coast.call(proof), island.call(proof), reference.call(proof)])
+
+  await island.call(proof, 4 * 1024 * 1024, 'probe.roundTrip')
+  // rutis 0.23's sessions.open sender cannot advertise the bridge's frame cap.
+  await assert.rejects(island.invoke('probe.roundTrip', 17 * 1024 * 1024), { code: 1 })
+  await island.waitFor(/frame-too-large/)
+  await coast.call(proof)
+  await reference.call(proof)
 
   const stalled = createConnection(port, '127.0.0.1')
   t.after(() => stalled.destroy())
@@ -66,19 +73,14 @@ test('unloading during initial backoff cancels the next TCP connection', { timeo
   server.listen(0, '127.0.0.1')
   await once(server, 'listening')
   t.after(() => server.close())
-  let cleanup
-  const retrying = Promise.withResolvers()
-  t.mock.method(console, 'error', line => {
-    if (line.endsWith('(retry in 500ms)')) retrying.resolve()
-  })
-  const ctx = {
-    signal: new AbortController().signal,
-    effect(fn) { cleanup = fn },
-    use() { return { open: assert.fail } },
-  }
-  await dial.apply(ctx, { ...env.identity, port: server.address().port, reconnect: true })
-  await retrying.promise
-  cleanup()
-  await delay(650)
-  assert.equal(attempts, 1)
+  const host = await startHost(env, 'coast', [
+    row('dial', 'go:link-tcp-dial', { ...env.identity, port: server.address().port, reconnect: true }),
+  ])
+  await host.waitFor(/retry in 500ms/)
+  await host.reload([])
+  await host.waitFor(/dial: (?:removed|unloaded|stopped)/)
+  const afterUnload = attempts
+  await delay(1100)
+  assert.ok(afterUnload >= 1)
+  assert.equal(attempts, afterUnload)
 })

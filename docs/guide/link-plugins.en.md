@@ -2,7 +2,7 @@
 
 [中文](link-plugins.md)
 
-The runnable examples pin rutis 0.21.0, session protocol 4 and plugin API 3. Use the same session protocol on both endpoints. A 0.23.0 endpoint uses protocol 5 and refuses a protocol 4 peer during handshake. [Migration guide](https://github.com/arcships/rutis/blob/v0.23.0/docs/migration-0.23.en.md)
+The plugins and examples pin rutis 0.23.0, session protocol 5 and plugin API 3. Upgrade the host and every language runtime on both endpoints together. A protocol 4 endpoint is rejected during handshake. [Migration guide](https://github.com/arcships/rutis/blob/v0.23.0/docs/migration-0.23.en.md)
 
 | Component | Responsibility |
 | --- | --- |
@@ -11,41 +11,52 @@ The runnable examples pin rutis 0.21.0, session protocol 4 and plugin API 3. Use
 | rutis session | Handshake, mount remote plugins and exchange services and events. The peer registers its ID in Hello. Imported plugin names have the form `<remote ID>:<plugin>`. |
 | Application plugin | Consume services. A `<connection row>:<plugin>` row requests that the peer run a plugin. |
 
-Admitting a peer grants trust in the identity it registers. Complete admission before handoff and close a denied connection. The adapter keeps certificates and tokens. A random port selects an address. Rust's Channel carries opaque messages with boundaries. Greeted provides the identity after handshake. [Channel](https://github.com/arcships/rutis/blob/v0.21.0/crates/rutis-bridge/src/channel/mod.rs) · [Session and Greeted](https://github.com/arcships/rutis/blob/v0.21.0/crates/rutis-bridge/src/session/plugin/mod.rs)
+Admitting a peer grants trust in the identity it registers. Complete admission before handoff and close a denied connection. The adapter keeps certificates and tokens. A random port selects an address. Rust's Channel carries opaque messages with boundaries. Greeted provides the identity after handshake. [Channel](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/channel/mod.rs) · [Session and Greeted](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/mod.rs)
 
-## Run the reference implementation
+## Install the Go plugins
 
-Run these commands from the repository root. The Node example uses Node ≥22.18, npm, OpenSSL and a Unix system supporting the rutis-host control socket. The Rust example uses Cargo.
+From the repository root, build the plugin binary with Go 1.24 or newer. Place it in `plugins/go` beside your `rutis.json` on each host. Only the build machine needs Go.
 
 ```sh
+mkdir -p plugins/go
+go -C link/tcp build -o ../../plugins/go/link-tcp ./cmd/link-tcp
+```
+
+Configure the dialing host with the listener’s port, its trusted CA and a client identity. The default is one connection attempt.
+
+```json
+{
+  "runtimes": { "go": { "dir": "plugins/go" } },
+  "rows": [{
+    "id": "wire",
+    "name": "go:link-tcp-dial",
+    "config": {
+      "port": 7443,
+      "ca": "/path/to/peer-ca.pem",
+      "cert": "/path/to/client.pem",
+      "key": "/path/to/client.key"
+    }
+  }]
+}
+```
+
+## TCP byte-stream bridge
+
+On the accepting host, use the same runtime configuration and a row named `go:link-tcp-listen`. Supply the server certificate and key and a CA dedicated to admitted clients. Both plugins use IPv4 loopback. Port zero lets the listener choose and report a free port as `link/tcp listening 127.0.0.1:<port>`. Each verified client gets a separate session. Unloading the row closes the listener, pending TLS handshakes and admitted sockets. [Go adapters](../../link/tcp/adapter.go) · [Go bridge](../../link/tcp/bridge.go)
+
+Run the checks below from the repository root. Integration tests use Node ≥22.18, npm, OpenSSL and a Unix host with control-socket support. They build the Go binary, start real rutis hosts and call a remote service through both the Go dialer and the single-dial TypeScript reference. The Rust example uses Cargo. [TypeScript reference](../../link/tcp/dial.ts) · [Host tests](../../link/tcp/test/hosts.test.mjs)
+
+```sh
+go -C link/tcp test -race ./...
 npm ci --prefix link/tcp
 npm --prefix link/tcp run typecheck
 npm --prefix link/tcp test
 cargo test --locked --manifest-path examples/rust-listen/Cargo.toml
 ```
 
-The Node test generates temporary credentials and starts hosts on `127.0.0.1`. The dialer verifies the server certificate and hostname. The listener verifies the client certificate. Only locally authenticated sockets reach the bridge. A call to the remote `witness.echo` returns a value unique to this run. The Rust test admits three connections over the existing WebSocket transport and checks replacement of one ID while another stays connected. [TS dial plugin](../../link/tcp/dial.ts) · [Two-host test](../../link/tcp/test/hosts.test.mjs) · [Rust listener example](../../examples/rust-listen/tests/loopback.rs)
-
-For a single dial, enable the Node runtime and add the following row to `rutis.json`. Set the port to the local TLS listener and use its trusted CA. The server certificate must cover `localhost`. The listener must require an authorized client certificate and speak the same framing.
-
-```json
-{
-  "id": "wire",
-  "name": "/absolute/path/to/rutis-network/link/tcp/dial.ts",
-  "config": {
-    "port": 7443,
-    "ca": "/path/to/peer-ca.pem",
-    "cert": "/path/to/client.pem",
-    "key": "/path/to/client.key"
-  }
-}
-```
-
-## TCP byte-stream bridge
-
-The dial and listen rows use the same binary framing. Configure a listening host with a Node runtime and a row pointing to `link/tcp/listen.ts`. Its config has the same `port`, `ca`, `cert` and `key` fields as the dial example. Supply the server certificate and key and a CA dedicated to admitted clients. Port zero chooses an available port. On startup the listener prints `link/tcp listening 127.0.0.1:<port>`. Each authenticated client receives its own bridge and session. The adapter releases pending TLS handshakes and all attached sockets when the row unloads. [Listener](../../link/tcp/listen.ts)
-
 Set `"reconnect": true` in the dial config for a persistent row. The dialer checks the server name `localhost` by default. Set `servername` to the expected DNS name on the peer certificate when forwarding a different service to loopback. Each attempt rereads the key and certificates, including after rotation. A disconnect starts a fresh session and a fresh frame stream. A temporary failure prints, for example, `link/tcp 127.0.0.1:7443 ECONNREFUSED (retry in 500ms)`. Certificate rejection waits 30 seconds. Removing the row cancels the retry and releases its socket. See the [TCP design](../design/06-link-tcp.en.md) for the state and framing rules.
+
+Each TCP frame carries up to 16 MiB, including empty messages. In 0.23.0 `sessions.open` cannot advertise this limit for protocol 5 chunking. An encoded session message that exceeds it can close the connection with `frame-too-large`. [Design and reproduced sizes](../design/06-link-tcp.en.md)
 
 ## Reverse tunnels
 
@@ -65,7 +76,7 @@ npm --prefix link/tcp run test:tunnels
 
 ## Handoff in TypeScript and Python
 
-Declare `rutis/sessions` in the plugin's `inject`. Calling `open(far)` mounts a child session and returns `near`. Messages can flow at this point. The handshake can still fail. Python uses the same callbacks. [Service implementation](https://github.com/arcships/rutis/blob/v0.21.0/crates/rutis-bridge/src/session/plugin/open.rs)
+Declare `rutis/sessions` in the plugin's `inject`. Calling `open(far)` mounts a child session and returns `near`. Messages can flow at this point. The handshake can still fail. Python uses the same callbacks. [Service implementation](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/open.rs)
 
 | Direction | Call and completion |
 | --- | --- |
@@ -80,7 +91,7 @@ const link = await openTcp(socket, ctx.use('rutis/sessions'))
 link.done.catch(reportTransportError)
 ```
 
-The Node SDK invokes the cleanup function passed to `effect` directly at unload. Register it once. Cleanups run sequentially in reverse order. In 0.21 remote callbacks default to asynchronous. Await the write and the receive queue. The reference writes one frame at a time up to 16 MiB, including valid frames larger than 4 MiB. This bounds the bridge's in-flight write. The 0.21 `open(far)` service uses an unbounded session outbound queue. Deployments requiring an end-to-end memory bound should use the Rust API to set `outbound_limit`. [TCP bridge](../../link/tcp/bridge.ts)
+The Node SDK invokes the cleanup function passed to `effect` directly at unload. Register it once. Cleanups run sequentially in reverse order. In 0.21 remote callbacks default to asynchronous. Await the write and the receive queue. The reference writes one frame at a time up to 16 MiB, including valid frames larger than 4 MiB. This bounds the bridge's in-flight write. The 0.23 `open(far)` service uses an unbounded session outbound queue. Deployments requiring an end-to-end memory bound should use the Rust API to set `outbound_limit`. [TCP bridge](../../link/tcp/bridge.ts)
 
 ## Rust listener and replacement
 
@@ -91,7 +102,7 @@ let view = ctx.plugin(Session::new(admitted_channel));
 
 For replacement, call `Session::handshake(&ctx, admitted_channel).await?` and read `greeted.id()`. The example keeps the mounted handle by ID. After a successful greeting it marks the old connection for replacement and waits for the old session and its children to unload. The old channel closes with `Close::Replaced` before the new session mounts. A failed handshake leaves the previous session live. The example handles admitted channels serially. Concurrent listeners can handshake in parallel and serialize replacement by ID. To set an explicit outbound bound, use `Session::new(channel).options(options)` or `Session::handshake_with`. [Listener implementation](../../examples/rust-listen/src/lib.rs) · [WebSocket admission and dial example](../../examples/rust-listen/tests/loopback.rs)
 
-The non-Rust 0.21 service returns only receive and end. The first session under a connection row registers its addressing handle. Listeners requiring same-ID replacement use Rust. Keep SSH principals, certificate subjects and session payloads out of the bridge's identity handling.
+The non-Rust 0.23 service returns only receive and end. The first session under a connection row registers its addressing handle. Listeners requiring same-ID replacement use Rust. Keep SSH principals, certificate subjects and session payloads out of the bridge's identity handling.
 
 ## Transport and failure conformance
 
