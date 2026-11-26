@@ -156,16 +156,16 @@ func startLab(callCtx context.Context, row *rutis.Ctx) error {
 
 | 方法 | 调用方可以依赖的行为 |
 | --- | --- |
-| `configure({profile})` | 拨号侧原子校验后切换。相同配置幂等，非法配置保留旧连接。运行中切换会先断开旧链路。已停止时只保存选择。运行时选择保存在内存，重载从行配置恢复。 |
+| `configure({profile})` | 拨号侧先读取并校验目标 profile 的两个 Access 凭据文件，再切换。相同配置幂等，非法配置保留旧连接。运行中切换会先断开旧链路。已停止时只保存选择。运行时选择保存在内存，重载从行配置恢复。 |
 | `start()` | 幂等，返回表示已接受请求。Go 在拨号端绑定回环端口，每条流用 `cloudflared access tcp --hostname <hostname>` 的标准输入输出承载。配置了专用 TCP 行时，该行拨打本地端口并校验源站证书名。源站先配置并启动 TCP 监听，确认绑定后启动 `cloudflared tunnel run --token-file <path>`。 |
 | `stop()` | 幂等。取消本行重试，停掉独占的 TCP 实例及会话，终止并等待本行子进程退出，再返回。保留行和远程资源。 |
 | `status()`、`waitForChange(cursor)` | status 立即返回快照。waitForChange 在游标已过期时立即返回，否则等待变化，允许取消。字段包括 `role`、`desired`、`profile`（拨号侧）、`process`、`tcpPhase`、`lastError`、`retryAt`、不透明 `cursor`。源站可用 `metricsPort` 指定独占的回环端口探测 `/ready`。未配置或结果未知时 `edgeReady` 为 null。可选 TCP 实例提供 `tcpPhase`、`tcpError` 和 `tcpRetryAt`。 |
 
-源站 connector 退出后按 0.5–30 秒退避重启，持续运行 60 秒后重置。拨号端由会话适配器重拨，每条新连接启动独立的子进程并重新读取凭据。任一方向 EOF 或取消都会释放 socket 和两条管道。缺少二进制报 `binary-unavailable`，绑定冲突报 `address-in-use`。可在部署配置的 `binary` 指定程序路径。使用专用 TCP 行时，转发端口填 0 可自动分配，实际端口见 `boundPort`。使用内置拨号行时，两行填写相同的固定端口。[cloudflared 转发实现][carrier] · [TCP 重连策略][tcp]
+源站 connector 在 token 文件不可读或格式异常（`invalid-credentials`）、指标端口绑定失败（`metrics-bind-failed`）或子进程退出后按 0.5–30 秒退避重试。每次尝试都会重读 token 文件，首次挂载延迟也能自动恢复。持续运行 60 秒后重置退避时间。拨号端由会话适配器重拨，每条新连接启动独立的子进程并重新读取凭据。任一方向 EOF 或取消都会释放 socket 和两条管道。缺少二进制报 `binary-unavailable`，绑定冲突报 `address-in-use`。可在部署配置的 `binary` 指定程序路径。使用专用 TCP 行时，转发端口填 0 可自动分配，实际端口见 `boundPort`。使用内置拨号行时，两行填写相同的固定端口。[cloudflared 转发实现][carrier] · [TCP 重连策略][tcp]
 
-拨号子进程启动时从文件读凭据，仅在该子进程环境中设置 `TUNNEL_SERVICE_TOKEN_ID` 和 `TUNNEL_SERVICE_TOKEN_SECRET`。connector 只接收 tunnel token 文件。使用显式环境，避免继承覆盖 token 文件的 `TUNNEL_TOKEN`。轮换后重启对应子进程重新读取。状态、RPC 和日志均只给出脱敏结果。保持普通日志级别，所查版本的 debug 会转储含请求头的请求。[CLI 参数与请求头][cli] · [debug 实现][debug] · [token 文件参数][run]
+拨号子进程启动时从文件读凭据，仅在该子进程环境中设置 `TUNNEL_SERVICE_TOKEN_ID` 和 `TUNNEL_SERVICE_TOKEN_SECRET`。connector 使用本行的 `tunnelTokenFile`。启动参数 `--config=` 关闭宿主机 YAML 配置发现，子进程环境中也排除 `TUNNEL_TOKEN`。轮换后重启对应子进程重新读取。状态、RPC 和日志均只给出脱敏结果。保持普通日志级别，所查版本的 debug 会转储含请求头的请求。[CLI 参数与请求头][cli] · [debug 实现][debug] · [token 文件参数][run]
 
-**状态的判据。** 回环端口可连只说明本地有监听器。`/ready` 成功说明 connector 到边缘有连接。TCP 插件的 `connected` 表示本端 mTLS 已通过且已交给会话服务。业务可用以远端目标服务注册或一次成功调用为准。Access 日志可确认策略拒绝。若本地只观测到 EOF，就记录传输中断，保留原因未知。0.23 的 Go 会话接口没有握手后的远端 ID 和会话出站队列上限。需要同 ID 监听接替或硬性出站内存上限时，分别使用支持握手接替或显式设置上限的 Rust bridge。[connector 就绪实现][ready] · [rutis 会话接口与限制][tcp-guide]
+**状态的判据。** 回环端口可连只说明本地有监听器。插件核对 `/ready` 返回的 `connectorId` 和当前子进程报告的 ID。匹配时，200 表示已连上边缘，503 表示已断开。无法确认时 `edgeReady` 为 null。TCP 插件的 `connected` 表示本端 mTLS 已通过且已交给会话服务。业务可用以远端目标服务注册或一次成功调用为准。Access 日志可确认策略拒绝。若本地只观测到 EOF，就记录传输中断，保留原因未知。0.23 的 Go 会话接口没有握手后的远端 ID 和会话出站队列上限。需要同 ID 监听接替或硬性出站内存上限时，分别使用支持握手接替或显式设置上限的 Rust bridge。[connector 就绪实现][ready] · [rutis 会话接口与限制][tcp-guide]
 
 ## 云端资源由谁配置
 

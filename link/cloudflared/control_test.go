@@ -6,7 +6,9 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -29,20 +31,27 @@ func TestMain(m *testing.M) {
 			os.Exit(0)
 		case "tunnel":
 			args := os.Args[2:]
-			if len(args) != 6 || args[0] != "--no-autoupdate" || args[1] != "--metrics" || args[3] != "run" || args[4] != "--token-file" ||
+			if len(args) != 7 || args[0] != "--config=" || args[1] != "--no-autoupdate" || args[2] != "--metrics" || args[4] != "run" || args[5] != "--token-file" ||
 				os.Getenv("TUNNEL_TOKEN") != "" || os.Getenv("TUNNEL_SERVICE_TOKEN_SECRET") != "" {
 				os.Exit(2)
 			}
-			data, _ := os.ReadFile(args[5])
+			data, _ := os.ReadFile(args[6])
 			if string(data) != "fixture-token" {
 				os.Exit(3)
 			}
-			http.ListenAndServe(args[2], http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			id := fmt.Sprintf("00000000-0000-4000-8000-%012x", os.Getpid())
+			fmt.Fprintf(os.Stderr, "2026-01-01T00:00:00Z INF Generated Connector ID: %s\n", id)
+			listener, err := net.Listen("tcp", args[3])
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "2026-01-01T00:00:00Z ERR Error opening metrics server listener")
+				os.Exit(4)
+			}
+			http.Serve(listener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path != "/ready" {
 					http.NotFound(w, r)
 					return
 				}
-				fmt.Fprint(w, "ready")
+				fmt.Fprintf(w, `{"status":200,"readyConnections":1,"connectorId":%q}`, id)
 			}))
 			os.Exit(4)
 		}
@@ -100,6 +109,10 @@ func TestForwardLifecycle(t *testing.T) {
 	t.Setenv("TUNNEL_TOKEN", "must-not-inherit")
 	cfg := dialConfig(t)
 	cfg.Profiles["next"] = cfg.Profiles["lab"]
+	missingID, emptySecret := cfg.Profiles["lab"], cfg.Profiles["lab"]
+	missingID.ClientIDFile = filepath.Join(t.TempDir(), "missing")
+	emptySecret.ClientSecretFile = fixture(t, "key", "")
+	cfg.Profiles["missing-id"], cfg.Profiles["empty-secret"] = missingID, emptySecret
 	c := newControl(t.Context(), cfg, nil)
 	t.Cleanup(func() { c.Stop() })
 	if err := c.Start(); err != nil {
@@ -124,6 +137,20 @@ func TestForwardLifecycle(t *testing.T) {
 	}
 	if err := c.Configure(map[string]any{"profile": "lab"}); err != nil || c.Status().BoundPort != s.BoundPort {
 		t.Fatal("identical configuration disturbed the forwarder")
+	}
+	for _, name := range []string{"missing-id", "empty-secret"} {
+		if err := c.Configure(map[string]any{"profile": name}); err == nil || err.Error() != "invalid-credentials" {
+			t.Fatalf("switch to %s: %v", name, err)
+		}
+		if current := c.Status(); current.Profile != "lab" || current.BoundPort != s.BoundPort {
+			t.Fatalf("failed switch changed active profile: %+v", current)
+		}
+		if _, err := conn.Write([]byte("ping")); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := io.ReadFull(conn, buf); err != nil || string(buf) != "ping" {
+			t.Fatalf("existing stream after rejected switch: %q, %v", buf, err)
+		}
 	}
 	if err := c.Configure(map[string]any{"profile": "next"}); err != nil {
 		t.Fatal(err)
@@ -174,16 +201,24 @@ func TestBindCollisionAndConnectorRetry(t *testing.T) {
 	waitState(t, c, func(s snapshot) bool { return s.Phase == "failed" && s.LastError == "address-in-use" })
 	c.Stop()
 	t.Setenv("TUNNEL_SERVICE_TOKEN_SECRET", "must-not-inherit")
-	token := fixture(t, "tunnel", "retry")
+	token := filepath.Join(t.TempDir(), "tunnel")
 	metrics := reservePort(t)
 	connector := newControl(t.Context(), config{Role: "connector", Binary: cfg.Binary, MetricsPort: &metrics, TunnelTokenFile: token}, nil)
 	t.Cleanup(func() { connector.Stop() })
 	connector.Start()
-	waitState(t, connector, func(s snapshot) bool { return s.Phase == "retrying" && s.RetryAt != "" })
+	waitState(t, connector, func(s snapshot) bool {
+		return s.Phase == "retrying" && s.Process == "stopped" && s.LastError == "invalid-credentials" && s.RetryAt != ""
+	})
+	if err := os.WriteFile(token, []byte("retry"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	waitState(t, connector, func(s snapshot) bool { return s.Phase == "retrying" && s.LastError == "connector-exited" })
 	if err := os.WriteFile(token, []byte("fixture-token"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	waitState(t, connector, func(s snapshot) bool { return s.EdgeReady != nil && *s.EdgeReady })
+	waitState(t, connector, func(s snapshot) bool {
+		return s.EdgeReady != nil && *s.EdgeReady && s.LastError == "" && s.RetryAt == ""
+	})
 	connector.Stop()
 	if s := connector.Status(); s.Phase != "stopped" || s.EdgeReady != nil {
 		t.Fatalf("%+v", s)
@@ -191,5 +226,85 @@ func TestBindCollisionAndConnectorRetry(t *testing.T) {
 	if conn, err := net.Dial("tcp", "127.0.0.1:"+strconv.Itoa(metrics)); err == nil {
 		conn.Close()
 		t.Fatal("connector not reaped")
+	}
+}
+
+func TestConnectorIgnoresHostConfig(t *testing.T) {
+	binary, err := exec.LookPath("cloudflared")
+	if err != nil {
+		t.Skip("requires cloudflared CLI")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	dir := filepath.Join(home, ".cloudflared")
+	if err := os.Mkdir(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "config.yml"), []byte("token: invalid-fixture\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	// Both credential sources fail locally, each with a distinguishable error.
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	token := filepath.Join(home, "row-token-not-mounted")
+	out, err := connectorCommand(ctx, binary, token, 0).CombinedOutput()
+	if err == nil || !strings.Contains(string(out), filepath.Base(token)) {
+		t.Fatalf("expected CLI to read the row token file: %v %s", err, out)
+	}
+}
+
+func TestConnectorMetricsCollision(t *testing.T) {
+	binary, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := reservePort(t)
+	cfg := config{Role: "connector", Binary: binary, MetricsPort: &port, TunnelTokenFile: fixture(t, "tunnel", "fixture-token")}
+	first, second := newControl(t.Context(), cfg, nil), newControl(t.Context(), cfg, nil)
+	t.Cleanup(func() { first.Stop(); second.Stop() })
+	ready := func(s snapshot) bool { return s.EdgeReady != nil && *s.EdgeReady }
+	if err := first.Start(); err != nil {
+		t.Fatal(err)
+	}
+	waitState(t, first, ready)
+	if err := second.Start(); err != nil {
+		t.Fatal(err)
+	}
+	waitState(t, second, func(s snapshot) bool {
+		if s.EdgeReady != nil {
+			t.Fatalf("second connector reported another connector's readiness: %+v", s)
+		}
+		return s.LastError == "metrics-bind-failed" && s.RetryAt != ""
+	})
+	if err := first.Stop(); err != nil {
+		t.Fatal(err)
+	}
+	waitState(t, second, ready)
+}
+
+func TestEdgeReadinessChecksConnectorID(t *testing.T) {
+	for _, tc := range []struct {
+		name, body string
+		status     int
+		want       *bool
+	}{
+		{"connected", `{"connectorId":"current"}`, 200, &yes},
+		{"disconnected", `{"connectorId":"current"}`, 503, &no},
+		{"foreign-ready", `{"connectorId":"other"}`, 200, nil},
+		{"foreign-unavailable", `{"connectorId":"other"}`, 503, nil},
+		{"unrecognized", "ready", 200, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tc.status)
+				fmt.Fprint(w, tc.body)
+			}))
+			defer server.Close()
+			port := server.Listener.Addr().(*net.TCPAddr).Port
+			if got := edgeReadiness(t.Context(), port, "current"); got != tc.want {
+				t.Fatalf("readiness %v, want %v", got, tc.want)
+			}
+		})
 	}
 }

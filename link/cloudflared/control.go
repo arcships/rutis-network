@@ -196,13 +196,16 @@ func (c *control) Configure(patch map[string]any) error {
 		return err
 	}
 	name, ok := patch["profile"].(string)
-	_, exists := c.cfg.Profiles[name]
+	target, exists := c.cfg.Profiles[name]
 	if c.cfg.Role != "dial" || len(patch) != 1 || !ok || !exists {
 		return errors.New("configure requires a declared dial profile")
 	}
 	s := c.Status()
 	if s.Profile == name {
 		return nil
+	}
+	if _, _, err := target.readCredentials(); err != nil {
+		return err
 	}
 	if err := c.join(c.row); err != nil {
 		return err

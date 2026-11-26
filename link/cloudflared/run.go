@@ -1,13 +1,17 @@
 package cloudflared
 
 import (
+	"bufio"
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -34,6 +38,15 @@ func readSecret(path string) (string, error) {
 		return "", errors.New("invalid-credentials")
 	}
 	return value, nil
+}
+
+func (p profile) readCredentials() (string, string, error) {
+	id, err := readSecret(p.ClientIDFile)
+	if err != nil {
+		return "", "", err
+	}
+	secret, err := readSecret(p.ClientSecretFile)
+	return id, secret, err
 }
 
 // Explicit environment: neither an inherited TUNNEL_TOKEN nor debugging flags
@@ -133,8 +146,6 @@ func (c *control) run(ctx context.Context, name string) error {
 		bound := listener.Addr().(*net.TCPAddr).Port
 		port = &bound
 		c.update(func(s *snapshot) { s.BoundPort = bound })
-	} else if _, err := readSecret(c.cfg.TunnelTokenFile); err != nil {
-		return err
 	}
 	if c.tcp != nil {
 		if err := c.startTCP(ctx, *port, p); err != nil {
@@ -194,11 +205,7 @@ func (c *control) forward(ctx context.Context, listener net.Listener, binary str
 
 func (c *control) stream(ctx context.Context, conn net.Conn, binary string, p profile) error {
 	defer conn.Close()
-	id, err := readSecret(p.ClientIDFile)
-	if err != nil {
-		return err
-	}
-	secret, err := readSecret(p.ClientSecretFile)
+	id, secret, err := p.readCredentials()
 	if err != nil {
 		return err
 	}
@@ -249,20 +256,36 @@ var edgeHTTP = &http.Client{
 
 var yes, no = true, false
 
-func (c *control) pollEdge(ctx context.Context, port int) {
+// The supported CLI versions print this info-level record even before the
+// first edge connection. stderr is a pipe, so cloudflared omits ANSI colors.
+var connectorIDLog = regexp.MustCompile(`^\S+ INF Generated Connector ID: ([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$`)
+
+func edgeReadiness(ctx context.Context, port int, connectorID string) *bool {
+	req, _ := http.NewRequestWithContext(ctx, "GET", "http://"+loopback(port)+"/ready", nil)
+	resp, err := edgeHTTP.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+	var body struct {
+		ConnectorID string `json:"connectorId"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 4096)).Decode(&body); err != nil || body.ConnectorID != connectorID {
+		return nil
+	}
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return &yes
+	case http.StatusServiceUnavailable:
+		return &no
+	default:
+		return nil
+	}
+}
+
+func (c *control) pollEdge(ctx context.Context, port int, connectorID string) {
 	for ctx.Err() == nil {
-		req, _ := http.NewRequestWithContext(ctx, "GET", "http://"+loopback(port)+"/ready", nil)
-		resp, err := edgeHTTP.Do(req)
-		var ready *bool
-		if err == nil {
-			resp.Body.Close()
-			switch resp.StatusCode {
-			case http.StatusOK:
-				ready = &yes
-			case http.StatusServiceUnavailable:
-				ready = &no
-			}
-		}
+		ready := edgeReadiness(ctx, port, connectorID)
 		c.update(func(s *snapshot) { s.EdgeReady = ready })
 		if !delay(ctx, time.Second) {
 			break
@@ -270,29 +293,87 @@ func (c *control) pollEdge(ctx context.Context, port int) {
 	}
 }
 
-func (c *control) connector(ctx context.Context, binary string) error {
+// cloudflared announces its per-process UUID on stderr before binding /ready.
+// Only that UUID can identify the current attempt on a shared loopback host.
+func (c *control) monitorConnector(ctx context.Context, logs io.Reader, port int) error {
+	ctx, cancel := context.WithCancel(ctx)
+	var probe sync.WaitGroup
+	defer func() {
+		cancel()
+		probe.Wait()
+		c.update(func(s *snapshot) { s.EdgeReady = nil })
+	}()
+	result := errors.New("connector-exited")
+	reader := bufio.NewReader(logs)
+	var probing, continuation bool
+	for {
+		line, partial, err := reader.ReadLine()
+		if err != nil {
+			return result
+		}
+		// Discard oversized log records without buffering or forwarding their contents.
+		skip := partial || continuation
+		continuation = partial
+		if skip {
+			continue
+		}
+		if bytes.Contains(line, []byte(" ERR Error opening metrics server listener")) {
+			result = errors.New("metrics-bind-failed")
+		}
+		if probing {
+			continue
+		}
+		if match := connectorIDLog.FindSubmatch(line); match != nil {
+			id := string(match[1])
+			probing = true
+			probe.Add(1)
+			go func() { defer probe.Done(); c.pollEdge(ctx, port, id) }()
+		}
+	}
+}
+
+func connectorCommand(ctx context.Context, binary, tokenFile string, metricsPort int) *exec.Cmd {
+	// An explicit empty config disables cloudflared's default YAML lookup. A
+	// token in that YAML would otherwise take precedence over --token-file.
+	return command(ctx, binary, "tunnel", "--config=", "--no-autoupdate", "--metrics", loopback(metricsPort),
+		"run", "--token-file", tokenFile)
+}
+
+func (c *control) runConnector(ctx context.Context, binary string) error {
+	if _, err := readSecret(c.cfg.TunnelTokenFile); err != nil {
+		return err
+	}
 	metricsPort := 0
 	if c.cfg.MetricsPort != nil {
 		metricsPort = *c.cfg.MetricsPort
 	}
-	args := []string{"tunnel", "--no-autoupdate", "--metrics", loopback(metricsPort), "run", "--token-file", c.cfg.TunnelTokenFile}
+	cmd := connectorCommand(ctx, binary, c.cfg.TunnelTokenFile, metricsPort)
+	var logs io.ReadCloser
+	if c.cfg.MetricsPort != nil {
+		var err error
+		if logs, err = cmd.StderrPipe(); err != nil {
+			return errors.New("pipe-failed")
+		}
+	}
+	if err := cmd.Start(); err != nil {
+		return errors.New("child-start-failed")
+	}
+	c.update(func(s *snapshot) { s.Phase, s.Process, s.RetryAt, s.LastError = "running", "running", "", "" })
+	result := errors.New("connector-exited")
+	if logs != nil {
+		stop := context.AfterFunc(ctx, func() { logs.Close() })
+		result = c.monitorConnector(ctx, logs, metricsPort)
+		stop()
+	}
+	_ = cmd.Wait()
+	return result
+}
+
+func (c *control) connector(ctx context.Context, binary string) error {
 	backoff := 500 * time.Millisecond
 	for ctx.Err() == nil {
-		cmd := command(ctx, binary, args...)
-		if err := cmd.Start(); err != nil {
-			return errors.New("child-start-failed")
-		}
 		started := time.Now()
-		c.update(func(s *snapshot) { s.Phase, s.Process, s.RetryAt = "running", "running", "" })
-		probeCtx, cancel := context.WithCancel(ctx)
-		var probe sync.WaitGroup
-		if c.cfg.MetricsPort != nil {
-			probe.Add(1)
-			go func() { defer probe.Done(); c.pollEdge(probeCtx, *c.cfg.MetricsPort) }()
-		}
-		_ = cmd.Wait()
-		cancel()
-		probe.Wait()
+		err := c.runConnector(ctx, binary)
 		if ctx.Err() != nil {
 			break
 		}
@@ -300,7 +381,7 @@ func (c *control) connector(ctx context.Context, binary string) error {
 			backoff = 500 * time.Millisecond
 		}
 		c.update(func(s *snapshot) {
-			s.Phase, s.Process, s.LastError, s.EdgeReady = "retrying", "stopped", "connector-exited", nil
+			s.Phase, s.Process, s.LastError, s.EdgeReady = "retrying", "stopped", err.Error(), nil
 			s.RetryAt = time.Now().Add(backoff).UTC().Format(time.RFC3339Nano)
 		})
 		if !delay(ctx, backoff) {
