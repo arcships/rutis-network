@@ -159,7 +159,7 @@ func (c *control) launch(options settings) {
 		if err != nil {
 			c.update(func(s *snapshot) {
 				s.Phase = "failed"
-				s.LastError = errorCode(err)
+				s.LastError = TransportErrorCode(err)
 			})
 			return
 		}

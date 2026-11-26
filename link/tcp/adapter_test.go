@@ -48,7 +48,7 @@ func TestRetryPolicy(t *testing.T) {
 		{tls.RecordHeaderError{}, 0},
 		{errors.New("disconnected"), 2 * time.Second},
 	} {
-		if got := retryDelay(errorCode(tc.err), 2*time.Second); got != tc.want {
+		if got := retryDelay(TransportErrorCode(tc.err), 2*time.Second); got != tc.want {
 			t.Errorf("got %v, want %v", got, tc.want)
 		}
 	}
