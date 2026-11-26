@@ -113,18 +113,15 @@ let session = ctx.plugin(Session::new(channel));
 Other languages:
 
 ```ts
+// TCP adapter example. openTcp is the reference in link/tcp/bridge.ts.
 export default definePlugin({
-  name: 'link-ssh',
+  name: 'link-tcp',
   inject: ['rutis/sessions'],
   async apply(ctx, config) {
-    const connection = await adapter.connect(config) // admission is here
-    const near = await ctx.use('rutis/sessions').open({
-      send: message => connection.send(message), // may be async in 0.21
-      close: why => connection.close(why),
-    })
-    connection.onMessage(message => near.receive(message))
-    connection.onClose(() => near.end({ kind: 'done' }))
-    ctx.effect(() => () => connection.close({ kind: 'done' }))
+    const socket = await adapter.connect(config) // admission is complete
+    ctx.effect(() => { socket.destroy() })
+    const link = await openTcp(socket, ctx.use('rutis/sessions'))
+    link.done.catch(reportTransportError)
   },
 })
 ```
