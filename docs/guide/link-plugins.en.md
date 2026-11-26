@@ -83,3 +83,9 @@ The non-Rust 0.21 service returns only receive and end. The first session under 
 | Reconnect | The adapter retries from 0.5 seconds, doubling up to 30 seconds and resetting after 60 seconds connected. A known admission rejection retries every 30 seconds. A known protocol mismatch stops. Non-Rust adapters lack a structured session handshake result and use transport backoff for unknown disconnects. |
 
 The rutis close reasons are `done`, `replaced` and `rejected` with a reason. TCP carries EOF. WebSocket can carry 4002 or 4003. Diagnostics identify the connection row, address and error code. Credentials stay in the adapter. Match rutis errors by `code` and `data`, for example `not-declared` with `data.service`. The single-dial example prints transport errors as `link/tcp 127.0.0.1:<port> <code>`. The cross-language suite is tracked in [issue #10](https://github.com/arcships/rutis-network/issues/10).
+
+## Cloudflare Tunnel for rutis 0.23
+
+Build `go:link-cloudflared` with Go 1.24 or later and install the official `cloudflared` executable on each host. One connector row uses a named tunnel token file, and one dial row runs a local Access TCP forwarder with service token files. The built-in WebSocket rows can connect across that forwarder. The optional #16 TCP rows add end-to-end mTLS. Isolate each management service on its row and its local caller. [Two-host configuration and Go service example](../design/05-cloudflare-plugin-control.en.md)
+
+From the repository root run `go -C link/cloudflared test -race ./...`. For the account-free integration test on Linux or macOS, set `RUTIS_HOST` to the absolute path of rutis-host 0.23.0 and put `cloudflared` on PATH. Set `RUTIS_TCP_PLUGIN` to the absolute path of the compiled #16 binary to also test the mTLS deployment. Run `go -C link/cloudflared test -race -count=1 ./...`.

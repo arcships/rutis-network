@@ -10,7 +10,7 @@ Baseline: rutis 0.21.0 (session protocol 4, plugin API 3). 0.19.3 renamed the se
 
 ## Status
 
-The [Cloudflare Tunnel design study](docs/design/05-cloudflare-plugin-control.en.md) covers Go plugin control, configuration on both hosts, and ownership of Cloudflare resources.
+The [Cloudflare Tunnel Go plugin](docs/design/05-cloudflare-plugin-control.en.md) connects two rutis 0.23 hosts. The guide includes both configurations, a working Go service example and the local control API.
 
 The [connection plugin guide](docs/guide/link-plugins.en.md) includes a TypeScript TCP bridge and a runnable Rust listener example. The roadmap is tracked in these issues.
 

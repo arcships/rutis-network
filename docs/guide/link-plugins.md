@@ -83,3 +83,9 @@ let view = ctx.plugin(Session::new(admitted_channel));
 | 断线重试 | 由 adapter 决定重连。约定为 0.5 秒起指数退避至 30 秒，稳定连接 60 秒后重置。已知准入拒绝每 30 秒重试，已知协议不兼容停止。非 Rust 无结构化会话握手结果，未知断开按传输错误处理。 |
 
 `done`、`replaced`、`rejected`（带 reason）是 rutis 的关闭原因。TCP 字节流只能传达断开，WebSocket 可以传输 4002 或 4003。诊断记录连接地址、连接行和错误 code，凭据留在适配器。按 rutis 错误的 `code` 和 `data` 匹配，例如 `not-declared` 带 `data.service`。单次拨号示例把传输错误输出为 `link/tcp 127.0.0.1:<port> <code>`。跨语言测试套件在 [issue #10](https://github.com/arcships/rutis-network/issues/10) 跟踪。
+
+## rutis 0.23 的 Cloudflare Tunnel
+
+用 Go 1.24 或更新版本构建 `go:link-cloudflared`，在两端安装官方 `cloudflared`。源站 connector 行从文件读取命名隧道 token，拨号行用服务令牌文件建立本地 Access TCP 转发。可以使用宿主内置 WebSocket 行互连，或接入 #16 的 TCP 行使用端到端 mTLS。在管理服务及本地调用方所在行设置相同的隔离作用域。[两端配置与 Go 服务调用示例](../design/05-cloudflare-plugin-control.md)
+
+在仓库根目录运行 `go -C link/cloudflared test -race ./...`。Linux 或 macOS 上可用 `RUTIS_HOST` 指定 rutis-host 0.23.0 的绝对路径，并将 `cloudflared` 放入 PATH，以运行无需云账号的集成测试。再用 `RUTIS_TCP_PLUGIN` 指定 #16 二进制的绝对路径，可同时测试 mTLS 配置。执行 `go -C link/cloudflared test -race -count=1 ./...`。

@@ -1,5 +1,7 @@
 # `link/cloudflared`：设计稿
 
+下文保留最初的 0.21 设计。已实现的 0.23 适配器见[配置、控制接口与双宿主示例](05-cloudflare-plugin-control.md)。
+
 状态：草案。日期：2026-11-08。基线：rutis 0.21.0。
 关联 issue：[#5](https://github.com/arcships/rutis-network/issues/5)。依赖：[#1](https://github.com/arcships/rutis-network/issues/1)、[#6](https://github.com/arcships/rutis-network/issues/6)。
 
@@ -108,6 +110,6 @@ Cloudflare 只负责到达（和可选的 Access 准入）；link plugin 做 fra
 
 - issue [#5](https://github.com/arcships/rutis-network/issues/5)
 - [契约设计稿](01-link-plugin-contract.md)
-- [TCP bridge 设计稿](06-link-tcp.md)
-- [Tailscale 设计稿](04-link-tailscale.md)
+- [TCP bridge 设计稿](https://github.com/arcships/rutis-network/pull/16)
+- [Tailscale 设计稿](https://github.com/arcships/rutis-network/pull/14)
 - rutis `docs/guide/nodes.md`

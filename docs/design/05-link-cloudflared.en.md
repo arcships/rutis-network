@@ -1,5 +1,7 @@
 # `link/cloudflared`: design
 
+The original 0.21 design is retained below. For the implemented 0.23 adapter see [configuration, control API and two-host example](05-cloudflare-plugin-control.en.md).
+
 Status: draft. Date: 2026-11-08. Baseline: rutis 0.21.0.
 Issue: [#5](https://github.com/arcships/rutis-network/issues/5). Depends on [#1](https://github.com/arcships/rutis-network/issues/1), [#6](https://github.com/arcships/rutis-network/issues/6).
 
@@ -108,6 +110,6 @@ dialer link/tcp ── 127.0.0.1:<local> ── cloudflared access tcp ── Cl
 
 - Issue [#5](https://github.com/arcships/rutis-network/issues/5)
 - [Contract design](01-link-plugin-contract.en.md)
-- [TCP bridge design](06-link-tcp.en.md)
-- [Tailscale design](04-link-tailscale.en.md)
+- [TCP bridge design](https://github.com/arcships/rutis-network/pull/16)
+- [Tailscale design](https://github.com/arcships/rutis-network/pull/14)
 - rutis `docs/guide/nodes.md`

@@ -10,7 +10,7 @@ rutis 自己只管会话这一侧：连接插件打开一条通道，交给服�
 
 ## 状态
 
-[Cloudflare Tunnel 方案调研](docs/design/05-cloudflare-plugin-control.md)给出了 Go 插件的控制接口、两端配置示例和云端资源的管理方式。
+[Cloudflare Tunnel Go 插件](docs/design/05-cloudflare-plugin-control.md)可连接两台 rutis 0.23 宿主。指南包含两端配置、可运行的 Go 服务示例和本地控制接口。
 
 [开发指南](docs/guide/link-plugins.md)包含 TypeScript TCP bridge 和可运行的 Rust 监听示例。其余工作按以下 issue 跟踪。
 
