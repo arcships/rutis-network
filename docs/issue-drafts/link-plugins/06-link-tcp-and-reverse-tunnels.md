@@ -1,6 +1,6 @@
 # feat(link): `link/tcp` 通用字节流 bridge 与反向隧道 wrapper
 
-状态：已发布为 [#6](https://github.com/arcships/rutis-network/issues/6)。优先级 **P0**（所有 TCP 类 adapter 的地基）。依赖契约 #1。设计稿：[docs/design/06-link-tcp.md](../../design/06-link-tcp.md)。
+状态：已发布为 [#6](https://github.com/arcships/rutis-network/issues/6)。优先级 **P0**（所有 TCP 类 adapter 的地基）。依赖契约 #1。设计稿：[PR #16](https://github.com/arcships/rutis-network/pull/16)。
 
 版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。
 
@@ -13,12 +13,13 @@
 ## 范围
 
 1. 新增 `link/tcp` bridge（任意语言优先 TS/Rust）：
-   - 长度前缀 framing（优先）：4 字节或 8 字节大端长度 + 正好这么多字节；超长在分配前拒绝；
+   - **localhost TCP 是第一个参考 adapter**：`dial 127.0.0.1:<port>` / `listen 127.0.0.1:0`，用它做一致性测试和本地开发的默认传输；只绑 `127.0.0.1`。随机端口不是准入，生产用 Unix socket 权限或 token 帧；无准入的 raw TCP 只用于测试。
+   - 长度前缀 framing（优先）：4 字节大端长度 + 正好这么多字节（设计稿选定；8 字节留作未来扩展）；超长在分配前拒绝；
    - 最大消息（对齐 WebSocket 默认 16 MiB）、超长关闭；
-   - close / half-close 语义；
-   - 背压：发送阻塞、接收队列有界；
+   - close / EOF 语义（session 没有 half-close）；
+   - 背压：发送阻塞、接收队列有界；Rust 用 `SessionOptions::outbound_limit`，非 Rust 的 `open(far)` 还补不了；
    - 每条连接一个 session；
-   - listen 侧 accept 多条连接；Rust 按远端 `Hello` id 顶替，非 Rust 写明只能并存。
+   - listen 侧 accept 多条连接；Rust 按远端 `Hello` id 顶替，非 Rust 不支持同 id 顶替（同 row 第二条 session 不注册 handle）。
 2. 明确 `link/tcp` **不做认证**；认证在它下面的 adapter（SSH/Tailscale/frp/Cloudflare）或上面的链接层插件。
 3. 反向隧道 wrapper（可以是薄脚本/配置，不一定是新 crate）：
    - frp / rathole：`frpc`/`rathole` 把本地 TCP 暴露到 VPS；`link/tcp` 连本地或 VPS；
@@ -36,14 +37,16 @@
 - 不把 `link/tcp` 做成新的核心 trait。
 - 不做可靠 UDP/QUIC；那是 `link/quic` 或 P2P 的事。
 - 不实现 frp/rathole/ngrok 服务端。
+- 不新写 WebSocket link：核心已有 `websocket::dial` / `websocket::listen`，`rutis-host/listen` 也用它；纯 HTTP 请求/响应不是 link。
 - 不在 bridge 里做 token/身份；身份来自远端 `Hello`。
 - 不解析 session `Hello` 或其它 session 帧。
 
 ## 验收
 
-- [ ] 本地 TCP echo：消息边界、顺序、16 MiB 上限、超长关闭、half-close 全部符合契约。
+- [ ] localhost TCP dial/listen 跑通，作为一致性测试和本地开发的默认传输；只绑 `127.0.0.1`；无准入 raw TCP 只用于测试，生产用 Unix socket 权限或 token 帧。
+- [ ] 本地 TCP echo：消息边界、顺序、16 MiB 上限、超长关闭、close/EOF 全部符合契约；session 没有 half-close。
 - [ ] 背压：慢接收方不会让 bridge 无界增长；async `send` 被 await。
-- [ ] listen 侧多连接各自 session；Rust 同 id 新连接顶替旧连接；非 Rust 写明限制。
+- [ ] listen 侧多连接各自 session；Rust 同 id 新连接顶替旧连接；非 Rust 不支持同 id 顶替。
 - [ ] frp 或 rathole 任一跑通（本地 VPS 或 loopback 模拟），`link/tcp` 不需要改。
 - [ ] SSH `-R` 或 ngrok 至少一个跑通，文档写清准入和公网风险。
 - [ ] 断开/重连/session 卸载行为符合契约；重连在 link plugin。
@@ -51,7 +54,7 @@
 
 ## 关联
 
-- 设计稿：[docs/design/06-link-tcp.md](../../design/06-link-tcp.md)
+- 设计稿：[PR #16](https://github.com/arcships/rutis-network/pull/16)
 - [链接层 link plugin 契约](01-link-plugin-contract.md)
 - [`link/ssh`](03-link-ssh.md)
 - [`link/tailscale`](04-link-tailscale.md)
