@@ -1,6 +1,6 @@
 # 链接层 link plugin 契约：设计稿
 
-状态：草案。日期：2026-11-08。基线：rutis 0.21.0（2026-11-05），会话协议 4，`rutis.json` format 1，插件 API 3。
+定稿于 2026-11-26。基线：rutis 0.21.0（2026-11-05），会话协议 4，`rutis.json` format 1，插件 API 3。
 关联 issue：[#1](https://github.com/arcships/rutis-network/issues/1)。
 配套：[SKILL.md](../../.agents/skills/rutis-link-plugin/SKILL.md)、[link-plugin-api.md](../../.agents/skills/rutis-link-plugin/references/link-plugin-api.md)。
 
@@ -58,7 +58,7 @@ link plugin
 - 长度前缀优先：4 字节大端长度 + 正好这么多字节；超长在分配前拒绝。远端是 `pipe::framed` 兼容的运行时/桥时，换行 framing 也有效（session JSON 转义换行）；两者按远端契约选一种，不混用。
 - 参考 bridge 的单条上限 16 MiB（对齐 WebSocket 默认）；`Channel` 本身没有最大消息契约，超长由 bridge 干净关闭。
 - 保持顺序与背压；bridge 自己的发送队列有界；它不能限制 session 的出站队列（见 D6/O2）。
-- close / EOF 映射到 `near.end({kind:'done'})`；传输只关一次；session 没有半关闭。
+- 按帧读取，逐条等待 receive。帧边界 EOF 正常结束；头或载荷中途 EOF 报 `truncated-frame`。两者都关闭双向。bridge 一次等待一笔 socket 写入，包括单个 16 MiB 消息，不设待发送队列。
 - 不解析、不改写 session 协议；bridge 不是第二层 session。
 
 ### D6 生命周期
@@ -92,7 +92,7 @@ link plugin
 ### D10 localhost TCP / WebSocket 是第一波，HTTP 不是
 
 - 核心已有 `websocket::dial` / `websocket::listen`，`rutis-host/listen` 也用它；不新增 `link/websocket`。
-- 参考 bridge 先用 localhost TCP（#6）或现有 WebSocket 验证；两者都只绑 `127.0.0.1`，回环也要随机端口/一次性 token 准入。
+- 参考 bridge 使用 `127.0.0.1` TCP，在交接前通过双向 TLS 验证对端。随机端口用于选择可用地址。无准入的回环 TCP 仅用于隔离测试。
 - 纯 HTTP 请求/响应没有双向长连接和消息边界，不是 link；HTTP 只作为 WebSocket 升级或 gRPC 的承载。
 
 ### D11 组合靠 row + session + 服务名，不做跨 link 中心
@@ -124,12 +124,9 @@ let session = ctx.plugin(Session::new(channel));  // session 生命周期 == cha
 TS：
 
 ```ts
-const near = await ctx.use('rutis/sessions').open({
-  send: message => connection.send(message), // 0.21：可以是 async
-  close: why => connection.close(why),
-})
-connection.onMessage(message => near.receive(message))
-connection.onClose(() => near.end({ kind: 'done' }))
+ctx.effect(() => { socket.destroy() })
+const link = await openTcp(socket, ctx.use('rutis/sessions'))
+link.done.catch(reportTransportError)
 ```
 
 ## 4. 测试
@@ -154,9 +151,8 @@ connection.onClose(() => near.end({ kind: 'done' }))
 ## 6. 开放问题
 
 - **O1（阻塞非 Rust 握手结果）**：`rutis/sessions.open` 需要暴露握手结果，例如 `ready()` 返回 `{ id, error? }`，`error` 带 `code` / `data`（认证拒绝、协议不兼容、传输失败）。它同时是 listen 顶替、非 Rust 重连分类和 row 状态 `Hello` id 的前提。在它出现前：非 Rust listen 不做同 id 顶替；非 Rust 无法可靠区分认证拒绝/协议不兼容，只能按传输错误退避；#10 的 row 状态 `Hello` id 标为 Rust-only。该 API 变更应作为 rutis 的独立 issue 讨论，不能靠解析 `Hello` 绕过。
-- **O2（阻塞非 Rust 出站限流）**：`open(far)` 不能设置 `SessionOptions::outbound_limit`，session 的出站队列默认无上限；bridge 自己的队列无法限制它。Rust 用 `Session::options(...)`；非 Rust 需要 rutis 在 `open` 上补这个参数，或明确非 Rust 生产链接必须由传输层回压。
+- **O2（阻塞非 Rust 出站限流）**：`open(far)` 不能设置 `SessionOptions::outbound_limit`，session 的出站队列默认无上限；bridge 自己的队列无法限制它。Rust 用 `Session::options(...)`；会话总积压需要宿主限制出站队列或由生产端限流。socket 写入回压本身无法提供该上限。
 - **O3（已关闭）**：`link/tcp` 帧长度固定 4 字节大端；8 字节留作未来扩展，不作为当前可选项。
-- **O3**：0.21 的异步回调在旧 runtime（0.20）上按同步处理；bridge 不能假设 `send` 一定异步。
 
 ## 7. 版本影响
 
@@ -168,9 +164,11 @@ connection.onClose(() => near.end({ kind: 'done' }))
 
 ## 关联
 
+- [开发指南与一致性要求](../guide/link-plugins.md)
+
 - issue [#1](https://github.com/arcships/rutis-network/issues/1)
-- [TCP bridge 设计稿](06-link-tcp.md)
-- [生态设计稿](10-link-ecosystem.md)
+- [TCP bridge 设计稿](https://github.com/arcships/rutis-network/pull/16)
+- [生态设计稿](https://github.com/arcships/rutis-network/pull/20)
 - [SKILL.md](../../.agents/skills/rutis-link-plugin/SKILL.md)
 - [link-plugin-api.md](../../.agents/skills/rutis-link-plugin/references/link-plugin-api.md)
 - rutis `docs/guide/plugin-api.md#自建连接rutissessionsopen`

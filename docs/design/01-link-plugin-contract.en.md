@@ -1,6 +1,6 @@
 # Link plugin contract: design
 
-Status: draft. Date: 2026-11-08. Baseline: rutis 0.21.0 (2026-11-05), session protocol 4, `rutis.json` format 1, plugin API 3.
+Finalized 2026-11-26. Baseline: rutis 0.21.0 (2026-11-05), session protocol 4, `rutis.json` format 1, plugin API 3.
 Issue: [#1](https://github.com/arcships/rutis-network/issues/1).
 Companions: [SKILL.md](../../.agents/skills/rutis-link-plugin/SKILL.md), [link-plugin-api.md](../../.agents/skills/rutis-link-plugin/references/link-plugin-api.md).
 
@@ -58,7 +58,7 @@ link plugin
 - Prefer a length prefix: a 4-byte big-endian length followed by exactly that many bytes; reject an over-limit length before allocating. Newline framing is also valid for a `pipe::framed`-compatible far end (the session JSON escapes newlines); choose one per far-end contract, never mix.
 - The reference bridge's per-message limit is 16 MiB (the WebSocket default); `Channel` itself has no maximum-message contract, and an over-limit message is closed cleanly by the bridge.
 - Preserve order and backpressure; the bridge's own send queue is bounded; it cannot bound the session's outbound queue (see D6/O2).
-- Map close / EOF to `near.end({kind:'done'})`; close the transport once; the session has no half-close.
+- Read one complete frame at a time and await receive. EOF at a frame boundary ends normally. EOF within a header or payload raises `truncated-frame`. Both end the connection in both directions. The bridge awaits one socket write at a time, including a single 16 MiB message, and keeps no pending send queue.
 - Do not parse or rewrite the session protocol; the bridge is transport, not a second session layer.
 
 ### D6 Lifecycle
@@ -92,7 +92,7 @@ link plugin
 ### D10 localhost TCP / WebSocket are first; HTTP is not a link
 
 - The core already has `websocket::dial` / `websocket::listen`, and `rutis-host/listen` uses it; do not add `link/websocket`.
-- The reference bridge starts with localhost TCP (#6) or the existing WebSocket; both bind `127.0.0.1`, and loopback still needs a random port or one-time token.
+- The reference uses TCP on `127.0.0.1` with mutual TLS admission before handoff. An ephemeral port selects an available address. Raw loopback without admission is reserved for isolated tests.
 - Plain HTTP request/response has no duplex long-lived stream or message boundaries; HTTP only carries a WebSocket upgrade or gRPC.
 
 ### D11 Composition is row + session + service name; no cross-link center
@@ -124,12 +124,9 @@ let session = ctx.plugin(Session::new(channel));  // session lifecycle == channe
 TypeScript:
 
 ```ts
-const near = await ctx.use('rutis/sessions').open({
-  send: message => connection.send(message), // 0.21: may be async
-  close: why => connection.close(why),
-})
-connection.onMessage(message => near.receive(message))
-connection.onClose(() => near.end({ kind: 'done' }))
+ctx.effect(() => { socket.destroy() })
+const link = await openTcp(socket, ctx.use('rutis/sessions'))
+link.done.catch(reportTransportError)
 ```
 
 ## 4. Tests
@@ -154,9 +151,8 @@ connection.onClose(() => near.end({ kind: 'done' }))
 ## 6. Open questions
 
 - **O1 (blocks non-Rust handshake result)**: `rutis/sessions.open` needs a handshake result, for example `ready()` returning `{ id, error? }` with `code` / `data` (auth rejected, protocol mismatch, transport failure). It is the prerequisite for listen replacement, non-Rust reconnect classification, and the row status `Hello` id. Until then: non-Rust listeners do not replace; non-Rust cannot reliably tell an auth rejection from a protocol mismatch and falls back to transport backoff; #10's row status `Hello` id is Rust-only. This is a separate rutis API discussion; parsing `Hello` is not a workaround.
-- **O2 (blocks non-Rust outbound bounds)**: `open(far)` cannot set `SessionOptions::outbound_limit`, and the session's outbound queue is unbounded by default; a bridge-side queue cannot bound it. Rust uses `Session::options(...)`. Non-Rust needs rutis to add the option to `open`, or a transport that applies backpressure.
+- **O2 (blocks non-Rust outbound bounds)**: `open(far)` cannot set `SessionOptions::outbound_limit`, and the session's outbound queue is unbounded by default; a bridge-side queue cannot bound it. Rust uses `Session::options(...)`. A total session bound requires a host-side outbound limit or a bound imposed at the producer. Socket backpressure alone cannot supply one.
 - **O3 (closed)**: `link/tcp` uses a fixed 4-byte big-endian length; 8 bytes is a future extension, not a current choice.
-- **O3**: 0.21 async callbacks run synchronously on a 0.20 runtime; a bridge must not assume `send` is always async.
 
 ## 7. Version impact
 
@@ -168,9 +164,11 @@ connection.onClose(() => near.end({ kind: 'done' }))
 
 ## Links
 
+- [Implementation guide and conformance requirements](../guide/link-plugins.en.md)
+
 - Issue [#1](https://github.com/arcships/rutis-network/issues/1)
-- [TCP bridge design](06-link-tcp.en.md)
-- [Ecosystem design](10-link-ecosystem.en.md)
+- [TCP bridge design](https://github.com/arcships/rutis-network/pull/16)
+- [Ecosystem design](https://github.com/arcships/rutis-network/pull/20)
 - [SKILL.md](../../.agents/skills/rutis-link-plugin/SKILL.md)
 - [link-plugin-api.md](../../.agents/skills/rutis-link-plugin/references/link-plugin-api.md)
 - rutis `docs/guide/plugin-api.md#your-own-connection-rutissessionsopen`
