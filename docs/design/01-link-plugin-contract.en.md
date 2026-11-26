@@ -1,6 +1,6 @@
 # Link plugin contract: design
 
-Finalized 2026-11-26. Baseline: rutis 0.21.0 (2026-11-05), session protocol 4, `rutis.json` format 1, plugin API 3.
+This contract was finalized on 2026-11-26 against rutis 0.21.0, session protocol 4, `rutis.json` format 1 and plugin API 3. The Go implementation and interoperability tests now target rutis 0.23.0 and session protocol 5. [TCP design](06-link-tcp.en.md)
 Issue: [#1](https://github.com/arcships/rutis-network/issues/1).
 Companions: [SKILL.md](../../.agents/skills/rutis-link-plugin/SKILL.md), [link-plugin-api.md](../../.agents/skills/rutis-link-plugin/references/link-plugin-api.md).
 
@@ -97,10 +97,10 @@ link plugin
 
 ### D11 Composition is row + session + service name; no cross-link center
 
-- A link plugin exposes exactly two things: one configuration row in `rutis.json`, and the session it mounts.
+- A link plugin mounts a session from a configuration row in `rutis.json`. A row can also provide its own local management service for runtime control. [TCP control API](06-link-tcp-integration.en.md)
 - Business plugins do not know link plugins. A `<link row>:<plugin>` row makes the far end run a plugin; once its service is up, business plugins `inject` / `use` it by service name.
 - No global `links` manager, global `connect` service, cross-link registry, or central credential store. Each row owns its admission, credentials, retries, listeners and child processes.
-- Dynamic changes go through `rutis/loader` / `rutis.json`; that is deployment/operations, not a link-layer runtime API. Prefer always-on rows with reconnect.
+- Adding or removing rows goes through `rutis/loader` / `rutis.json`; that is deployment/operations, not a link-layer runtime API. Prefer always-on rows with reconnect.
 - Each link may have an optional `status` / `doctor` / CLI as its own external tool; do not build a cross-link central manager.
 - The link-layer guide lives in **this repository** at `docs/guide/link-plugins.md`; the rutis repository only links to it from the "Your own connection" sections of `docs/guide/plugin-api.md` / `nodes.md`.
 

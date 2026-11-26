@@ -581,9 +581,9 @@ dependencies = [
 
 [[package]]
 name = "rutis"
-version = "0.21.0"
+version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "076bfaafcab2b3c5c3b2d6a2d9139769ffc0d558d9d6e68acab8d91b260e33ea"
+checksum = "9108ed4d1074c48a674b17e44b4f02ed4a650f4f152370f588f50bee6bd655ee"
 dependencies = [
  "erased-serde",
  "rutis-macros",
@@ -597,9 +597,9 @@ dependencies = [
 
 [[package]]
 name = "rutis-bridge"
-version = "0.21.0"
+version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2edc2a053829ac58a5068ff78710790760ff6d74325c76512d27de9af2a6f6e4"
+checksum = "bc5b5671633d5054a4b4a1ba34d1560b98fd9e2b871383db314386824c811f0d"
 dependencies = [
  "futures-util",
  "getrandom 0.2.17",
@@ -610,6 +610,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "shuttle",
  "socket2",
  "tempfile",
  "thiserror",
@@ -621,9 +622,9 @@ dependencies = [
 
 [[package]]
 name = "rutis-macros"
-version = "0.21.0"
+version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b90a2ef67b45752c214df031687b1a616513f058c66b2073cf0ad90a9da0dc7d"
+checksum = "c291572eeef520ce82a5c99982618fab42053296a7e61f8edb05702473346f8e"
 dependencies = [
  "proc-macro2",
  "quote",

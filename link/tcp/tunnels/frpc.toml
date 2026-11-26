@@ -1,0 +1,15 @@
+serverAddr = "127.0.0.1"
+serverPort = {{ .Envs.FRP_CONTROL_PORT }}
+auth.method = "token"
+auth.tokenSource.type = "file"
+auth.tokenSource.file.path = "{{ .Envs.FRP_TOKEN_FILE }}"
+transport.tls.enable = true
+transport.tls.trustedCaFile = "{{ .Envs.FRP_CA_FILE }}"
+transport.tls.serverName = "localhost"
+
+[[proxies]]
+name = "rutis-loopback"
+type = "tcp"
+localIP = "127.0.0.1"
+localPort = {{ .Envs.LINK_LISTEN_PORT }}
+remotePort = {{ .Envs.LINK_FORWARD_PORT }}
