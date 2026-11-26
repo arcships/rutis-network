@@ -7,7 +7,7 @@ description: Use when extending the rutis link layer — adding a connection plu
 
 rutis (https://github.com/arcships/rutis) is a plugin host with a Rust core and plugins in several languages. A **link plugin** (also called a connection plugin) is how a rutis host reaches a far end: a language runtime, another rutis, a device app, a cloud service.
 
-This skill is written against **rutis 0.21.0** (2026-11-05): session protocol 4, `rutis.json` format 1, plugin API 3. When the host is older, check the version notes below; the extension point itself has not changed since 0.19.
+This skill is written against **rutis 0.23.0** (2026-11-20): session protocol 5, `rutis.json` format 1, plugin API 3. When the host is older, check the version notes below; the extension point itself has not changed since 0.19.
 
 Reference material is in `references/`:
 
@@ -23,6 +23,7 @@ Keep one sentence in mind: **the link layer owns admission, reachability, framin
 
 | Version | Change | What a link plugin does |
 | --- | --- | --- |
+| 0.23.0 | Protocol 5 requires matching endpoints and adds chunking | Upgrade both hosts and all language runtimes together. The Go TCP bridge enforces 16 MiB per message. In 0.23.0 `sessions.open` cannot advertise this limit to the session chunker. |
 | 0.19.3 | `sessions` / `loader` renamed to `rutis/sessions` / `rutis/loader`; the old names are not kept | `inject: ['rutis/sessions']`, `ctx.use('rutis/sessions')`; the failure is `declare rutis/sessions in inject` |
 | 0.20.0 | Unloading runs one reverse stack, one entry at a time; a cleanup cannot register another cleanup or wait for one | Register the adapter close once in `apply` / `ctx.effect`; do the whole cleanup in that one entry |
 | 0.20.0 | A session sends on its own writer thread; `SessionOptions::outbound_limit` is a host option, unbounded by default; `rutis/sessions.open(far)` uses the default | Bound the link plugin's own send queue; do not rely on the session to apply a limit. `far.send` may block its session's writer, not the process |
@@ -67,7 +68,7 @@ Any language works. Pick the cheapest implementation that fits the target langua
 - use the vendor SDK/library;
 - run a small sidecar (for example a Go `tsnet` sidecar) and connect to it over loopback.
 
-The bridge is shared; write it once per language. Do not reimplement framing and lifecycle in every adapter.
+This repository’s Go adapters use `tcp.Open` from `link/tcp/bridge.go`. The #11 TypeScript reference uses `openTcp`. Share the bridge within each language. Do not reimplement framing and lifecycle in every adapter.
 
 ## 3. Admission is the adapter's job
 
@@ -133,7 +134,7 @@ export default definePlugin({
 - Since 0.20, a session has its own writer thread and an unbounded outbound queue by default. Rust sets `Session::options(SessionOptions { outbound_limit: Some(bytes) })`; non-Rust `open(far)` has no such option, so a bridge-side queue does not bound the session queue. Treat that as a blocking API gap for production non-Rust links.
 - Heartbeat belongs to the adapter (SSH keepalive, WebSocket ping, gRPC keepalive, Tailscale's own); the bridge does not invent a generic heartbeat frame. A failed heartbeat closes the connection and maps to `near.end`.
 
-**Listen-side replacement.** In Rust, `Session::handshake(&ctx, channel).await` gives `Greeted::id()` before mounting; this is how `rutis-host/listen` unloads an older session of the same far id first, closes it with `Close::Replaced` (4002), then mounts the new one. In other languages, `rutis/sessions.open(far)` returns only `{ receive, end }` as of 0.21.0 and does **not** expose the far end's id, so a non-Rust listen bridge cannot implement same-id replacement without parsing the session protocol (forbidden).
+**Listen-side replacement.** In Rust, `Session::handshake(&ctx, channel).await` gives `Greeted::id()` before mounting; this is how `rutis-host/listen` unloads an older session of the same far id first, closes it with `Close::Replaced` (4002), then mounts the new one. In other languages, `rutis/sessions.open(far)` returns only `{ receive, end }` as of 0.23.0 and does **not** expose the far end's id, so a non-Rust listen bridge cannot implement same-id replacement without parsing the session protocol (forbidden).
 
 Do not write "two connections from the same far id coexist": `session_key(row)` is first-wins, so a second session under the same row registers no handle and `<row>:<plugin>` only addresses the first. A listener that needs replacement must be Rust. O1 (handshake result: id plus structured `code`/`data`) and O2 (outbound limit through `open`) are blocking API gaps, not optional optimizations. Without O1, non-Rust also cannot tell an auth rejection from a protocol mismatch; it falls back to transport backoff.
 
@@ -186,4 +187,4 @@ Write a short section in **this repository's** `docs/guide/link-plugins.md` (and
 - `references/link-plugin-api.md` — `rutis/sessions.open`, `Session::new`, `Far`/`Near`, close.
 - `references/scenarios.md` — scenario → adapter choice; candidate landscape; T1/T2/T3.
 - `references/checklist.md` — test and review checklist.
-- rutis repository (0.21.0): `docs/guide/plugin-api.md` (your own connection), `docs/guide/nodes.md`, `docs/design-remote-session-2026-10-28.md`, `docs/design-protocol-channel-decoupling-2026-10-03.md`, `crates/rutis-bridge/src/channel/mod.rs`, `crates/rutis-bridge/src/session/plugin/mod.rs`, `crates/rutis-bridge/src/session/plugin/open.rs`.
+- rutis repository (0.23.0): `docs/guide/plugin-api.md` (your own connection), `docs/guide/nodes.md`, `docs/design-remote-session-2026-10-28.md`, `docs/design-protocol-channel-decoupling-2026-10-03.md`, `crates/rutis-bridge/src/channel/mod.rs`, `crates/rutis-bridge/src/session/plugin/mod.rs`, `crates/rutis-bridge/src/session/plugin/open.rs`.

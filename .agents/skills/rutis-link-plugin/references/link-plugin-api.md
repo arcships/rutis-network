@@ -1,6 +1,6 @@
 # Link plugin API
 
-This file is the part of the rutis plugin API a link plugin needs, written against rutis **0.21.0** (2026-11-05): session protocol 4, `rutis.json` format 1, plugin API 3. The rutis repository is authoritative; check `docs/guide/plugin-api.md` ("Your own connection") and `crates/rutis-bridge/src/session/plugin/open.rs` when the host changes.
+This file is the part of the rutis plugin API a link plugin needs, written against rutis **0.23.0** (2026-11-20): session protocol 5, `rutis.json` format 1, plugin API 3. The rutis repository is authoritative; check `docs/guide/plugin-api.md` ("Your own connection") and `crates/rutis-bridge/src/session/plugin/open.rs` when the host changes.
 
 ## The contract
 
@@ -74,7 +74,7 @@ export default definePlugin({
 - `receive` completes when the message is in the session's receive queue; the queue is 64 messages, and a full queue waits, carrying backpressure to the connection.
 - The far end's plugins here are called `<far id>:<plugin>`; to make the far end run a plugin, write a row `<connection row>:<plugin>` (for example `relay:contacts`). While the far end is absent, that row waits.
 - There is no `peer`, `token`, `credential` or `identity` parameter. Do not add one.
-- `open(far)` returns `Near` immediately and does not expose the far end's `Hello` id. Only Rust's `Session::handshake` gives `Greeted::id()` before mounting. A non-Rust listen bridge therefore cannot do same-id replacement as of 0.21.0. `session_key(row)` is first-wins: a second session under the same row registers no handle, so `<row>:<plugin>` only addresses the first. Do not write "coexist"; see "Listen-side replacement" below.
+- `open(far)` returns `Near` immediately and does not expose the far end's `Hello` id. Only Rust's `Session::handshake` gives `Greeted::id()` before mounting. A non-Rust listen bridge therefore cannot do same-id replacement as of 0.23.0. `session_key(row)` is first-wins: a second session under the same row registers no handle, so `<row>:<plugin>` only addresses the first. Do not write "coexist"; see "Listen-side replacement" below.
 
 ## Callbacks and 0.21
 

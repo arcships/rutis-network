@@ -114,6 +114,7 @@ async fn exercise() {
             .unwrap();
         let options = SessionOptions {
             outbound_limit: Some(4 * 1024 * 1024),
+            ..Default::default()
         };
         let view = root.plugin(Session::new(channel).options(options));
         let mut admitted = incoming.recv().await.unwrap();
