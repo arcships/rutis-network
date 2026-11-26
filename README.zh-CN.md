@@ -17,4 +17,4 @@ rutis 自己只管会话这一侧：连接插件打开一条通道，交给服�
 3. [#3](https://github.com/arcships/rutis-network/issues/3)–[#9](https://github.com/arcships/rutis-network/issues/9)：各个链接（SSH、Tailscale、Cloudflare Tunnel、TCP bridge、gRPC、移动设备、iroh）。[#6](https://github.com/arcships/rutis-network/issues/6)（TCP bridge）是 TCP 类 adapter 共用的地基。
 4. [#10](https://github.com/arcships/rutis-network/issues/10)：生态——各语言模板、可执行的一致性测试、适配器目录、CI 与许可证。
 
-这些 issue 的草稿在 [docs/issue-drafts/link-plugins](docs/issue-drafts/link-plugins/README.md)；设计稿在 `docs/design/`；给编程 agent 的指南在 [.agents/skills/rutis-link-plugin](.agents/skills/rutis-link-plugin/SKILL.md)。
+这些 issue 的草稿在 [docs/issue-drafts/link-plugins](docs/issue-drafts/link-plugins/README.md)；设计稿在各 issue 的 draft PR 里（合并后落在 `docs/design/`）；给编程 agent 的指南在 [.agents/skills/rutis-link-plugin](.agents/skills/rutis-link-plugin/SKILL.md)。

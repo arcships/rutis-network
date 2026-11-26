@@ -1,6 +1,6 @@
 # feat(link): `link/iroh` Rust P2P / relay 原型
 
-状态：已发布为 [#9](https://github.com/arcships/rutis-network/issues/9)。优先级 P3。依赖契约 #1。设计稿：[docs/design/09-link-iroh.md](../../design/09-link-iroh.md)。
+状态：已发布为 [#9](https://github.com/arcships/rutis-network/issues/9)。优先级 P3。依赖契约 #1。设计稿：[PR #19](https://github.com/arcships/rutis-network/pull/19)。
 
 版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。
 
@@ -8,7 +8,7 @@
 
 如果用户不能/不愿装系统 VPN，又不想过 Cloudflare/ngrok 这类中心入口，就需要一个可嵌入的 P2P/relay 传输。iroh 是 Rust 的 QUIC + NAT 穿透 + relay 库，按公钥拨号，端到端加密，有 FFI；和 rutis 的 Rust 核心、移动端/嵌入式场景契合。
 
-但它还早：NAT 穿透在推进，直连不稳会回退 DERP，DNS/证书能力也要看版本。所以先做原型，不承诺生产。
+但它还早：NAT 穿透在推进，直连不稳会回退 relay，DNS/证书能力也要看版本。所以先做原型，不承诺生产。
 
 ## 范围
 
@@ -17,7 +17,7 @@
    - 一条 QUIC 双向流对应一个 session；
    - 长度前缀 framing；
    - `rutis/sessions.open(far)` / `Session::new(channel)`；
-   - 准入用 endpoint 公钥/应用层 token；不把 iroh 身份传给 session；
+   - 准入：拨号侧校验期望的 `NodeId`；监听侧维护 NodeId allowlist，没有 allowlist 时必须强制应用 token；两者都在 `Session::new` / `open` 之前完成。不把 iroh 身份传给 session，日志不输出 token；
    - 远端在 `Hello` 注册 id。
 2. 连接形态：
    - 直接 P2P（能打洞时）；
@@ -41,7 +41,7 @@
 ## 验收
 
 - [ ] 两个 iroh endpoint 在 local/relay 环境跑通一条 QUIC 流，消息边界/顺序正确。
-- [ ] `open(far)` / `Session::new` 跑通，远端插件 `<id>:<plugin>` 出现。
+- [ ] 未授权 NodeId / token 被拒绝，且不创建 session；错误只含结构化原因和公钥指纹，不含 token。
 - [ ] 断开/重连/session 卸载行为符合契约；重连在 link plugin。
 - [ ] 文档写清直连/relay、NAT、延迟/吞吐、移动端 FFI、依赖体积。
 - [ ] 至少一个手工 e2e 步骤；不依赖真实 n0 账号/生产 relay。
@@ -49,7 +49,7 @@
 
 ## 关联
 
-- 设计稿：[docs/design/09-link-iroh.md](../../design/09-link-iroh.md)
+- 设计稿：[PR #19](https://github.com/arcships/rutis-network/pull/19)
 - [链接层 link plugin 契约](01-link-plugin-contract.md)
 - [`link/tcp` 与反向隧道](06-link-tcp-and-reverse-tunnels.md)
 - [`link/grpc`](07-link-grpc-cloud.md)

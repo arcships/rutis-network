@@ -1,6 +1,6 @@
 # feat(link): `link/ssh` 用 SSH 做链接层
 
-状态：已发布为 [#3](https://github.com/arcships/rutis-network/issues/3)。优先级 P1。依赖契约 #1 与 `link/tcp` #6（forward 模式）。设计稿：[docs/design/03-link-ssh.md](../../design/03-link-ssh.md)。
+状态：已发布为 [#3](https://github.com/arcships/rutis-network/issues/3)。优先级 P1。依赖契约 #1 与 `link/tcp` #6（forward 模式）。设计稿：[PR #13](https://github.com/arcships/rutis-network/pull/13)。
 
 版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。
 
@@ -13,7 +13,7 @@
 ## 范围
 
 1. 新增一个任意语言可实现的 `link/ssh` 参考实现（先 TS 或 Rust，其他语言复用契约）：
-   - **stdio 模式**：起 `ssh host -- <rutis 运行时/桥>`，把 stdin/stdout 当字节流；做 framing（长度前缀或换行），然后 `rutis/sessions.open(far)`。0.20 起 `Process::mount` 等运行时问候有时限（30 秒），SSH 进程迟迟不问候要报错并结束进程，不能无限等。
+   - **stdio 模式**：起 `ssh host -- <rutis 运行时/桥>`，把 stdin/stdout 当字节流；framing 由远端命令决定：`pipe::framed` 兼容的运行时/桥用换行，4 字节前缀只用于 #6 bridge。然后 `rutis/sessions.open(far)`。session 握手是 10 秒；30 秒只适用于本端 `Process::mount`/`rutis-host/spawn`。
    - **forward 模式**：用 `ssh -L` / `ssh -R` 建立本地 TCP，再交给通用 `link/tcp` bridge（#6）。
    - **库模式**（可选）：Rust `russh`/`ssh2`、Go `x/crypto/ssh`、Python `asyncssh`、Node `ssh2`、Swift `swift-nio-ssh` 直接开 `direct-tcpip` channel。
 2. 认证/准入完全由 SSH 负责：host key、用户 key、SSH agent、`authorized_keys`；不引入 rutis token，不把 SSH 身份传给 session。
@@ -36,7 +36,7 @@
 
 ## 验收
 
-- [ ] stdio 模式：本端 `ssh` 起远端 rutis 运行时，消息双向、边界/顺序正确，远端插件以 `<id>:<plugin>` 出现；远端不问候时 30 秒内报错并结束进程。
+- [ ] stdio 模式：本端 `ssh` 起远端 rutis 运行时，消息双向、边界/顺序正确，远端插件以 `<id>:<plugin>` 出现；远端不问候时 10 秒内报错并结束进程；`Process::mount` 的 30 秒只用于本端 spawn。
 - [ ] forward 模式：`ssh -L` / `-R` 后，`link/tcp` 能连上并跑通同一套 session。
 - [ ] SSH 认证失败时，link plugin 报错清楚，不进入 session；session 代码里没有 token/SSH 概念。
 - [ ] SSH 断开/进程退出时，session 卸载，channel 关闭；重连按 link plugin 的退避执行。
@@ -47,7 +47,7 @@
 
 ## 关联
 
-- 设计稿：[docs/design/03-link-ssh.md](../../design/03-link-ssh.md)
+- 设计稿：[PR #13](https://github.com/arcships/rutis-network/pull/13)
 - [链接层 link plugin 契约](01-link-plugin-contract.md)
 - [`link/tcp` 与反向隧道](06-link-tcp-and-reverse-tunnels.md)
 - [插件 API：自建连接](https://github.com/arcships/rutis/blob/main/docs/guide/plugin-api.md#自建连接rutissessionsopen)

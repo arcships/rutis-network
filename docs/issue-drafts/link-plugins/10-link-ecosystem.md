@@ -1,6 +1,6 @@
 # feat(link): 链接层插件生态：模板、一致性测试、适配器目录
 
-状态：已发布为 [#10](https://github.com/arcships/rutis-network/issues/10)。优先级 P2。依赖契约 #1 与至少一个 T1 插件。设计稿：[docs/design/10-link-ecosystem.md](../../design/10-link-ecosystem.md)。
+状态：已发布为 [#10](https://github.com/arcships/rutis-network/issues/10)。优先级 P2。依赖契约 #1 与至少一个 T1 插件。设计稿：[PR #20](https://github.com/arcships/rutis-network/pull/20)。
 
 版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。
 
@@ -20,12 +20,12 @@
 1. 各语言模板（先 TS / Python / Rust，Go / Swift / Kotlin 后续）：
    - 以 `.agents/skills/rutis-link-plugin/SKILL.md` 为 agent 指南，模板与它保持一致；
    - 只依赖 `rutis/sessions` 服务 / `Session::new(channel)`；
-   - 一个 `link/echo` 或 `link/tcp` 最小实现；
+   - 一个 `link/echo` 或 `link/tcp` 最小实现；优先用 localhost TCP，WebSocket 复用核心已有能力；不新造协议，也不把纯 HTTP 请求/响应当 link；
    - adapter + bridge 的文件结构；
    - 注释里写清认证在 adapter、身份来自远端 `Hello`、session 不碰 token；
    - 0.21 异步 `send`、0.20 卸载顺序、错误 code 写进模板注释。
 2. 一致性测试套件：
-   - 消息边界、顺序、背压、异步 `send`、close、half-close；
+   - 消息边界、顺序、背压、异步 `send`、close/EOF（session 没有 half-close）；
    - 超长消息；
    - 远端 `Hello` id 命名 `<id>:<plugin>`；
    - listen 多连接 + 同 id 顶替（Rust；非 Rust 写明限制）；
@@ -58,15 +58,16 @@
 ## 验收
 
 - [ ] TS/Python/Rust 模板可复制、可运行、只依赖 `rutis/sessions`；在 0.21.0 上跑通。
+- [ ] `link/echo` 在 localhost TCP 上可跑；WebSocket 复用核心 `websocket::dial` / `websocket::listen`；没有纯 HTTP link 模板。
 - [ ] 一致性测试套件覆盖上述行为，至少一个语言接入 CI。
 - [ ] `docs/guide/link-plugins.md`（及 `.en.md`）有 adapter 目录，T1/T2/T3 和场景清楚。
 - [ ] 每个 T1 adapter 至少有一个可复制示例（SSH/Tailscale/Cloudflare）。
 - [ ] 仓库有 LICENSE，版本策略写清。
-- [ ] 文档链接检查和模板测试通过。
+- [ ] 文档链接检查在全部设计 PR 合并后跑，模板测试通过。
 
 ## 关联
 
-- 设计稿：[docs/design/10-link-ecosystem.md](../../design/10-link-ecosystem.md)
+- 设计稿：[PR #20](https://github.com/arcships/rutis-network/pull/20)
 - [链接层 link plugin 契约](01-link-plugin-contract.md)
 - [`link/ssh`](03-link-ssh.md)
 - [`link/tailscale`](04-link-tailscale.md)
