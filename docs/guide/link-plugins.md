@@ -13,9 +13,13 @@
 
 准入成功等于信任对端注册的身份。adapter 必须在交接前完成验证；失败即关闭连接。证书和 token 只在 adapter 内使用。随机端口只参与寻址。Rust 的 Channel 收发有边界的不透明字节，Greeted 在握手完成后提供身份。[Channel](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/channel/mod.rs) · [Session 与 Greeted](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/mod.rs)
 
+## Go 版 libp2p
+
+`go:link-libp2p` 使用 QUIC 直连或指定的 Circuit Relay v2，将一个通过 Peer ID 校验的对端挂为会话。需要 Go 1.26 和 rutis-host 0.23.0。[构建、配置和管理接口](../design/09-p2p-plugins.md)
+
 ## 安装 Go 插件
 
-在仓库根目录使用 Go 1.24 或更高版本编译。将生成的二进制放到两端宿主的 `rutis.json` 旁的 `plugins/go` 目录。只有构建机器需要 Go 工具链。
+在仓库根目录使用 Go 1.24 或更高版本编译 TCP 插件。将生成的二进制放到两端宿主的 `rutis.json` 旁的 `plugins/go` 目录。只有构建机器需要 Go 工具链。
 
 ```sh
 mkdir -p plugins/go

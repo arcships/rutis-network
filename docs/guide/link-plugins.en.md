@@ -13,9 +13,13 @@ The plugins and examples pin rutis 0.23.0, session protocol 5 and plugin API 3. 
 
 Admitting a peer grants trust in the identity it registers. Complete admission before handoff and close a denied connection. The adapter keeps certificates and tokens. A random port selects an address. Rust's Channel carries opaque messages with boundaries. Greeted provides the identity after handshake. [Channel](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/channel/mod.rs) · [Session and Greeted](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/mod.rs)
 
+## Go libp2p
+
+`go:link-libp2p` connects to one pinned peer over direct QUIC or a configured Circuit Relay v2 and mounts its stream as a session. Use Go 1.26 and rutis-host 0.23.0. [Build, configure and control the plugin](../design/09-p2p-plugins.en.md)
+
 ## Install the Go plugins
 
-From the repository root, build the plugin binary with Go 1.24 or newer. Place it in `plugins/go` beside your `rutis.json` on each host. Only the build machine needs Go.
+From the repository root, build the TCP plugin binary with Go 1.24 or newer. Place it in `plugins/go` beside your `rutis.json` on each host. Only the build machine needs Go.
 
 ```sh
 mkdir -p plugins/go
