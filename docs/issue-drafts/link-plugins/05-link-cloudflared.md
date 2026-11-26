@@ -1,12 +1,12 @@
 # feat(link): `link/cloudflared` 用 Cloudflare Tunnel 做链接层
 
-状态：已发布为 [#5](https://github.com/arcships/rutis-network/issues/5)。优先级 P1。依赖契约 #1 与 `link/tcp` #6。设计稿：[docs/design/05-link-cloudflared.md](../../design/05-link-cloudflared.md)。
+状态：已发布为 [#5](https://github.com/arcships/rutis-network/issues/5)。优先级 P1。依赖契约 #1 与 `link/tcp` #6。设计稿：[PR #15](https://github.com/arcships/rutis-network/pull/15)。
 
 版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。
 
 ## 问题
 
-很多场景不能在拨号侧装 VPN 客户端：手机、浏览器、临时机器、第三方。监听侧又常在 NAT 后，不能开公网端口。Cloudflare Tunnel 的“监听侧出站、拨号侧普通 HTTPS/WSS”正好覆盖这个场景。
+很多场景不能在拨号侧装 VPN 客户端：手机、浏览器、临时机器、第三方。监听侧又常在 NAT 后，不能开公网端口。Cloudflare Tunnel 的“监听侧出站、拨号侧 WSS（WebSocket 升级）”正好覆盖这个场景。
 
 它应该是 link plugin 的 adapter：Cloudflare 负责到达（和可选的 Access 准入），link plugin 做 framing 和 `rutis/sessions.open(far)`；rutis 不需要知道 Cloudflare，也不需要 token 之外的第二层认证。
 
@@ -18,7 +18,7 @@
    - 准入由 Cloudflare Access 服务令牌/身份负责；不把 Access 身份传给 session。
 2. 再做 **public 模式**（可选）：
    - 监听侧跑 `cloudflared tunnel`；
-   - link plugin 连 `wss://<host>` 或 HTTPS；
+   - link plugin 连 `wss://<host>`（WebSocket 升级）或 Cloudflare 的 TCP 承载；纯 HTTPS 不是 link；
    - 准入由 Cloudflare Access 或链接层自己的 token 负责；
    - 明确公开入口的风险。
 3. 文档：
@@ -50,7 +50,7 @@
 
 ## 关联
 
-- 设计稿：[docs/design/05-link-cloudflared.md](../../design/05-link-cloudflared.md)
+- 设计稿：[PR #15](https://github.com/arcships/rutis-network/pull/15)
 - [链接层 link plugin 契约](01-link-plugin-contract.md)
 - [`link/tcp` 与反向隧道](06-link-tcp-and-reverse-tunnels.md)
 - [`link/tailscale`](04-link-tailscale.md)

@@ -1,6 +1,6 @@
 # research(link): 跨网络 link 方案全景、场景与优先级
 
-状态：已发布为 [#2](https://github.com/arcships/rutis-network/issues/2)。优先级 P0。依赖契约 issue #1。设计稿：[docs/design/02-link-landscape.md](../../design/02-link-landscape.md)。
+状态：已发布为 [#2](https://github.com/arcships/rutis-network/issues/2)。优先级 P0。依赖契约 issue #1。设计稿：[PR #12](https://github.com/arcships/rutis-network/pull/12)。
 
 版本基线：rutis 0.21.0（2026-11-05），会话协议 4，插件 API 3。
 
@@ -28,7 +28,7 @@
    - 本地/物理：pipe、Unix socket、fd、蓝牙、串口、USB、NFC、LoRa。
 2. 场景表：每个场景写“用户怎么用 / 首选 / 摩擦”，至少覆盖：
    - 个人 GPU/远程机器、手机/设备 App、home lab/自建、团队/企业、demo/教程、中国/VPS、部署平台、分布式云、远控、IoT。
-3. 优先级：T1（SSH、Tailscale、Cloudflare Tunnel）、T2（frp/rathole、K8s/Docker/Fly.io/Railway、Headscale/NetBird、gRPC）、T3（iroh/WebRTC、MQTT/NATS、企业零信任、远控）。
+3. 优先级：T1（SSH、Tailscale、Cloudflare Tunnel）、T2（frp/rathole、K8s/Docker/Fly.io/Railway、Headscale/NetBird；gRPC 仅云业务时 T1，否则 T2）。
 4. 业务/宣发/厂商/生态四个维度各写一段：为什么这个顺序，不做什么，什么条件下重排。
 5. 不写实现；只产出可评审的分析，并校验已有的 #3–#9 是否与优先级一致。
 
@@ -53,7 +53,7 @@
 
 ## 关联
 
-- 设计稿：[docs/design/02-link-landscape.md](../../design/02-link-landscape.md)
+- 设计稿：[PR #12](https://github.com/arcships/rutis-network/pull/12)
 - [链接层 link plugin 契约](01-link-plugin-contract.md)
 - [远程连接：只留一个会话插件](https://github.com/arcships/rutis/blob/main/docs/design-remote-session-2026-10-28.md)
 - [连接节点](https://github.com/arcships/rutis/blob/main/docs/guide/nodes.md)
