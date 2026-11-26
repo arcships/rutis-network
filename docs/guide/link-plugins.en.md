@@ -132,3 +132,21 @@ The rutis close reasons are `done`, `replaced` and `rejected` with a reason. TCP
 Build `go:link-cloudflared` with Go 1.24 or later and install the official `cloudflared` executable on each host. One connector row uses a named tunnel token file, and one dial row runs a local Access TCP forwarder with service token files. The built-in WebSocket rows can connect across that forwarder. The optional #16 TCP rows add end-to-end mTLS. Isolate each management service on its row and its local caller. [Two-host configuration and Go service example](../design/05-cloudflare-plugin-control.en.md)
 
 From the repository root run `go -C link/cloudflared test -race ./...`. For the account-free integration test on Linux or macOS, set `RUTIS_HOST` to the absolute path of rutis-host 0.23.0 and put `cloudflared` on PATH. Set `RUTIS_TCP_PLUGIN` to the absolute path of the compiled #16 binary to also test the mTLS deployment. Run `go -C link/cloudflared test -race -count=1 ./...`.
+
+## A device plugin and a plugin embedded in a Go cloud service
+
+The device calls `jobs.submitJob` on the cloud plugin. That plugin submits the job to the application's in-process scheduler and calls the device's progress callback over the same gRPC stream. The cloud service also serves its ordinary gRPC health RPC on the same port. Unloading just the embedded plugin withdraws the rutis service while the scheduler and health RPC keep running. [Cloud application and embedded plugin](../../link/grpc/example/cloud/main.go) · [Device plugin](../../link/grpc/example/device/main.go)
+
+For an existing Go service, call `grpclink.Register(server, clientDNSName)` before starting the application's gRPC server. Configure mTLS and set both gRPC message size limits to `grpclink.MaxWireSize`. The plugin declares `rutis/sessions` in `Inject` and calls `endpoint.Bind(row)` in `Apply`. The application owns its listener and certificates. One bound endpoint admits one active device whose verified certificate matches the configured name. The device can mount the `go:link-grpc` row or embed `MountClient` and call the returned client's `Start`, `Stop` and `Status` locally.
+
+Build the examples from this repository with Go 1.26 or later. Each example has its own rutis 0.23.0 project. Set the PEM paths in the [cloud configuration](../../link/grpc/example/cloud/rutis.json) and [device configuration](../../link/grpc/example/device/rutis.json) to a trusted CA and the respective certificate/key pair. The example uses the certificate DNS names `cloud.test` and `device.test` and a loopback listener. For separate machines, select a reachable cloud bind address and device destination.
+
+```sh
+go -C link/grpc build -o example/cloud/plugins/go/cloud-service ./example/cloud
+go -C link/grpc build -o example/device/plugins/go/device ./example/device
+go -C link/grpc build -o example/device/plugins/go/link-grpc ./cmd/link-grpc
+```
+
+Run `rutis-host run link/grpc/example/cloud/rutis.json` and `rutis-host run link/grpc/example/device/rutis.json` in separate terminals. Run `rutis-host call --config link/grpc/example/device/rutis.json device.submit '"build"'` on the device. On a fresh service the reply contains `{"id":"job-1","progress":"job-1 queued"}`. To exercise the two hosts with generated certificates on macOS or Linux, set `RUTIS_HOST` to the absolute path of rutis-host and run `go -C link/grpc test -race -count=1 ./...`.
+
+Each admitted stream carries one session, with one rutis message per protobuf frame (up to 16 MiB). The device retries a disconnect with 0.5–30 s backoff and an explicit gRPC admission rejection after 30 s. An interrupted job call may already have reached the scheduler. The link reconnects without replaying it. The Go 0.23 session API does not expose peer IDs to the listener or a total outbound queue limit. [Wire contract](../../link/grpc/wire/link.proto)

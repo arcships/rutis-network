@@ -1,6 +1,9 @@
-# `link/grpc` cloud control plane / relay / distributed cloud: design
+# gRPC links for plugins embedded in cloud services
 
-Status: draft. Date: 2026-11-08. Baseline: rutis 0.21.0.
+The implemented Go adapter targets rutis 0.23.0. A device plugin connects to a plugin inside an existing cloud service. The cloud plugin shares the application’s gRPC listener and business objects. The integration test covers both call directions and reconnection. [Build, configure and run the example](../guide/link-plugins.en.md#a-device-plugin-and-a-plugin-embedded-in-a-go-cloud-service).
+
+The following design notes from 2026-11-08 also describe possible relay and multi-region deployments. The current direct endpoint uses mTLS and the versioned Tunnel RPC. After checking the client certificate and plugin binding, the server sends the initial metadata `rutis-link-accepted: 1`. The device opens its local session after receiving that acknowledgement.
+
 Issue: [#7](https://github.com/arcships/rutis-network/issues/7). Depends on [#1](https://github.com/arcships/rutis-network/issues/1).
 
 ## 1. Position

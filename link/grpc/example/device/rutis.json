@@ -1,0 +1,18 @@
+{
+  "id": "device",
+  "runtimes": { "go": { "dir": "./plugins/go" } },
+  "rows": [
+    {
+      "id": "wire",
+      "name": "go:link-grpc",
+      "config": {
+        "address": "127.0.0.1:7443",
+        "serverName": "cloud.test",
+        "caFile": "/etc/rutis/grpc/ca.pem",
+        "certFile": "/etc/rutis/grpc/device.pem",
+        "keyFile": "/etc/rutis/grpc/device.key"
+      }
+    },
+    { "id": "app", "name": "go:device" }
+  ]
+}

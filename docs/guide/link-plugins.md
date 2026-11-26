@@ -132,3 +132,21 @@ let view = ctx.plugin(Session::new(admitted_channel));
 用 Go 1.24 或更新版本构建 `go:link-cloudflared`，在两端安装官方 `cloudflared`。源站 connector 行从文件读取命名隧道 token，拨号行用服务令牌文件建立本地 Access TCP 转发。可以使用宿主内置 WebSocket 行互连，或接入 #16 的 TCP 行使用端到端 mTLS。在管理服务及本地调用方所在行设置相同的隔离作用域。[两端配置与 Go 服务调用示例](../design/05-cloudflare-plugin-control.md)
 
 在仓库根目录运行 `go -C link/cloudflared test -race ./...`。Linux 或 macOS 上可用 `RUTIS_HOST` 指定 rutis-host 0.23.0 的绝对路径，并将 `cloudflared` 放入 PATH，以运行无需云账号的集成测试。再用 `RUTIS_TCP_PLUGIN` 指定 #16 二进制的绝对路径，可同时测试 mTLS 配置。执行 `go -C link/cloudflared test -race -count=1 ./...`。
+
+## 设备插件连接 Go 云服务内的插件
+
+设备插件调用云端插件的 `jobs.submitJob`。云端插件把任务交给同一进程里的调度器，再通过同一条 gRPC 流回调设备插件，报告排队进度。云服务使用同一端口提供普通 gRPC 健康检查。单独卸载云端插件时，rutis 服务撤下，调度器和健康检查继续工作。[云应用和内嵌插件](../../link/grpc/example/cloud/main.go) · [设备插件](../../link/grpc/example/device/main.go)
+
+接入已有 Go 服务时，在启动应用自己的 gRPC server 前调用 `grpclink.Register(server, clientDNSName)`。配置双向 TLS，把 gRPC 收发消息上限都设为 `grpclink.MaxWireSize`。云端插件在 `Inject` 声明 `rutis/sessions`，在 `Apply` 中调用 `endpoint.Bind(row)`。监听端口和证书由云服务管理。每个已绑定的 endpoint 同时接纳一台设备，设备证书须经受信 CA 签发并匹配配置的名称。设备可以挂载 `go:link-grpc` 行，也可以在插件里调用 `MountClient`，通过返回对象在本地执行 `Start`、`Stop` 和 `Status`。
+
+在仓库根目录使用 Go 1.26 或更新版本构建。两端各有一份 rutis 0.23.0 项目配置。把[云端配置](../../link/grpc/example/cloud/rutis.json)和[设备配置](../../link/grpc/example/device/rutis.json)里的 PEM 路径改为受信 CA 和各自的证书、私钥。示例在回环地址监听，证书 DNS 名分别为 `cloud.test` 和 `device.test`。分开部署时，填写云端可达的监听地址和设备的拨号目标。
+
+```sh
+go -C link/grpc build -o example/cloud/plugins/go/cloud-service ./example/cloud
+go -C link/grpc build -o example/device/plugins/go/device ./example/device
+go -C link/grpc build -o example/device/plugins/go/link-grpc ./cmd/link-grpc
+```
+
+在两个终端分别执行 `rutis-host run link/grpc/example/cloud/rutis.json` 和 `rutis-host run link/grpc/example/device/rutis.json`。在设备上执行 `rutis-host call --config link/grpc/example/device/rutis.json device.submit '"build"'`。刚启动的服务返回 `{"id":"job-1","progress":"job-1 queued"}`。在 macOS 或 Linux 上把 `RUTIS_HOST` 设为 rutis-host 的绝对路径，执行 `go -C link/grpc test -race -count=1 ./...`，即可使用临时证书验证两端和重连。
+
+一条获准的流承载一个会话，每个 protobuf 帧携带一条 rutis 消息，上限 16 MiB。设备断线后按 0.5–30 秒退避重连，收到明确的 gRPC 准入拒绝时等待 30 秒。中断时请求可能已进入调度器，重新连接不会自动重放。Go 0.23 会话接口尚未向监听端暴露远端 ID，也没有配置会话总出站队列上限的接口。[传输协议](../../link/grpc/wire/link.proto)

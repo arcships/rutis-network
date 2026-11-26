@@ -1,6 +1,9 @@
-# `link/grpc` 云控制面 / relay / 分布式云：设计稿
+# 云服务内嵌插件的 gRPC 链接
 
-状态：草案。日期：2026-11-08。基线：rutis 0.21.0。
+已实现的 Go 适配器适用于 rutis 0.23.0。设备插件连接云服务内部的插件，云端插件复用应用已有的 gRPC 监听器和业务对象。集成测试覆盖双向调用和断线恢复。[构建、配置和运行示例](../guide/link-plugins.md#设备插件连接-go-云服务内的插件)。
+
+下文保留了 2026-11-08 的设计讨论，其中包括可扩展的 relay 和多区域部署。当前直连实现使用 mTLS 和带版本的 Tunnel RPC。服务端检查客户端证书和插件绑定状态后才发送初始元数据 `rutis-link-accepted: 1`。客户端收到确认后挂载本地会话。
+
 关联 issue：[#7](https://github.com/arcships/rutis-network/issues/7)。依赖：[#1](https://github.com/arcships/rutis-network/issues/1)。
 
 ## 1. 定位
