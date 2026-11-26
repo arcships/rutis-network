@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	circuit "github.com/libp2p/go-libp2p/p2p/protocol/circuitv2/relay"
-	ma "github.com/multiformats/go-multiaddr"
 )
 
 func TestFrameLimits(t *testing.T) {
@@ -112,22 +112,24 @@ func TestDirectAndRelay(t *testing.T) {
 					t.Fatal(err)
 				}
 				t.Cleanup(func() { h.Close() })
-				reservations := make(chan struct{}, 1)
-				relay, err := circuit.New(h, circuit.WithACL(reservationWitness{reservations}))
+				serverCfg.Relay = h.Addrs()[0].String() + "/p2p/" + h.ID().String()
+				listener := start(t, serverCfg, echoService())
+				circuitAddr := serverCfg.Relay + "/p2p-circuit"
+				awaitRelay(t, listener, circuitAddr, false)
+				resources := circuit.DefaultResources()
+				resources.ReservationTTL = 3 * time.Second
+				relay, err := circuit.New(h, circuit.WithResources(resources))
 				if err != nil {
 					t.Fatal(err)
 				}
 				t.Cleanup(func() { relay.Close() })
-				serverCfg.Relay = h.Addrs()[0].String() + "/p2p/" + h.ID().String()
-				// Dial after the relay has received the listener's reservation.
-				listener := start(t, serverCfg, echoService())
-				awaitPhase(t, listener, "listening")
-				select {
-				case <-reservations:
-				case <-time.After(10 * time.Second):
-					t.Fatal("no relay reservation")
-				}
-				roundTrip(t, listener, config{KeyFile: clientKey, Dial: serverCfg.Relay + "/p2p-circuit/p2p/" + serverID.String()}, mode)
+				awaitRelay(t, listener, circuitAddr, true)
+				// The first reservation has expired by the time the dial starts.
+				time.Sleep(resources.ReservationTTL)
+				awaitRelay(t, listener, circuitAddr, true)
+				roundTrip(t, listener, config{KeyFile: clientKey, Dial: circuitAddr + "/p2p/" + serverID.String()}, mode)
+				h.Close()
+				awaitRelay(t, listener, circuitAddr, false)
 			} else {
 				listener := start(t, serverCfg, echoService())
 				s := awaitPhase(t, listener, "listening")
@@ -267,13 +269,14 @@ func TestRejectsUnlistedPeerAndExtraStream(t *testing.T) {
 	}
 }
 
-type reservationWitness struct{ granted chan struct{} }
-
-func (r reservationWitness) AllowReserve(peer.ID, ma.Multiaddr) bool {
-	select {
-	case r.granted <- struct{}{}:
-	default:
+func awaitRelay(t *testing.T, c *control, addr string, ready bool) {
+	t.Helper()
+	for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); {
+		s := c.Status()
+		if s.Phase == "listening" && s.RelayReady == ready && slices.Contains(s.ListenAddrs, addr) == ready {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
-	return true
+	t.Fatalf("waiting for relayReady=%t: %+v", ready, c.Status())
 }
-func (reservationWitness) AllowConnect(peer.ID, ma.Multiaddr, peer.ID) bool { return true }

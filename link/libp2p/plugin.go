@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"slices"
+	"reflect"
 	"sync"
 	"time"
 
@@ -13,7 +13,6 @@ import (
 	p2p "github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
-	"github.com/libp2p/go-libp2p/core/peer"
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -29,43 +28,77 @@ var Plugin = rutis.Define(rutis.Plugin[config]{
 		if err != nil {
 			return err
 		}
+		if cfg.ControlService != "" && !isolatedService(row, cfg.ControlService) {
+			return fmt.Errorf("controlService %q requires a matching row isolate", cfg.ControlService)
+		}
 		c := &control{row: row, opts: opts}
 		if err := row.Use("rutis/sessions", &c.service); err != nil {
 			return err
 		}
 		row.Effect(func(context.Context) error { return c.Stop() })
+		if err := c.Start(); err != nil {
+			return err
+		}
 		if cfg.ControlService != "" {
 			row.Provide(cfg.ControlService, c)
 		}
-		return c.Start()
+		return nil
 	},
 })
+
+// rutis v0.23 has no public accessor for the effective rows.load isolation map.
+// It validates these labels before Apply and never mutates them. Refuse to
+// publish controls if a future SDK changes this layout.
+func isolatedService(ctx *rutis.Ctx, name string) bool {
+	row := reflect.ValueOf(ctx).Elem().FieldByName("row")
+	if row.Kind() != reflect.Pointer || row.IsNil() || row.Elem().Kind() != reflect.Struct {
+		return false
+	}
+	labels := row.Elem().FieldByName("isolate")
+	if !labels.IsValid() || labels.Type() != reflect.TypeFor[map[string]string]() {
+		return false
+	}
+	label := labels.MapIndex(reflect.ValueOf(name))
+	return label.IsValid() && label.String() != ""
+}
 
 type snapshot struct {
 	Phase       string   `json:"phase"`
 	LocalPeer   string   `json:"localPeer,omitempty"`
 	ListenAddrs []string `json:"listenAddrs,omitempty"`
+	RelayReady  bool     `json:"relayReady"`
 	Peer        string   `json:"peer,omitempty"`
 	Path        string   `json:"path,omitempty"`
 	LastError   string   `json:"lastError,omitempty"`
 }
 
 type control struct {
-	row      context.Context
-	opts     settings
-	service  sessions
-	commands sync.Mutex
-	cancel   context.CancelFunc
-	done     chan struct{}
-	mu       sync.Mutex
-	state    snapshot
+	row          context.Context
+	opts         settings
+	service      sessions
+	commands     sync.Mutex
+	cancel       context.CancelFunc
+	done         chan struct{}
+	mu           sync.Mutex
+	state        snapshot
+	host         host.Host
+	relayExpires time.Time
 }
 
 func (c *control) Status() snapshot {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	s := c.state
-	s.ListenAddrs = slices.Clone(s.ListenAddrs)
+	if c.host != nil {
+		for _, addr := range c.host.Addrs() {
+			s.ListenAddrs = append(s.ListenAddrs, addr.String())
+		}
+		if relay := c.opts.relay; relay != nil && time.Now().Before(c.relayExpires) &&
+			c.host.Network().Connectedness(relay.ID) == network.Connected {
+			s.RelayReady = true
+			s.ListenAddrs = append(s.ListenAddrs, c.opts.circuitAddr)
+		}
+	}
 	return s
 }
 
@@ -82,18 +115,37 @@ func (c *control) Start() error {
 			return nil
 		}
 	}
-	ctx, cancel := context.WithCancel(c.row)
-	c.cancel = cancel
-	c.done = make(chan struct{})
 	c.mu.Lock()
 	c.state = snapshot{Phase: "starting"}
 	c.mu.Unlock()
+	h, err := c.newHost()
+	if err != nil {
+		c.mu.Lock()
+		c.state = snapshot{Phase: "failed", LastError: err.Error()}
+		c.mu.Unlock()
+		return err
+	}
+	ctx, cancel := context.WithCancel(c.row)
+	c.cancel = cancel
+	done := make(chan struct{})
+	c.done = done
+	c.mu.Lock()
+	c.host = h
+	c.state.LocalPeer = h.ID().String()
+	c.mu.Unlock()
 	go func() {
-		defer close(c.done)
 		defer cancel()
-		err := c.run(ctx)
+		// Closing the host interrupts a reservation or stream waiting for I/O.
+		closeHost := sync.OnceFunc(func() { h.Close() })
+		interrupt := context.AfterFunc(ctx, closeHost)
+		err := c.run(ctx, h)
+		interrupt()
+		closeHost()
 		c.mu.Lock()
 		defer c.mu.Unlock()
+		defer close(done)
+		c.host = nil
+		c.relayExpires = time.Time{}
 		c.state = snapshot{Phase: "disconnected"}
 		if err != nil && ctx.Err() == nil {
 			c.state.Phase = "failed"
@@ -118,7 +170,7 @@ func (c *control) Stop() error {
 	return nil
 }
 
-func (c *control) run(ctx context.Context) error {
+func (c *control) newHost() (host.Host, error) {
 	opts := []p2p.Option{p2p.Identity(c.opts.key), p2p.NoTransports, p2p.Transport(quic.NewTransport), p2p.NoListenAddrs}
 	if c.opts.listen != nil {
 		opts = append(opts, p2p.ListenAddrs(c.opts.listen))
@@ -128,21 +180,10 @@ func (c *control) run(ctx context.Context) error {
 	} else {
 		opts = append(opts, p2p.DisableRelay())
 	}
-	if c.opts.relay != nil {
-		// AutoRelay acquires and renews the reservation for the row's lifetime.
-		opts = append(opts, p2p.ForceReachabilityPrivate(), p2p.EnableAutoRelayWithStaticRelays([]peer.AddrInfo{*c.opts.relay}))
-	}
-	h, err := p2p.New(opts...)
-	if err != nil {
-		return err
-	}
-	defer h.Close()
-	c.mu.Lock()
-	c.state.LocalPeer = h.ID().String()
-	for _, a := range h.Addrs() {
-		c.state.ListenAddrs = append(c.state.ListenAddrs, a.String())
-	}
-	c.mu.Unlock()
+	return p2p.New(opts...)
+}
+
+func (c *control) run(ctx context.Context, h host.Host) error {
 	if c.opts.listen != nil {
 		return c.listen(ctx, h)
 	}
@@ -213,7 +254,11 @@ func (c *control) listen(ctx context.Context, h host.Host) error {
 	})
 	c.state.Phase = "listening"
 	c.mu.Unlock()
-	<-ctx.Done()
+	if c.opts.relay != nil {
+		c.maintainRelay(ctx, h)
+	} else {
+		<-ctx.Done()
+	}
 	h.RemoveStreamHandler(protocolID)
 	<-slot
 	return ctx.Err()

@@ -37,12 +37,13 @@ func rowSchema() map[string]any {
 }
 
 type settings struct {
-	key     crypto.PrivKey
-	dial    *peer.AddrInfo
-	listen  ma.Multiaddr
-	allowed peer.ID
-	relay   *peer.AddrInfo
-	circuit bool
+	key         crypto.PrivKey
+	dial        *peer.AddrInfo
+	listen      ma.Multiaddr
+	allowed     peer.ID
+	relay       *peer.AddrInfo
+	circuitAddr string
+	circuit     bool
 }
 
 func addressedPeer(value string) (*peer.AddrInfo, error) {
@@ -73,6 +74,7 @@ func (c config) parse() (settings, error) {
 			if s.relay, err = addressedPeer(c.Relay); err != nil {
 				return s, fmt.Errorf("relay: %w", err)
 			}
+			s.circuitAddr = s.relay.Addrs[0].String() + "/p2p/" + s.relay.ID.String() + "/p2p-circuit"
 		}
 	} else {
 		if c.AllowPeer != "" || c.Relay != "" {

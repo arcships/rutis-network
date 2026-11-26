@@ -42,11 +42,13 @@ Add the listener row to B's `rows`.
 }
 ```
 
-The default path is direct QUIC. For a relay, set B's optional `relay` to the relay's full multiaddr so B can reserve a slot. Set A's `dial` to `<relay multiaddr>/p2p-circuit/p2p/<B_PEER_ID>`. [Go relay example](https://github.com/libp2p/go-libp2p/blob/v0.52.0/examples/relay/main.go)
+The default path is direct QUIC. For a relay, set B's `relay` to the relay's full multiaddr. B reserves a slot and renews it automatically. To coordinate the first dial, enable controls on B and wait for `status().relayReady`. Take the address ending in `/p2p-circuit` from `listenAddrs`, append `/p2p/<B_PEER_ID>` and use it as A's `dial`. If the reservation expires or the relay disconnects, B clears readiness and retries. [Go relay example](https://github.com/libp2p/go-libp2p/blob/v0.52.0/examples/relay/main.go)
 
 ## Control the instance
 
-The row starts when loaded. Each dial makes one attempt. Call `start()` again after a disconnect. The listener keeps accepting new streams from its configured peer. A management plugin injects `office-link` with the matching `"isolate": {"office-link": "local"}`. The host exports root-scope services to peers, so keep the isolation setting when enabling controls. Edit and reload the row to change an address or key.
+The row starts when loaded. A listener that cannot bind its address fails to load with the bind error. Each dial makes one attempt. Call `start()` again after a disconnect. The listener keeps accepting new streams from its configured peer. Edit and reload the row to change an address or key.
+
+A management plugin injects `office-link` with the same `"isolate": {"office-link": "local"}` as the link row. Set this entry directly on the link row. rutis-host 0.23 passes the row's own isolation label to Go for a dynamically named service. A missing or misspelled entry fails the load before controls are published.
 
 | Method | Behavior |
 | --- | --- |

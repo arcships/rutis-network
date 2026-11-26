@@ -42,11 +42,13 @@ B 的 `rows` 加入监听行。
 }
 ```
 
-默认用 QUIC 直连。需要中继时，B 可加 `relay`，填中继的完整 multiaddr 并向它预约。A 的 `dial` 改为 `<中继 multiaddr>/p2p-circuit/p2p/<B_PEER_ID>`。[Go 中继示例](https://github.com/libp2p/go-libp2p/blob/v0.52.0/examples/relay/main.go)
+默认用 QUIC 直连。需要中继时，把中继的完整 multiaddr 填入 B 的 `relay`，B 会自动预约和续约。如需协调首次拨号，可在 B 启用控制服务，等 `status().relayReady` 为真后，从 `listenAddrs` 取出以 `/p2p-circuit` 结尾的地址，拼上 `/p2p/<B_PEER_ID>` 作为 A 的 `dial`。预约过期或中继断开后，B 会清除就绪状态并重新预约。[Go 中继示例](https://github.com/libp2p/go-libp2p/blob/v0.52.0/examples/relay/main.go)
 
 ## 插件管理
 
-配置加载后自动启动。拨号端每次启动尝试一次，断线后用 `start()` 重拨。监听端继续接受同一对端的新连接。管理插件注入 `office-link`，并设置相同的 `"isolate": {"office-link": "local"}`。根作用域的服务会导出给对端，启用控制服务时请保留示例中的隔离配置。改地址或密钥时，编辑配置并重载该行。
+配置加载后自动启动。监听地址绑定失败时，宿主会报告该行加载失败及绑定错误。拨号端每次启动尝试一次，断线后用 `start()` 重拨。监听端继续接受同一对端的新连接。改地址或密钥时，编辑配置并重载该行。
+
+管理插件注入 `office-link`，并与链接行使用相同的 `"isolate": {"office-link": "local"}`。请在提供控制服务的链接行上直接设置此项。对于动态命名的服务，rutis-host 0.23 会将行自身的隔离标签传给 Go 插件。漏配或拼错时，插件在发布控制服务前就会报告加载失败。
 
 | 方法 | 行为 |
 | --- | --- |

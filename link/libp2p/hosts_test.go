@@ -5,6 +5,8 @@ package libp2p
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +14,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	p2p "github.com/libp2p/go-libp2p"
+	circuit "github.com/libp2p/go-libp2p/p2p/protocol/circuitv2/relay"
 )
 
 // RUTIS_HOST may be used to select the rutis-host 0.23 executable.
@@ -19,6 +24,11 @@ func TestTwoHosts(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("rutis-host call needs a Unix control socket")
 	}
+	t.Run("direct", func(t *testing.T) { testTwoHosts(t, false) })
+	t.Run("relay", func(t *testing.T) { testTwoHosts(t, true) })
+}
+
+func testTwoHosts(t *testing.T, useRelay bool) {
 	host := os.Getenv("RUTIS_HOST")
 	if host == "" {
 		host = "rutis-host"
@@ -108,8 +118,22 @@ func TestTwoHosts(t *testing.T) {
 	}
 	alpha, aID := identity(t)
 	bravo, bID := identity(t)
-	observer := object{"id": "observer", "name": "go:link-test-probe", "config": object{"action": "witness"}, "isolate": isolate}
-	b := boot("bravo", config{KeyFile: bravo, Listen: "/ip4/127.0.0.1/udp/0/quic-v1", AllowPeer: aID.String()}, observer)
+	bConfig := config{KeyFile: bravo, Listen: "/ip4/127.0.0.1/udp/0/quic-v1", AllowPeer: aID.String()}
+	if useRelay {
+		h, err := p2p.New(p2p.ListenAddrStrings("/ip4/127.0.0.1/udp/0/quic-v1"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { h.Close() })
+		r, err := circuit.New(h)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { r.Close() })
+		bConfig.Relay = h.Addrs()[0].String() + "/p2p/" + h.ID().String()
+	}
+	observer := object{"id": "observer", "name": "go:link-test-probe", "config": object{"action": "witness", "relay": useRelay}, "isolate": isolate}
+	b := boot("bravo", bConfig, observer)
 	var address string
 	if err := json.Unmarshal([]byte(wait(b, "witness.address", true)), &address); err != nil {
 		t.Fatal(err)
@@ -136,4 +160,41 @@ func TestTwoHosts(t *testing.T) {
 	wait(a, "witness.echo", false, "stopped")
 	action("start")
 	echo()
+
+	if !useRelay {
+		static := config{KeyFile: alpha, Listen: "/ip4/127.0.0.1/udp/0/quic-v1", AllowPeer: bID.String()}
+		create := func(cfg config, parent string) (string, error) {
+			row := object{"id": "static", "name": "go:link-libp2p", "config": cfg}
+			if parent == "" {
+				return call(a, "rutis/loader.create", row)
+			}
+			return call(a, "rutis/loader.create", row, parent)
+		}
+		static.ControlService = "other-link"
+		for _, parent := range []string{"", "local-ops"} {
+			if out, err := create(static, parent); err == nil || !strings.Contains(out, "requires a matching row isolate") {
+				t.Fatalf("controlService without matching isolate: %v, %s", err, out)
+			}
+		}
+		// The host forwards inherited labels for declared services. This
+		// provider picks its service name dynamically, so it needs its own label.
+		static.ControlService = "office-link"
+		if out, err := create(static, "local-ops"); err == nil || !strings.Contains(out, "requires a matching row isolate") {
+			t.Fatalf("controlService with group-only isolation: %v, %s", err, out)
+		}
+		static.ControlService = ""
+		occupied, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer occupied.Close()
+		static.Listen = fmt.Sprintf("/ip4/127.0.0.1/udp/%d/quic-v1", occupied.LocalAddr().(*net.UDPAddr).Port)
+		if out, err := create(static, ""); err == nil || !strings.Contains(out, "address already in use") {
+			t.Fatalf("occupied listen address: %v, %s", err, out)
+		}
+		occupied.Close()
+		if out, err := create(static, ""); err != nil {
+			t.Fatalf("retry after releasing listen address: %v, %s", err, out)
+		}
+	}
 }

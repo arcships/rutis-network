@@ -5,12 +5,14 @@ package main
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/arcships/rutis/go/rutis"
 )
 
 type status struct {
 	ListenAddrs []string `json:"listenAddrs"`
+	RelayReady  bool     `json:"relayReady"`
 }
 type controls struct {
 	Status func(context.Context) (status, error)
@@ -18,7 +20,10 @@ type controls struct {
 	Start  func(context.Context) error
 }
 
-type witness struct{ control controls }
+type witness struct {
+	control controls
+	relay   bool
+}
 
 func (*witness) Echo(msg string) string { return msg }
 func (w *witness) Address(ctx context.Context) (string, error) {
@@ -26,14 +31,17 @@ func (w *witness) Address(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if len(s.ListenAddrs) == 0 {
-		return "", errors.New("listener is starting")
+	for _, addr := range s.ListenAddrs {
+		if strings.HasSuffix(addr, "/p2p-circuit") == w.relay && (!w.relay || s.RelayReady) {
+			return addr, nil
+		}
 	}
-	return s.ListenAddrs[0], nil
+	return "", errors.New("waiting for listener address")
 }
 
 type config struct {
 	Action string `json:"action,omitempty"`
+	Relay  bool   `json:"relay,omitempty"`
 }
 
 func main() {
@@ -50,7 +58,7 @@ func main() {
 			case "start":
 				return control.Start(ctx)
 			case "witness":
-				ctx.Provide("witness", &witness{control})
+				ctx.Provide("witness", &witness{control, c.Relay})
 				return nil
 			default:
 				return errors.New("unknown test action")
