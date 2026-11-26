@@ -17,17 +17,19 @@ type config struct {
 	Cert           string `json:"cert"`
 	Key            string `json:"key"`
 	ControlService string `json:"controlService"`
-	AutoStart      *bool  `json:"autoStart"`
-	Host           string `json:"host"`
-	Port           *int   `json:"port"`
-	ServerName     string `json:"servername"`
-	Reconnect      *bool  `json:"reconnect"`
+	// Older local configs injected the manager into the transport itself.
+	LegacyReceiver json.RawMessage `json:"controlReceiver"`
+	AutoStart      *bool           `json:"autoStart"`
+	Host           string          `json:"host"`
+	Port           *int            `json:"port"`
+	ServerName     string          `json:"servername"`
+	Reconnect      *bool           `json:"reconnect"`
 }
 
 func schema(dial bool) map[string]any {
 	text := map[string]any{"type": "string", "minLength": 1}
 	flag := map[string]any{"type": "boolean"}
-	props := map[string]any{"ca": text, "cert": text, "key": text, "controlService": text, "autoStart": flag}
+	props := map[string]any{"ca": text, "cert": text, "key": text, "controlService": text, "controlReceiver": false, "autoStart": flag}
 	minPort := 0
 	if dial {
 		minPort = 1

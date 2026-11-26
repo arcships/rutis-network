@@ -15,6 +15,7 @@ import (
 	"github.com/arcships/rutis/go/rutis"
 )
 
+const maxPendingHandshakes = 32
 const handshakeTimeout = 10 * time.Second
 const initialDelay = 500 * time.Millisecond
 const maxDelay = 30 * time.Second
@@ -207,15 +208,19 @@ func (c *control) bind(ctx context.Context, dest target) (net.Listener, *tls.Con
 	return listener, identity, nil
 }
 
-func (c *control) serveConn(ctx context.Context, conn net.Conn, identity *tls.Config) error {
+func admit(ctx context.Context, conn net.Conn, identity *tls.Config) (*tls.Conn, error) {
 	secure := tls.Server(conn, identity)
 	handshake, cancel := context.WithTimeout(ctx, handshakeTimeout)
 	err := secure.HandshakeContext(handshake)
 	cancel()
 	if err != nil {
 		conn.Close()
-		return err
+		return nil, err
 	}
+	return secure, nil
+}
+
+func (c *control) serveConn(ctx context.Context, secure *tls.Conn) error {
 	done, err := openStream(ctx, c.row, secure, c.sessions)
 	if err != nil {
 		return err
@@ -225,7 +230,8 @@ func (c *control) serveConn(ctx context.Context, conn net.Conn, identity *tls.Co
 	return <-done
 }
 
-func (c *control) accept(ctx context.Context, listener net.Listener, identity *tls.Config) {
+func (c *control) accept(ctx context.Context, listener net.Listener, identity *tls.Config, limit int) {
+	slots := make(chan struct{}, limit)
 	var clients sync.WaitGroup
 	defer clients.Wait()
 	stop := context.AfterFunc(ctx, func() { listener.Close() })
@@ -233,8 +239,14 @@ func (c *control) accept(ctx context.Context, listener net.Listener, identity *t
 	defer listener.Close()
 	backoff := initialDelay
 	for ctx.Err() == nil {
+		select {
+		case slots <- struct{}{}:
+		case <-ctx.Done():
+			return
+		}
 		conn, err := listener.Accept()
 		if err != nil {
+			<-slots
 			if ctx.Err() != nil {
 				break
 			}
@@ -257,7 +269,12 @@ func (c *control) accept(ctx context.Context, listener net.Listener, identity *t
 		clients.Add(1)
 		go func() {
 			defer clients.Done()
-			if err := c.serveConn(ctx, conn, identity); err != nil && ctx.Err() == nil {
+			secure, err := admit(ctx, conn, identity)
+			<-slots
+			if err == nil {
+				err = c.serveConn(ctx, secure)
+			}
+			if err != nil && ctx.Err() == nil {
 				code := errorCode(err)
 				c.update(func(s *snapshot) { s.LastError = code })
 				fmt.Fprintf(os.Stderr, "link/tcp listen %s %s\n", listener.Addr(), code)
@@ -267,6 +284,9 @@ func (c *control) accept(ctx context.Context, listener net.Listener, identity *t
 }
 
 func apply(row *rutis.Ctx, cfg config, dial bool) error {
+	if cfg.LegacyReceiver != nil {
+		return errors.New("move controlReceiver and its receiver injection to a go:link-tcp-attach row")
+	}
 	var sessions Sessions
 	if err := row.Use("rutis/sessions", &sessions); err != nil {
 		return err
@@ -285,7 +305,7 @@ func apply(row *rutis.Ctx, cfg config, dial bool) error {
 	if err := dest.validate(dial); err != nil {
 		return err
 	}
-	if managed && !validServiceName(cfg.ControlService) {
+	if !validServiceName(cfg.ControlService) {
 		return errors.New("invalid controlService name")
 	}
 	reconnect := managed && dial
@@ -294,10 +314,10 @@ func apply(row *rutis.Ctx, cfg config, dial bool) error {
 	}
 	c := newControl(row, cfg, sessions, dial, settings{target: dest, Reconnect: reconnect})
 	if managed {
+		row.Effect(func(context.Context) error { return c.stop() })
 		if cfg.AutoStart == nil || *cfg.AutoStart {
 			c.setRunning()
 		}
-		row.Effect(func(context.Context) error { return c.Stop() })
 		row.Provide(cfg.ControlService, c)
 		return nil
 	}
@@ -308,7 +328,7 @@ func apply(row *rutis.Ctx, cfg config, dial bool) error {
 			return err
 		}
 		row.Go(func(ctx context.Context) error {
-			c.accept(ctx, listener, identity)
+			c.accept(ctx, listener, identity, maxPendingHandshakes)
 			return nil
 		})
 		return nil

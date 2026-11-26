@@ -94,7 +94,7 @@ func receiveFrames(ctx context.Context, conn net.Conn, near Near) error {
 }
 
 // Open takes ownership of conn after admission. Pass the row's lifetime context.
-// The returned channel reports the result after the connection and session end.
+// The returned channel reports the result after transport shutdown and the end notification.
 func Open(parent context.Context, conn net.Conn, sessions Sessions) (<-chan error, error) {
 	return openStream(parent, parent, conn, sessions)
 }
@@ -131,7 +131,14 @@ func openStream(parent, row context.Context, conn net.Conn, sessions Sessions) (
 			closeConn()
 		},
 	}
-	near, err := sessions.Open(ctx, far)
+	// Opening mounts a child on the host. Keep the reply even if the transport
+	// stops in flight so that the child still receives its terminal End.
+	if err := ctx.Err(); err != nil {
+		cancel(err)
+		finish()
+		return nil, err
+	}
+	near, err := sessions.Open(row, far)
 	if err != nil {
 		cancel(err)
 		finish()

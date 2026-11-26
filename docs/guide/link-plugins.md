@@ -44,7 +44,7 @@ go -C link/tcp build -o ../../plugins/go/link-tcp ./cmd/link-tcp
 
 在 TCP 行配置 `controlService`，例如 `"office-tcp"`。需要控制连接时，把该服务名加入已有调用方的 `inject`，并在两行中为它设置相同的 `isolate` 标签。调用方用自身语言的 SDK 配置目标、启停传输、查询或等待状态变化。只需自动连接时，也可直接给 TCP 行配置端口，由宿主独立启动。
 
-托管拨号默认自动连接并重试。运行中改址立即切换，显式停止后改址则等待下次启动。重载后使用部署配置。也可以在插件运行中通过宿主的 `rutis/loader` 挂载和卸载 TCP 实例。[宿主配置、动态挂载与控制接口](../design/06-link-tcp-integration.md)
+托管拨号默认自动连接并重试。运行中改址会结束旧连接，再尝试新目标，显式停止后改址则等待下次启动。重载后使用部署配置。同一插件可通过 `rutis/loader` 挂载实例，由单独的 `go:link-tcp-attach` 行在管理插件启动或重启时交付已有连接的句柄。若要将 `wire:<plugin>` 行迁到另一端，先等待 TCP 行卸载，再以同一行 ID 创建新连接。[宿主配置、动态挂载与控制接口](../design/06-link-tcp-integration.md)
 
 ## TCP 字节流 bridge
 

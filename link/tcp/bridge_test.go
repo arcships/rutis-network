@@ -224,3 +224,51 @@ func TestPeerReset(t *testing.T) {
 		t.Fatalf("reset: %v", err)
 	}
 }
+
+func TestStopDuringOpenEndsLateSession(t *testing.T) {
+	row := t.Context()
+	transport, stop := context.WithCancel(row)
+	defer stop()
+	local, peer := net.Pipe()
+	defer peer.Close()
+	mounted := make(chan struct{})
+	reply := make(chan struct{})
+	finished := make(chan error, 1)
+	ends := 0
+	go func() {
+		done, err := openStream(transport, row, local, Sessions{Open: func(ctx context.Context, _ Far) (Near, error) {
+			close(mounted)
+			select {
+			case <-ctx.Done():
+				return Near{}, ctx.Err()
+			case <-reply:
+			}
+			return Near{End: func(ctx context.Context, why CloseReason) error {
+				if ctx.Err() != nil || why.Kind != "done" {
+					t.Errorf("unexpected end: %v, %v", ctx.Err(), why)
+				}
+				ends++
+				return nil
+			}}, nil
+		}})
+		if err == nil {
+			err = <-done
+		}
+		finished <- err
+	}()
+	<-mounted
+	stop()
+	peer.SetReadDeadline(time.Now().Add(2 * time.Second))
+	if _, err := readFrame(peer); err != io.EOF {
+		t.Fatalf("transport still open: %v", err)
+	}
+	close(reply)
+	select {
+	case err := <-finished:
+		if !errors.Is(err, context.Canceled) || ends != 1 {
+			t.Fatalf("result %v, ended %d times", err, ends)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("late session did not finish")
+	}
+}

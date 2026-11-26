@@ -44,7 +44,7 @@ Configure the dialing host with the listener’s port, its trusted CA and a clie
 
 Set `controlService` on the TCP row, for example `"office-tcp"`. To control the connection, add that name to the existing caller’s `inject` and map it to the same `isolate` label on both rows. The caller uses its own SDK to configure an endpoint, start or stop the transport, and read or wait for status changes. The TCP row can also start on its own with a configured port.
 
-Managed dialers connect and retry automatically by default. Updating the endpoint switches immediately while running. After an explicit stop, edits take effect on the next start. Reload restores deployment settings. Plugins can also mount and unload TCP instances through the host’s `rutis/loader` at runtime. [Host configuration, dynamic mounting and control API](../design/06-link-tcp-integration.en.md)
+Managed dialers connect and retry by default. Changing a live endpoint closes the old transport before the dialer tries the new target. After an explicit stop, edits apply on the next start. The same plugin can mount a row with `rutis/loader`. A separate `go:link-tcp-attach` row delivers its control handle when the manager starts or restarts. To move `wire:<plugin>` rows to another peer, wait for the TCP row to unload, then create the new connection under the same row ID. [Host configuration, dynamic mounting and control API](../design/06-link-tcp-integration.en.md)
 
 ## TCP byte-stream bridge
 

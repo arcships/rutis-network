@@ -29,20 +29,20 @@ func TestInvalidPatchPreservesSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	before := c.Status()
+	before := c.snapshot()
 	for _, patch := range []map[string]any{
 		nil, {"port": nil}, {"port": "443"}, {"port": 2.5}, {"port": 0},
 		{"host": "https://localhost"}, {"host": "fe80::1%bad\nzone"},
 		{"host": "elsewhere", "servername": "[::1]"}, {"servername": "fe80::1%lo"},
 		{"ca": "elsewhere"}, {"autoStart": false}, {"reconnect": "no"},
 	} {
-		if err := c.Configure(patch); err == nil || c.Status().Cursor != before.Cursor {
-			t.Fatalf("unexpected change for %#v: %+v, %v", patch, c.Status(), err)
+		if err := c.Configure(patch); err == nil || c.snapshot().Cursor != before.Cursor {
+			t.Fatalf("unexpected change for %#v: %+v, %v", patch, c.snapshot(), err)
 		}
 	}
 	// Go consumers in the same process also get an independent snapshot.
 	*before.Config.Port = 0
-	if *c.Status().Config.Port != 443 {
+	if *c.snapshot().Config.Port != 443 {
 		t.Fatal("mutating a returned snapshot changed the configuration")
 	}
 }
@@ -51,7 +51,7 @@ func TestControlWaitCancellationAndConcurrentUpdates(t *testing.T) {
 	row, unload := context.WithCancel(t.Context())
 	defer unload()
 	c := newControl(row, config{}, Sessions{}, true, settings{})
-	initial := c.Status()
+	initial := c.snapshot()
 	cancelled, cancel := context.WithCancel(row)
 	cancel()
 	if _, err := c.WaitForChange(cancelled, initial.Cursor); !errors.Is(err, context.Canceled) {
@@ -80,7 +80,7 @@ func TestControlWaitCancellationAndConcurrentUpdates(t *testing.T) {
 	}
 	writers.Wait()
 	watchers.Wait()
-	cursor := c.Status().Cursor
+	cursor := c.snapshot().Cursor
 	unload()
 	if _, err := c.WaitForChange(context.Background(), cursor); !errors.Is(err, context.Canceled) {
 		t.Fatalf("row unload returned %v", err)

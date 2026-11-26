@@ -4,8 +4,9 @@ import { request } from 'node:http'
 import { createServer } from 'node:net'
 import { once } from 'node:events'
 import { join } from 'node:path'
+import { writeFile } from 'node:fs/promises'
 import { setTimeout as delay } from 'node:timers/promises'
-import { row, setup, startHost } from './fixtures/hosts.mjs'
+import { exec, project, row, setup, startHost } from './fixtures/hosts.mjs'
 
 function instance(env, id, mode, config = {}) {
   const service = id + '-control'
@@ -71,6 +72,73 @@ test('a TCP row mounted by the loader inherits the group’s local control scope
   await assert.rejects(harbor.rootCall(link.service + '.status'), /no row provides coast-control/)
   await coast.rootCall('rutis/loader.remove', [wire.id])
   await harbor.until(s => s.connections === 0)
+})
+
+test('a dynamic TCP row survives manager and business plugin restarts until the transport is removed', { timeout: 45000 }, async t => {
+  const env = await setup(t)
+  await exec('go', ['build', '-o', join(env.goDir, 'mounter'), './test/fixtures/mounter'], { cwd: project })
+  const isolate = { 'office-tcp': 'management', 'office-owner': 'management' }
+  const owner = row('owner', 'go:mounter', {})
+  const binding = { ...row('deliver', 'go:link-tcp-attach', {
+    controlService: 'office-tcp', controlReceiver: 'office-owner',
+  }), inject: ['office-tcp', 'office-owner'] }
+  const beacon = proof => row('beacon', 'test/fixtures/witness.mjs', { proof })
+  const coast = await startHost(env, 'coast', [
+    { id: 'local-links', group: true, isolate, config: [binding, owner] }, beacon('first'),
+  ])
+  await coast.waitFor(/owner: running/)
+  const config = { ...env.identity, controlService: 'office-tcp', autoStart: false }
+  const invoke = async (method, ...args) => {
+    const { stdout } = await coast.rootCall('test-driver.invoke', [method, args])
+    return stdout.trim() ? JSON.parse(stdout) : null
+  }
+  const mount = () => coast.rootCall('test-driver.mount', [config])
+  const remove = () => coast.rootCall('test-driver.remove')
+  assert.equal(JSON.parse((await mount()).stdout), 'wire')
+  const initial = await invoke('status')
+  assert.equal(initial.phase, 'idle')
+  await assert.rejects(coast.rootCall('rutis/loader.create', [{
+    id: 'obsolete', name: 'go:link-tcp-listen',
+    config: { ...env.identity, port: 0, controlReceiver: 'office-owner' },
+  }, 'local-links']), /controlReceiver/)
+  const changed = invoke('waitForChange', initial.cursor)
+  await invoke('configure', { port: 0 })
+  assert.equal((await changed).config.port, 0)
+  await invoke('start')
+  let state = await invoke('status')
+  while (state.phase === 'starting') state = await invoke('waitForChange', state.cursor)
+  assert.equal(state.phase, 'listening')
+  assert.ok(state.boundPort > 0)
+  const peer = await managed(env, 'peer', 'dial', { port: state.boundPort, reconnect: false })
+  await peer.call('first')
+  const connected = await peer.until(s => s.phase === 'connected')
+  const listening = await invoke('status')
+  assert.equal(listening.connections, 1)
+
+  // During the manager's absence even a single lost socket would take this
+  // single-attempt dialer to failed. Its source port and cursor stay fixed.
+  await assert.rejects(peer.rootCall('office-tcp.status'), /no row provides office-tcp/)
+  await assert.rejects(peer.rootCall('office-owner.attach'), /no row provides office-owner/)
+  await coast.rootCall('rutis/loader.remove', ['owner'])
+  await peer.call('first', 38)
+  await coast.rootCall('rutis/loader.create', [owner, 'local-links'])
+  assert.deepEqual(await invoke('status'), listening)
+
+  await coast.rootCall('rutis/loader.remove', ['beacon'])
+  await coast.rootCall('rutis/loader.create', [beacon('second')])
+  await peer.call('second', 39)
+  assert.deepEqual(await peer.invoke('status'), connected)
+  assert.deepEqual(await invoke('status'), listening)
+
+  // Unloading the actual TCP row closes the connection and its old handle.
+  await remove()
+  await peer.until(s => s.phase === 'failed')
+  await assert.rejects(invoke('status'))
+  await mount()
+  const fresh = await invoke('waitForChange', initial.cursor)
+  assert.equal(fresh.phase, 'idle')
+  assert.notEqual(fresh.cursor, initial.cursor)
+  await remove()
 })
 
 test('managed controls stay local and usable across stop, reconfigure and reload', { timeout: 45000 }, async t => {
@@ -242,4 +310,60 @@ test('two TCP instances on one host retain independent controls and cursors', { 
   await left.invoke('configure', { port: b.boundPort })
   assert.equal((await left.invoke('status')).phase, 'stopped')
   assert.deepEqual(await right.invoke('status'), b)
+})
+
+test('remounting a TCP row on a new peer moves its remote plugin after old children unload', { timeout: 30000 }, async t => {
+  const env = await setup(t)
+  async function listener(id) {
+    const host = await managed(env, id, 'listen', { port: 0 }, [
+      row('beacon', 'test/fixtures/witness.mjs', { proof: id }),
+    ])
+    return {
+      port: (await host.until(s => s.phase === 'listening')).boundPort,
+      pid: JSON.parse((await host.rootCall('witness.pid')).stdout),
+    }
+  }
+  const first = await listener('first')
+  const second = await listener('second')
+  const release = join(env.dir, 'release-consumer')
+  const wire = port => row('wire', 'go:link-tcp-dial', {
+    ...env.identity, port, controlService: 'office-tcp', reconnect: false,
+  })
+  const coast = await startHost(env, 'coast', [
+    { id: 'local-links', group: true, isolate: { 'office-tcp': 'management' }, config: [wire(first.port)] },
+    row('consumer', 'test/fixtures/slow-consumer.mjs', { release }),
+    { id: 'remote-app', name: 'wire:' + join(project, 'test/fixtures/remote-marker.mjs') },
+  ])
+  const marker = async () => JSON.parse((await coast.rootCall('routed-marker.pid')).stdout)
+  try {
+    await coast.call('first')
+    await coast.waitFor(/consumer: running/)
+    await coast.waitFor(/remote-app: running/)
+    assert.equal(await marker(), first.pid)
+
+    const offset = coast.output().length
+    let removed = false
+    await Promise.all([
+      coast.rootCall('rutis/loader.remove', ['wire']).then(() => { removed = true }),
+      (async () => {
+        await coast.waitFor(/waiting for consumer cleanup/, offset)
+        assert.equal(removed, false)
+        await writeFile(release, '')
+      })(),
+    ])
+    await coast.rootCall('rutis/loader.create', [wire(second.port), 'local-links'])
+    await coast.call('second')
+    let last
+    for (let i = 0; i < 50; i++) {
+      try {
+        const pid = await marker()
+        assert.equal(pid, second.pid)
+        return
+      } catch (err) { last = err }
+      await delay(50)
+    }
+    assert.fail([last, (await coast.rootCall('rutis/loader.status')).stdout, coast.output()].join('\n'))
+  } finally {
+    await writeFile(release, '')
+  }
 })

@@ -95,13 +95,23 @@ func (s snapshot) clone() snapshot {
 	return s
 }
 
-func (c *control) Status() snapshot {
+func (c *control) snapshot() snapshot {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.state.clone()
 }
 
+func (c *control) Status() (snapshot, error) {
+	if err := c.row.Err(); err != nil {
+		return snapshot{}, err
+	}
+	return c.snapshot(), nil
+}
+
 func (c *control) WaitForChange(ctx context.Context, cursor string) (snapshot, error) {
+	if err := c.row.Err(); err != nil {
+		return snapshot{}, err
+	}
 	c.mu.Lock()
 	current, changed := c.state, c.changed
 	c.mu.Unlock()
@@ -114,7 +124,7 @@ func (c *control) WaitForChange(ctx context.Context, cursor string) (snapshot, e
 	case <-c.row.Done():
 		return snapshot{}, c.row.Err()
 	case <-changed:
-		return c.Status(), nil
+		return c.Status()
 	}
 }
 
@@ -153,12 +163,12 @@ func (c *control) launch(options settings) {
 			})
 			return
 		}
-		c.accept(ctx, listener, identity)
+		c.accept(ctx, listener, identity, maxPendingHandshakes)
 	}()
 }
 
 func (c *control) setRunning() {
-	s := c.Status()
+	s := c.snapshot()
 	if s.Config.Port == nil {
 		c.update(func(s *snapshot) {
 			s.Desired = "running"
@@ -176,7 +186,7 @@ func (c *control) Start() error {
 	if err := c.row.Err(); err != nil {
 		return err
 	}
-	if c.Status().Config.Port == nil {
+	if c.snapshot().Config.Port == nil {
 		return errors.New("configure port before starting")
 	}
 	c.setRunning()
@@ -184,6 +194,13 @@ func (c *control) Start() error {
 }
 
 func (c *control) Stop() error {
+	if err := c.row.Err(); err != nil {
+		return err
+	}
+	return c.stop()
+}
+
+func (c *control) stop() error {
 	c.commands.Lock()
 	defer c.commands.Unlock()
 	c.update(func(s *snapshot) { s.Desired = "stopped" })
@@ -205,7 +222,7 @@ func (c *control) Configure(patch map[string]any) error {
 	if err := c.row.Err(); err != nil {
 		return err
 	}
-	old := c.Status()
+	old := c.snapshot()
 	next, err := old.Config.patch(patch, c.dial)
 	if err != nil {
 		return err

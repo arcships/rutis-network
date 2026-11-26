@@ -5,4 +5,4 @@ import (
 	"github.com/arcships/rutis/go/rutis"
 )
 
-func main() { rutis.Serve(tcp.Dial, tcp.Listen) }
+func main() { rutis.Serve(tcp.Dial, tcp.Listen, tcp.Attach) }

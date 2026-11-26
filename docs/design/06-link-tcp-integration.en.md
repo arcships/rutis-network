@@ -1,6 +1,6 @@
 # Managing a TCP plugin connection
 
-A plugin in any language supported by rutis can use this interface. The Go binary provides TCP dial and listen. Each managed instance publishes its own rutis service, which remains available while disconnected. This API targets rutis 0.23.0. [中文](06-link-tcp-integration.md) · [Build and deployment](../guide/link-plugins.en.md)
+A plugin in any language supported by rutis can use this interface. The Go binary provides TCP dial and listen. Each managed instance publishes its control object as a named service. It stays usable while disconnected. This API targets rutis 0.23.0. [中文](06-link-tcp-integration.md) · [Build and deployment](../guide/link-plugins.en.md)
 
 ## Mount the plugin through the host
 
@@ -44,20 +44,47 @@ For example, when a user selects a server, pass the object `{"host":"office.exam
 
 ## Mount from plugin code at runtime
 
-In an application running under `rutis-host run`, a plugin in any supported language can inject the host's `rutis/loader` service to create and remove TCP instances. In 0.23.0, `create` accepts `id`, `name`, `config`, `disabled` and `inject` as row options. To mount an instance with a control service, declare an isolated group in the host's `rows` first. [Upstream method signature](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-loader/src/loader/service.rs)
+When the host declares the TCP row, the manager can inject its `controlService` directly. A manager that creates the TCP row at runtime can use `go:link-tcp-attach` from the same Go binary. This optional row delivers the TCP control handle whenever both the named control service and the manager's receiver are available.
+
+Declare the following isolated group. Put the manager in the group or give its `office-owner` service the same isolation label. A holder of the control object can operate the link. Keep both services within the local management scope.
 
 ```json
 {
   "id": "local-links",
   "group": true,
-  "isolate": { "office-tcp": "management" },
-  "config": []
+  "isolate": { "office-tcp": "management", "office-owner": "management" },
+  "config": [
+    {
+      "id": "deliver",
+      "name": "go:link-tcp-attach",
+      "inject": ["office-tcp", "office-owner"],
+      "config": { "controlService": "office-tcp", "controlReceiver": "office-owner" }
+    }
+  ]
 }
 ```
 
-1. The mounting plugin declares `inject: ["rutis/loader"]`. From an event or service method after startup, call `create(options, "local-links")`. Pass the TCP row's `id`, `name` and `config` from the example above as the first argument. The second argument is the parent group ID. The new instance inherits the group's isolation. The call returns the row ID.
-2. The plugin using the connection injects `office-tcp` as shown above. The entry point that creates the instance must be able to run before this service exists. A required dependency on the service would leave the creator waiting for itself.
-3. Call `stop()` to disconnect and retain the instance. To unload it, call `remove(row ID)` on `rutis/loader`. In `run` mode the host writes row additions and removals back to `rutis.json`.
+The manager injects `rutis/loader` and provides `office-owner.attach(handle)`, storing each handle it receives. For the initial mount, call `rutis/loader.create(options, "local-links")` from an event or service method after the manager has started. Use the options below. The TCP row publishes `office-tcp` and the plugin declares its own transport dependencies. `rutis-host run` persists the new row in the host configuration. [Loader API](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-loader/src/loader/service.rs)
+
+```json
+{
+  "id": "wire",
+  "name": "go:link-tcp-dial",
+  "config": {
+    "controlService": "office-tcp",
+    "autoStart": false,
+    "ca": "/etc/link/peer-ca.pem",
+    "cert": "/etc/link/client.pem",
+    "key": "/etc/link/client.key"
+  }
+}
+```
+
+`create` returns the row ID. Receipt of `attach` signals that the control object is ready. Prepare the receiver before calling `create` and allow the callback to run while waiting. Go's `Attach` can accept a `*advanced.Service`. Other languages receive their SDK's remote object proxy. Give each independently managed connection its own service names and attachment row. [Go creator and receiver](../../link/tcp/test/fixtures/mounter/main.go)
+
+The TCP row keeps its socket, runtime configuration and status cursor across manager restarts. When the manager provides `office-owner` again, `deliver` calls `attach` again. Store that handle to resume control of the existing row. Other consumers can keep using the connection when a business plugin restarts. Unloading the TCP row closes its socket and invalidates its handle. Reloading it creates a fresh instance using deployment settings. An explicit `stop()` closes the transport and leaves its control service available.
+
+To migrate the local `controlReceiver` draft, move that field and the receiver injection from the TCP row to `deliver`, then set `controlService` on the TCP row.
 
 ## Methods
 
@@ -65,7 +92,7 @@ In an application running under `rutis-host run`, a plugin in any supported lang
 | --- | --- |
 | `configure(options)` | Apply a patch. A dialer accepts `host`, `port` (1–65535), `servername` and `reconnect`. A listener accepts `port` (0–65535). Omitted fields retain their values. Pass `null` for `host` or `servername` to clear an override. Validation precedes any change. An invalid or identical patch preserves the current connection. |
 | `start()` | Start once a port is configured. Repeated starts share the active attempt. An explicit start after failure tries again. A missing port returns an error. The call returns when the request is accepted. Read the connection or bind result from the snapshot. |
-| `stop()` | Cancel the active attempt and retry timer, then release the dial socket or the listener and all its clients. Returns after cleanup. Repeated calls are safe, and runtime settings remain available. |
+| `stop()` | Cancel the active attempt and retry timer, then release the dial socket or the listener and all its clients. Returns after transport cleanup. Repeated calls are safe, and runtime settings remain available. |
 | `status()` | Return the latest snapshot immediately. |
 | `waitForChange(cursor)` | Wait for the next change if the cursor matches, otherwise return the latest snapshot immediately. A cancellable call context can end the wait. After reload, reacquire the service and pass the old cursor to get the new instance's snapshot. |
 
@@ -85,7 +112,13 @@ In an application running under `rutis-host run`, a plugin in any supported lang
 ## Startup, retries and endpoint changes
 
 - Managed instances default to `autoStart: true`, and managed dialers to `reconnect: true`. A row without a port provides its control service and starts once configured. With `autoStart: false`, it waits for an explicit start. Static rows omit `controlService`, require a port, and start at load. Static dial defaults to a single attempt.
-- Changing a running instance's host, port or TLS name ends the old connection and backoff, then attempts the new target immediately, including with `reconnect: false`. Rebinding a listener releases all its clients. A busy port yields `failed` and `EADDRINUSE`. Change the port or call `start()` to retry.
+- Changing a running instance's host, port or TLS name ends the old connection and backoff, then attempts the new target, including with `reconnect: false`. Rebinding a listener releases all its clients. A busy port yields `failed` and `EADDRINUSE`. Change the port or call `start()` to retry.
 - Changing only retry policy preserves a healthy socket. Disabling retries during backoff cancels the next attempt. Enabling them after a transient failure resumes dialing. Delays double from 0.5 to 30 seconds and reset after a connection lasts 60 seconds. Certificate rejection or invalid local credentials wait 30 seconds. A known incompatible TLS transport stops automatic attempts. Each new connection starts a fresh session. Old calls are never replayed.
 - After `stop()`, changing the endpoint only updates the instance's settings. Its next `start()` uses the new target. Runtime edits live in memory. Reload and host restart restore deployment settings.
 - Dial supports DNS, IPv4 and IPv6. TLS verifies the explicit `servername`, otherwise the explicit `host`. A port-only row still dials `127.0.0.1` and verifies `localhost`. Listen binds to IPv4 loopback. Use a reverse tunnel when forwarding is required. [Transport design](06-link-tcp.en.md)
+
+## Switching a row that hosts remote plugins
+
+Use `configure` to switch endpoints for ordinary cross-host service calls. If the host also runs remote plugins through `wire:<plugin>`, rutis 0.23.0 acknowledges the end of input through `near.end` while old plugins may still be unloading. The old session can still own the row's route when the new socket connects.
+
+To move these plugins reliably to another host, await `rutis/loader.remove("wire")`, then call `rutis/loader.create(options, "local-links")`. Reuse `id: "wire"` and the original isolation group. Supply the new endpoint and desired settings in `options.config`. The host releases the old row and mounts the existing `wire:<plugin>` rows on the new peer. The new TCP instance has its own control handle and cursor. A successful service call confirms application readiness. [Release-host integration test](../../link/tcp/test/control.test.mjs)

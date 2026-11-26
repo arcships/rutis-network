@@ -18,10 +18,10 @@ Session protocol 5 handles transparent chunking of a single large call. In 0.23.
 
 - Go listen binds to `127.0.0.1`. Dial defaults to the same address and also accepts DNS, IPv4 and IPv6 targets. A listener may bind port zero and reports its assigned port. Both ends verify peer certificates. Only locally authenticated mutual TLS sockets reach the bridge. Isolated framing tests may use raw loopback TCP.
 - The static dial row preserves #11's single-attempt default. With `reconnect: true`, the adapter initiates the first attempt and creates a fresh socket and session after disconnect. Old frames are never replayed. Transient network failures back off exponentially from 0.5 to 30 seconds. A connection lasting 60 seconds resets the delay. Known certificate rejection waits 30 seconds. A known incompatible transport protocol stops retries. Non-Rust callers lack the rutis handshake result and treat an unknown disconnect as transport loss.
-- The listener accepts multiple connections and opens a session for each. Handshakes and reads proceed independently. Unload closes the listening socket, sockets still negotiating TLS and admitted connections. Listener resource errors retry after a delay.
+- The listener accepts multiple connections and opens a session for each. Each listener admits up to 32 concurrent TLS handshakes. Additional connections wait in the OS listen backlog. A completed handshake releases its slot while the session reads independently. Unload closes the listening socket, sockets still negotiating TLS and admitted connections. Listener resource errors retry after a delay.
 - The first session under a row registers its addressing handle. Non-Rust `open` does not expose the greeted ID. A Rust listener can use `Session::handshake` and mount a replacement after the old session unloads. [Rust example](../../examples/rust-listen/src/lib.rs)
 
-Managed rows opt into runtime endpoint changes, automatic connection, retries and status observation with `controlService`. The provider and manager isolate this service on the host. [Control API and scope configuration](06-link-tcp-integration.en.md)
+A managed TCP row owns its sockets and retry loop and publishes its controls through an isolated `controlService`. A manager can inject that service directly or receive its handle through a separate `go:link-tcp-attach` row. The TCP row keeps running when the manager restarts. [Control API and scope configuration](06-link-tcp-integration.en.md)
 
 ## Reverse-tunnel trust boundaries
 
