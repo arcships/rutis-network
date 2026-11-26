@@ -10,15 +10,17 @@ Baseline: rutis 0.21.0 (session protocol 4, `rutis.json` format 1, plugin API 3)
 - [ ] The far end's `Hello` id names remote plugins `<id>:<plugin>`; the link plugin does not assign or rewrite it.
 - [ ] One channel = one session; session lifecycle is bound to the channel.
 - [ ] Reconnect/backoff lives in the link plugin, not in the session.
-- [ ] A listen side opens one session per connection. Same-id replacement is either implemented in Rust with `Session::handshake` + `Greeted::id()`, or explicitly documented as unavailable in other languages (as of 0.21.0, `open(far)` does not expose the id).
+- [ ] A listen side opens one session per connection. Same-id replacement is implemented in Rust with `Session::handshake` + `Greeted::id()`; non-Rust is **unsupported** (0.21.0 `open(far)` has no id, and `session_key(row)` is first-wins).
+- [ ] No cross-link `links` manager, global `connect` service, cross-link registry or central credential store; composition is row + session + service name.
+- [ ] WebSocket is the core's `websocket::dial` / `listen`, not a new link plugin; plain HTTP is not a link; localhost TCP is the first reference adapter.
 
 ## Framing
 
-- [ ] Bytes are framed into messages; length prefix is preferred.
+- [ ] Bytes are framed into messages; 4-byte length prefix is the default, newline framing only for `pipe::framed`-compatible far ends; never mix.
 - [ ] Message boundaries and order survive.
-- [ ] Maximum message size is enforced before allocation; over-limit closes cleanly.
-- [ ] Backpressure: a slow receiver does not grow memory without bound; an async `send` is awaited.
-- [ ] Close / half-close maps to `near.end`; the transport closes exactly once.
+- [ ] Maximum message size is enforced before allocation; over-limit closes cleanly. The 16 MiB limit is bridge policy, not a `Channel` contract.
+- [ ] Backpressure: a slow receiver does not grow memory without bound; an async `send` is awaited; Rust sets `SessionOptions::outbound_limit`, non-Rust notes the API gap.
+- [ ] Close / EOF maps to `near.end`; the session has no half-close; the transport closes both directions exactly once.
 - [ ] No unbounded buffering, no hidden retry that replays session messages.
 
 ## Lifecycle
@@ -27,7 +29,8 @@ Baseline: rutis 0.21.0 (session protocol 4, `rutis.json` format 1, plugin API 3)
 - [ ] Session unloads → adapter connection closes.
 - [ ] Link plugin unloads → its sessions unload and connections close.
 - [ ] The adapter cleanup is registered once; it does not register another cleanup or wait for one (0.20 unload order).
-- [ ] Listen replacement: old remote plugins unload, old channel closes (4002 where the transport has it), new session mounts. Rust only, or documented.
+- [ ] Listen replacement: old remote plugins unload, old channel closes (4002 where the transport has it), new session mounts. Rust only.
+- [ ] Heartbeat is adapter-specific (SSH keepalive, WebSocket ping, gRPC keepalive, Tailscale); the bridge adds no generic heartbeat frame.
 - [ ] Handshake failure does not disturb existing sessions.
 - [ ] Errors name the row/connection and the adapter address; no secrets.
 - [ ] Errors are matched by `code`, not text (0.21).
@@ -46,7 +49,7 @@ Baseline: rutis 0.21.0 (session protocol 4, `rutis.json` format 1, plugin API 3)
 
 ## Docs
 
-- [ ] `docs/guide/link-plugins.md` and `.en.md` have the adapter section.
+- [ ] This repository's `docs/guide/link-plugins.md` and `.en.md` have the adapter section.
 - [ ] What to install/configure; admission method; what is not passed to rutis.
 - [ ] Normal output and error output; use error codes where the text is not stable (0.21).
 - [ ] Reconnect/backoff and listen replacement (or its documented limitation).
