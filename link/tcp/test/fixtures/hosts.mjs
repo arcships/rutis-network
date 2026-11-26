@@ -95,5 +95,5 @@ export async function startHost(env, id, rows) {
     }
     assert.fail([last, proc.output()].join('\n'))
   }
-  return { ...proc, reload, call, invoke }
+  return { ...proc, reload, call }
 }

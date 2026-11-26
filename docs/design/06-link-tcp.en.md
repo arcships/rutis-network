@@ -10,7 +10,9 @@ A frame contains an unsigned four-byte big-endian length followed by exactly tha
 
 EOF at a frame boundary ends the connection normally. An incomplete header or payload fails with `truncated-frame`, an oversized frame with `frame-too-large`, and a reset retains its transport error code. Closing either direction releases the whole socket. Unload interrupts pending I/O. TCP carries bytes and EOF. WebSocket carries its own 4002/4003 close codes.
 
-Protocol 5 supports chunking for transports that advertise a message limit. In 0.23.0 the `FarSender` created by `sessions.open(far)` inherits `max_message() = None`. An encoded session message over 16 MiB can therefore reach the bridge in a single send and close that connection with `frame-too-large`. The host integration test covers a 4 MiB binary round trip and this failure for a 17 MiB value while another client remains connected. [Upstream sender](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/open.rs) · [Channel limit](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/channel/mod.rs)
+On rutis 0.23.0, applications transfer large values in chunks and reassemble them in order. The integration test echoes 17 MiB of random binary data as four 4 MiB chunks and a final 1 MiB chunk on one connection. It compares the reassembled result byte for byte and makes another call on the same connection. The test uses 4 MiB to leave room for session encoding and metadata.
+
+Session protocol 5 handles transparent chunking of a single large call. In 0.23.0, `sessions.open(far)` cannot advertise the transport's frame limit, so an encoded message over 16 MiB can close the connection. When a rutis release exposes that limit, the plugin will declare 16 MiB and the host suite will exercise a single 17 MiB call, checking that each frame fits, the complete value is delivered once and the connection stays usable. [Upstream issue and measured behavior](https://github.com/arcships/rutis/issues/1411)
 
 ## Dial, listen and reconnect
 

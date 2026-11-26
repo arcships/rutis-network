@@ -10,7 +10,7 @@ import { rootCertificates } from 'node:tls'
 import dial from '../dial.ts'
 import { row, setup, startHost } from './fixtures/hosts.mjs'
 
-test('Go and TypeScript clients, mTLS admission, frame limits, row unload and reconnection', async t => {
+test('Go and TypeScript clients, mTLS admission, chunked echo, row unload and reconnection', async t => {
   const env = await setup(t)
   const proof = randomUUID()
   const witness = row('beacon', 'test/fixtures/witness.mjs', { proof })
@@ -40,10 +40,9 @@ test('Go and TypeScript clients, mTLS admission, frame limits, row unload and re
   const reference = await startHost(env, 'reference', [row('dial', 'dial.ts', config)])
   await Promise.all([coast.call(proof), island.call(proof), reference.call(proof)])
 
-  await island.call(proof, 4 * 1024 * 1024, 'probe.roundTrip')
-  // rutis 0.23's sessions.open sender cannot advertise the bridge's frame cap.
-  await assert.rejects(island.invoke('probe.roundTrip', 17 * 1024 * 1024), { code: 1 })
-  await island.waitFor(/frame-too-large/)
+  await island.call(proof, 17 * 1024 * 1024, 'probe.roundTripChunks')
+  // This row dials once. A subsequent call must travel over the same connection.
+  await island.call(proof, 73)
   await coast.call(proof)
   await reference.call(proof)
 

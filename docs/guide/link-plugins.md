@@ -56,7 +56,7 @@ cargo test --locked --manifest-path examples/rust-listen/Cargo.toml
 
 在拨号配置中设置 `"reconnect": true` 即可常驻重拨。默认校验服务端名称 `localhost`。通过回环转发其他服务时，用 `servername` 指定对端证书上的预期 DNS 名称。每次尝试会重新读取证书和私钥，可在轮换后恢复连接。每次连接创建新的会话和帧流。临时错误的输出形如 `link/tcp 127.0.0.1:7443 ECONNREFUSED (retry in 500ms)`。证书拒绝等待 30 秒，移除行会取消重试并关闭 socket。完整的帧格式和状态约定见 [TCP 设计](../design/06-link-tcp.md)。
 
-TCP 单帧允许空消息，最大 16 MiB。0.23.0 的 `sessions.open` 无法为协议 5 的分块机制声明此上限。编码后的会话消息超过它时，连接可能以 `frame-too-large` 关闭。[设计与实测大小](../design/06-link-tcp.md)
+TCP 允许空帧，每帧最多 16 MiB。在 0.23.0 上传大数据时，应用可以在同一会话上逐块发送，接收方按顺序重组。每块须为编码和元数据留出空间。集成示例用最多 4 MiB 的块完整传输了 17 MiB。单次大调用的自动分块等待 `sessions.open` 支持声明帧上限。[分块回显示例](../../link/tcp/test/fixtures/large.mjs) · [上游进展](https://github.com/arcships/rutis/issues/1411)
 
 ## 反向隧道
 

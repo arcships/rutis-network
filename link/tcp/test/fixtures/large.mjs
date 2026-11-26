@@ -1,17 +1,29 @@
+import { randomBytes } from 'node:crypto'
 import { definePlugin } from '@arcships/rutis'
 
-// Keep the large value on the host-to-host route. The CLI receives a small receipt.
+const chunkSize = 4 * 1024 * 1024
+
+// The application controls the chunks. The CLI receives only a small receipt.
 export default definePlugin({
   inject: ['witness'],
-  provides: { probe: { roundTrip: 'async' } },
+  provides: { probe: { roundTripChunks: 'async' } },
   apply(ctx) {
     const witness = ctx.use('witness')
     ctx.provide('probe', {
-      async roundTrip(size) {
-        const payload = Buffer.alloc(size, 0xa7)
-        const [proof, echoed] = await witness.echo(payload)
-        if (!payload.equals(echoed)) throw new Error('round-trip payload changed')
-        return [proof, echoed.byteLength]
+      async roundTripChunks(size) {
+        const source = randomBytes(size)
+        const received = Buffer.alloc(size)
+        let proof
+        for (let offset = 0; offset < size; offset += chunkSize) {
+          const chunk = source.subarray(offset, offset + chunkSize)
+          const [peer, echoed] = await witness.echo(chunk)
+          if (proof !== undefined && peer !== proof) throw new Error('echo peer changed')
+          if (echoed.byteLength !== chunk.byteLength) throw new Error('echo length changed')
+          received.set(echoed, offset)
+          proof = peer
+        }
+        if (!source.equals(received)) throw new Error('reassembled payload changed')
+        return [proof, received.byteLength]
       },
     })
   },

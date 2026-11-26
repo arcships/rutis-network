@@ -10,7 +10,9 @@ SSH 转发、frp、Tailscale、Cloudflare Access、ADB 和 usbmuxd 都可以提�
 
 帧边界 EOF 正常结束，半个头或半个载荷以 `truncated-frame` 失败，超长以 `frame-too-large` 失败，连接复位保留传输错误码。任何一方关闭都释放整个 socket。卸载中止等待中的读写。TCP 只承载字节与 EOF，WebSocket 的 4002/4003 关闭码留在 WebSocket 上。
 
-协议 5 可为声明了单帧上限的传输拆分大消息。0.23.0 的 `sessions.open(far)` 创建的 `FarSender` 使用默认的 `max_message() = None`。编码后的会话消息超过 16 MiB 时，宿主可能一次交给 bridge，导致该连接以 `frame-too-large` 关闭。宿主集成测试覆盖 4 MiB 二进制往返，也验证 17 MiB 调用触发此限制、其他客户端仍可通信。[上游发送端](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/open.rs) · [通道上限](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/channel/mod.rs)
+在 rutis 0.23.0 上，大数据默认由应用分块传输，接收方按顺序重组。集成测试将 17 MiB 随机二进制数据分成四个 4 MiB 块和一个 1 MiB 尾块，在同一条连接上逐块回显。测试逐字节比对重组结果，再复用该连接调用服务。4 MiB 是测试选用的块大小，须为会话编码和元数据留出空间。
+
+一次大调用的透明分块由会话协议 5 负责。0.23.0 的 `sessions.open(far)` 无法声明传输的单帧上限，编码后的整条消息超过 16 MiB 时，bridge 会关闭该连接。待上游发布支持后，插件将声明 16 MiB，并增加单次 17 MiB 调用成功的用例，验证各帧符合上限、完整值只交付一次且连接仍可用。[上游跟踪与对照实测](https://github.com/arcships/rutis/issues/1411)
 
 ## 拨号、监听与重连
 

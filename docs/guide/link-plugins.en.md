@@ -56,7 +56,7 @@ cargo test --locked --manifest-path examples/rust-listen/Cargo.toml
 
 Set `"reconnect": true` in the dial config for a persistent row. The dialer checks the server name `localhost` by default. Set `servername` to the expected DNS name on the peer certificate when forwarding a different service to loopback. Each attempt rereads the key and certificates, including after rotation. A disconnect starts a fresh session and a fresh frame stream. A temporary failure prints, for example, `link/tcp 127.0.0.1:7443 ECONNREFUSED (retry in 500ms)`. Certificate rejection waits 30 seconds. Removing the row cancels the retry and releases its socket. See the [TCP design](../design/06-link-tcp.en.md) for the state and framing rules.
 
-Each TCP frame carries up to 16 MiB, including empty messages. In 0.23.0 `sessions.open` cannot advertise this limit for protocol 5 chunking. An encoded session message that exceeds it can close the connection with `frame-too-large`. [Design and reproduced sizes](../design/06-link-tcp.en.md)
+TCP accepts empty frames and carries up to 16 MiB per frame. On 0.23.0, applications can send a large value in successive chunks on one session and reassemble them in order. Leave room for encoding and metadata in each message. The integration example transfers 17 MiB using chunks of up to 4 MiB. Transparent chunking of a single large call depends on `sessions.open` exposing the frame limit. [Chunked echo example](../../link/tcp/test/fixtures/large.mjs) · [Upstream issue](https://github.com/arcships/rutis/issues/1411)
 
 ## Reverse tunnels
 
