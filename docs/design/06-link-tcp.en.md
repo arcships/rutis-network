@@ -1,148 +1,33 @@
-# `link/tcp` generic byte-stream bridge: design
+# TCP byte-stream bridge and reverse tunnels
 
-Status: draft. Date: 2026-11-08. Baseline: rutis 0.21.0.
-Issue: [#6](https://github.com/arcships/rutis-network/issues/6). Depends on [#1](https://github.com/arcships/rutis-network/issues/1).
+Finalized on 2026-11-26 against rutis 0.21.0. [Issue #6](https://github.com/arcships/rutis-network/issues/6) tracks scope and acceptance. [中文](06-link-tcp.md)
 
-## 1. Goal
+## Boundary and framing
 
-Attach any adapter that gives a TCP byte stream (SSH forwarding, Tailscale, Cloudflare access, ADB, usbmuxd, frp/rathole, ngrok) to a rutis session, writing framing, backpressure, close and lifecycle once.
+SSH forwarding, frp, Tailscale, Cloudflare Access, ADB and usbmuxd can all provide a byte stream. The adapter reaches and admits the peer before handing each verified stream to #11's `openTcp(socket, sessions)`. The bridge owns framing, backpressure, closure and one `sessions.open(far)` per stream. rutis owns Hello, identity and service lifecycle. The existing WebSocket transport keeps its native message boundaries. [Link contract](01-link-plugin-contract.en.md)
 
-`link/tcp` does **not** authenticate; the adapter below it does.
+A frame contains an unsigned four-byte big-endian length followed by exactly that many bytes. Lengths from zero through 16 MiB are valid. Reject larger lengths before allocating. The reader awaits `near.receive` before delivering the next frame. The writer awaits one socket write at a time with no pending send queue, so legal 4–16 MiB frames can proceed directly. The rutis 0.21 session outbound queue has its own budget. Non-Rust callers cannot configure that budget. Rust callers can set `SessionOptions::outbound_limit` in bytes.
 
-## 2. Boundary
+EOF at a frame boundary ends the connection normally. An incomplete header or payload fails with `truncated-frame`, an oversized frame with `frame-too-large`, and a reset retains its transport error code. Closing either direction releases the whole socket. Unload interrupts pending I/O. TCP carries bytes and EOF. WebSocket carries its own 4002/4003 close codes.
 
-```text
-adapter (SSH/Tailscale/Cloudflare/ADB/frp) ── TCP bytes ── link/tcp bridge ── rutis/sessions
-```
+## Dial, listen and reconnect
 
-- The bridge does not know the far end, does not parse the session protocol, and does not admit.
-- One TCP connection = one bridge instance = one session.
-- A reverse tunnel only brings local/public TCP; it does not repeat the bridge.
+- Both TypeScript plugins use `127.0.0.1`. A listener may bind port zero and reports its assigned port. Both ends verify peer certificates. Only locally authenticated mutual TLS sockets reach the bridge. Isolated framing tests may use raw loopback TCP.
+- The dial row preserves #11's single-attempt default. With `reconnect: true`, the adapter initiates the first attempt and creates a fresh socket and session after disconnect. Old frames are never replayed. Transient network failures back off exponentially from 0.5 to 30 seconds. A connection lasting 60 seconds resets the delay. Known certificate rejection waits 30 seconds. A known incompatible transport protocol stops retries. Non-Rust callers lack the rutis handshake result and treat an unknown disconnect as transport loss.
+- The listener accepts multiple connections and opens a session for each. Handshakes and reads proceed independently. Unload closes the listening socket, sockets still negotiating TLS and admitted connections. Listener resource errors retry after a delay.
+- The first session under a row registers its addressing handle. Non-Rust `open` does not expose the greeted ID. A Rust listener can use `Session::handshake` and mount a replacement after the old session unloads. [Rust example](../../examples/rust-listen/src/lib.rs)
 
-### 2.1 localhost TCP is the first adapter
+## Reverse-tunnel trust boundaries
 
-- Start with `dial 127.0.0.1:<port>` / `listen 127.0.0.1:0`, the default transport for the conformance suite and local development.
-- Bind `127.0.0.1` only. A random port is not admission: any local process can find it. Admit with Unix-socket permissions, or define a token frame before this bridge; raw TCP loopback with no admission is for development and tests only.
-- It adds no session logic; it is the first adapter and test base for the #6 bridge.
+The operator runs the tunnel tools. They supply the TCP route between dialer and listener and share the same bridge. A frp/rathole token, an ngrok account or an SSH credential controls who may establish the tunnel. A client reaching the forwarded port still needs end-to-end admission. The examples bind to loopback and retain mutual TLS inside the tunnel. Binding an external address changes who can reach the port.
 
-### 2.2 WebSocket already exists; HTTP is not a link
+| Route | Admission and verification |
+| --- | --- |
+| frp / rathole | A credential protects the control connection. Local acceptance uses a real frpc/frps TCP forward. |
+| OpenSSH remote forwarding | The client verifies the SSH host key and authenticates with a user key. The loopback test uses a real remote forward. |
+| ngrok TCP | An account creates a managed ingress. Address, access policy and quotas depend on the provider. |
+| Cloudflare Access | The controlled ingress provides local TCP. [Adapter design](https://github.com/arcships/rutis-network/pull/15) |
 
-- The core already has `websocket::dial` / `websocket::listen`, and `rutis-host/listen` uses it; this bridge does not rewrite WebSocket.
-- Plain HTTP request/response has no duplex long-lived stream or message boundaries; it is not a link. HTTP only carries a WebSocket upgrade or gRPC.
+## Acceptance
 
-## 3. Frame format
-
-```text
-+----------------+--------------------------+
-| length: u32 BE | payload: length bytes    |
-+----------------+--------------------------+
-```
-
-- `length` is the payload size, excluding the 4-byte header.
-- Maximum 16 MiB (`16 * 1024 * 1024`); reject `length > 16 MiB` before allocating, then close.
-- `length == 0` is allowed: an empty message still has a boundary.
-- No newline framing, no compression, no encryption (TLS/SSH/Tailscale live in the adapter).
-- Why 4 bytes: 16 MiB is enough and 4 bytes is smaller than 8; a larger frame needs a versioned extension, not a mixed format.
-
-## 4. Sending
-
-- Send one message: write the 4-byte big-endian length, then the payload; handle partial writes (`write` returning less than requested).
-- The send queue is bounded (default 64 messages or 4 MiB, whichever comes first; this is bridge policy, not a `Channel` contract); when full, `send` waits.
-- Since 0.21, `far.send` may be async: the session awaits it; write blocking applies backpressure through the promise. Do not fire-and-forget.
-- Since 0.20, a session has a writer thread and its outbound queue is unbounded by default. Rust uses `Session::options(SessionOptions { outbound_limit: Some(bytes) })`; non-Rust `open(far)` has no such option, and a bridge-side queue cannot bound the session queue (O2). Do not present "the bridge is bounded" as "the session is bounded".
-- On write failure/connection close, fail the current `send`, close the connection, and `near.end`.
-
-## 5. Receiving
-
-- Loop: read exactly 4 header bytes, then exactly `length` payload bytes; handle short reads and coalesced frames.
-- When a full payload arrives, call `near.receive(payload)`; it returns a promise and waits when the session queue (64 messages) is full — that is receive backpressure.
-- Over-limit `length`: close and report; do not allocate 16 MiB before checking.
-- EOF mid-frame means truncation: report and close. EOF on a frame boundary: `near.end({kind:'done'})`.
-
-## 6. Close and EOF
-
-The session has no half-close, only `near.end({kind})`; do not design a half-close protocol.
-
-- Far FIN (read EOF) → `near.end({kind:'done'})`, then close both directions.
-- Session unload → close the socket write side, drain where possible, then close; once only.
-- `near.end({kind:'replaced'})`: a same-id session took over; map to 4002 where the transport has a close code.
-- `near.end({kind:'rejected', reason})`: refused after admission; map to 4003 where available.
-- EOF in one direction ends the whole connection; do not wait for the other direction to send FIN, and do not close twice.
-
-## 7. Listen side
-
-- Accept each connection, create one bridge and one session.
-- Rust: `Session::handshake` gives `Greeted::id()`; a newer connection of the same id unloads the old session, then mounts the new one; the old connection closes with `Close::Replaced` (4002).
-- Other languages: `open(far)` does not expose the id, so same-id replacement is impossible. `session_key(row)` is first-wins: a second session under the same row registers no handle, and `<row>:<plugin>` only addresses the first. Do not write "coexist". A listener that needs replacement must be Rust (O1).
-- Non-Rust also cannot get structured handshake errors, so it cannot reliably tell an auth rejection from a protocol mismatch; do not treat a TCP close reason as a handshake result, fall back to transport backoff (O1).
-- Accept failures (EMFILE and friends) back off; no busy loop.
-
-## 8. Reconnect
-
-- The bridge does not reconnect; the adapter does (SSH/Tailscale/Cloudflare/frp).
-- Backoff: 0.5 s → 30 s exponential; an auth rejection retries every 30 s; a protocol mismatch stops; the backoff resets after 60 s connected.
-- A new connection = a new bridge = a new session; never reuse the old session.
-
-## 9. Reverse-tunnel wrappers
-
-| Tool | Gives | Admission | Notes |
-| --- | --- | --- | --- |
-| frp | local/public TCP | frpc token/TLS | Needs a VPS; public-port risk |
-| rathole | local/public TCP | token/TLS | Lightweight; document config |
-| ngrok | public TCP | authtoken | Temporary URL/rate limits; public risk |
-| SSH `-R` | far forwarding to local | SSH host key/user key | Reuse link/ssh admission; do not authenticate twice |
-| Cloudflare access | local TCP | Access token | See #5 |
-
-A wrapper is an adapter/config, not a new crate; the bridge is unchanged.
-
-## 10. Reference layout
-
-```text
-link/tcp/
-  bridge.ts        # framing + open(far) + lifecycle
-  listen.ts        # accept + one bridge per connection (Rust replacement)
-  adapter.ts       # dial(host, port) / listen(host, port)
-  errors.ts        # code + structured data
-  README.md        # configuration, errors, limits
-```
-
-Rust uses `Channel` + `Session::new`; TS/Python use `rutis/sessions`.
-
-## 11. Tests
-
-- localhost TCP dial/listen works, the default test transport; bind 127.0.0.1 only; raw TCP without admission is for tests, production uses Unix-socket permissions or a token frame.
-- Local TCP echo: single frame, empty frame, consecutive frames, coalesced/short reads, 16 MiB, 16 MiB + 1 (16 MiB is bridge policy).
-- Order: 1000 small messages stay ordered.
-- Backpressure: slow receiver + fast sender; the bridge queue stays within its bound; Rust verifies `SessionOptions::outbound_limit` ends the session instead of growing without bound.
-- Async `send`: returns a promise, the session awaits it, a slow write loses nothing.
-- Close/EOF: far FIN → `near.end`; session unload → socket closed; once; no half-close protocol.
-- Listen: multiple connections, each a session; Rust same-id replacement; other languages explicitly unsupported.
-- Reverse tunnel: frp or rathole runs; SSH `-R` or ngrok runs at least once; the bridge code does not change.
-- Errors: truncated frame, over limit, connection reset; clear error with a code.
-- No public network; CI uses loopback.
-
-## 12. Non-goals
-
-- No authentication or identity.
-- No reliable UDP/QUIC; that is `link/quic`/P2P.
-- No frp/rathole/ngrok server.
-- No compression/encryption/multiplexing.
-- Do not rewrite WebSocket (the core has it); plain HTTP request/response is not a link.
-- No `link/tcp` core trait.
-
-## 13. Open questions
-
-- O1 (closed): the send queue is bounded by 64 messages / 4 MiB, first hit wins.
-- O2 (closed): the frame length is fixed at 4 bytes; 8 bytes is a future extension.
-- O3 (closed): the session has no half-close; EOF maps to `near.end({kind:'done'})` and closes both directions.
-- O4 (blocking): non-Rust `open(far)` cannot set `outbound_limit`, and the session outbound queue is unbounded; production non-Rust links need rutis to add the option or a transport that applies backpressure.
-- O5 (blocking): non-Rust cannot replace by `Hello` id or classify handshake errors; `open` needs `ready()` to return the id plus a structured error (see #1 O1). A listener that needs replacement or handshake-error-based reconnect must be Rust.
-
-## Links
-
-- Issue [#6](https://github.com/arcships/rutis-network/issues/6)
-- [Contract design](01-link-plugin-contract.en.md)
-- [SSH design](03-link-ssh.en.md)
-- [Tailscale design](04-link-tailscale.en.md)
-- [Cloudflare design](05-link-cloudflared.en.md)
-- rutis `crates/rutis-bridge/src/channel/mod.rs`
+Loopback cases cover split/coalesced frames, empty frames, 1,000 messages in order, the 16 MiB boundary, slow peers, EOF/reset, independent sessions, denied admission, reconnect and unload. Exercise bidirectional framed traffic through both frp and SSH. The Rust example exercises same-ID replacement and the Rust limit test checks the session budget. See the [implementation guide](../guide/link-plugins.en.md) for commands and configuration.
