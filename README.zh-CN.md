@@ -10,6 +10,8 @@ rutis 自己只管会话这一侧：连接插件打开一条通道，交给服�
 
 ## 状态
 
+[Cloudflare Tunnel 方案调研](docs/design/05-cloudflare-plugin-control.md)给出了 Go 插件的控制接口、两端配置示例和云端资源的管理方式。
+
 [开发指南](docs/guide/link-plugins.md)包含 TypeScript TCP bridge 和可运行的 Rust 监听示例。其余工作按以下 issue 跟踪。
 
 1. [#1](https://github.com/arcships/rutis-network/issues/1)：链接插件的契约——它做什么、不做什么；准入与身份；分帧、生命周期；一份参考 bridge。
