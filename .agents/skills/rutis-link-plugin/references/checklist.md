@@ -1,6 +1,6 @@
 # Link plugin checklist
 
-Baseline: rutis 0.21.0 (session protocol 4, `rutis.json` format 1, plugin API 3).
+Baseline: rutis 0.23.0 (session protocol 5, `rutis.json` format 1, plugin API 3).
 
 ## Contract
 
@@ -10,7 +10,7 @@ Baseline: rutis 0.21.0 (session protocol 4, `rutis.json` format 1, plugin API 3)
 - [ ] The far end's `Hello` id names remote plugins `<id>:<plugin>`; the link plugin does not assign or rewrite it.
 - [ ] One channel = one session; session lifecycle is bound to the channel.
 - [ ] Reconnect/backoff lives in the link plugin, not in the session.
-- [ ] A listen side opens one session per connection. Same-id replacement is implemented in Rust with `Session::handshake` + `Greeted::id()`; non-Rust is **unsupported** (0.21.0 `open(far)` has no id, and `session_key(row)` is first-wins).
+- [ ] A listen side opens one session per connection. Same-id replacement is implemented in Rust with `Session::handshake` + `Greeted::id()`; non-Rust is **unsupported** (0.23.0 `open(far)` has no id, and `session_key(row)` is first-wins).
 - [ ] No cross-link `links` manager, global `connect` service, cross-link registry or central credential store; composition is row + session + service name.
 - [ ] WebSocket is the core's `websocket::dial` / `listen`, not a new link plugin; plain HTTP is not a link; localhost TCP is the first reference adapter.
 
