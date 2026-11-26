@@ -53,21 +53,87 @@ go -C link/tcp build -o ../../plugins/go/link-tcp ./cmd/link-tcp
 
 `sshAddress` 从拨号端访问，`targetAddress` 从 SSH 服务端访问。两者均使用 `host:port`，IPv6 写作 `[地址]:端口`。`servername` 验证目标 listener 的证书，默认取 `targetAddress` 的主机部分。SSH 主机密钥验证、用户认证和目标 TLS 握手都在交给 bridge 前完成。远端插件名取决于会话 Hello 中的 ID。bridge 使用 4 字节大端长度前缀，单帧上限为 16 MiB，大数据按应用分块传输。[TCP 帧与分块约定](06-link-tcp.md)
 
+## 通过一台 VPS 接入
+
+A 提供服务，B 调用服务。两端都向 VPS 的现有 SSH 端口拨号。A 的账号需要远端转发权限（例如 `AllowTcpForwarding remote`、`PermitListen 127.0.0.1:17443`），B 的账号需要本地转发权限（例如 `AllowTcpForwarding local`、`PermitOpen 127.0.0.1:17443`）。同一账号承担两种角色时需要同时允许这两个方向。VPS 只需运行 sshd。使用 `GatewayPorts no` 或 `clientspecified` 保留回环绑定，`GatewayPorts yes` 会强制绑定通配地址。
+
+在 A 的 `rutis.json` 中，按服务类型选择下面的配置行。两种行使用同一 `link-ssh` 二进制。若同时启用，请分配不同的 VPS 监听端口和本地控制服务名。
+
+**直接接入 rutis**。A 的 SSH 插件向 VPS 申请 `listenAddress`，对每条入站连接验证客户端证书，再将其交给 A 宿主的会话服务。服务端证书需匹配 B 配置的 `servername`。
+
+```json
+{
+  "id": "inbound",
+  "name": "go:link-ssh-listen",
+  "isolate": {
+    "office-in": "management"
+  },
+  "config": {
+    "controlService": "office-in",
+    "sshAddress": "vps.example.com:22",
+    "listenAddress": "127.0.0.1:17443",
+    "profile": "office",
+    "profiles": {
+      "office": {
+        "user": "rutis",
+        "knownHosts": "/etc/link/known_hosts",
+        "identityFile": "/etc/link/id_ed25519",
+        "ca": "/etc/link/client-ca.pem",
+        "cert": "/etc/link/server.pem",
+        "key": "/etc/link/server.key"
+      }
+    }
+  }
+}
+```
+
+**转发到 TCP 服务**。A 的 SSH 插件将每条连接转发到从 A 可达的 `localTarget`。例如在 A 的 7443 端口运行上面的 `go:link-tcp-listen`，由它负责 mTLS 和 rutis 会话。普通 TCP 服务也可作为目标，其协议负责鉴别客户端。
+
+```json
+{
+  "id": "forward",
+  "name": "go:link-ssh-tunnel",
+  "isolate": {
+    "office-in": "management"
+  },
+  "config": {
+    "controlService": "office-in",
+    "sshAddress": "vps.example.com:22",
+    "listenAddress": "127.0.0.1:17443",
+    "profile": "office",
+    "profiles": {
+      "office": {
+        "user": "rutis",
+        "knownHosts": "/etc/link/known_hosts",
+        "identityFile": "/etc/link/id_ed25519"
+      }
+    },
+    "localTarget": "127.0.0.1:7443"
+  }
+}
+```
+
+B 在前面的拨号配置中使用 `sshAddress: "vps.example.com:22"`、`targetAddress: "127.0.0.1:17443"` 和 A 的 TLS 服务名。A 的 `listenAddress` 支持回环 IP 和端口，sshd 允许动态端口时，端口 0 由 VPS 分配，可从 `status().boundAddress` 获取实际地址，再交给 B。需要 B 在断线后连接原地址时，使用固定端口。
+
+两种接收行共用以下管理接口。`configure` 接受 `sshAddress`、`listenAddress`、`profile`、`reconnect`，隧道还接受 `localTarget`。接收行默认重连，包括静态行。重新配置地址、切换凭据或停止时会关闭旧监听及其活动连接。恢复 SSH 后重新申请绑定。sshd 对权限不足和端口占用都只返回绑定失败，插件报告 `ssh-listen-failed` 并按重连策略退避。
+
+`phase: "listening"` 和 `boundAddress` 表示 VPS 已接受绑定。`connections` 统计已接入的 rutis 会话流或已接通本地目标的 TCP 流。单个客户端出错只更新 `lastClientError`。每行最多同时处理 64 条入站流（包含准入过程）。rutis 0.23.0 的 Go 会话 API 无法按相同远端 ID 替换旧会话。[会话生命周期](01-link-plugin-contract.md)
+
 ## 管理连接
 
 集成方使用任意 rutis SDK，在管理插件的行上声明 `"inject": ["office-ssh"]` 和 `"isolate": {"office-ssh": "management"}`，再取得该服务。将它保留在本地隔离作用域，根作用域的普通服务会导出到对端。SSH 行持有连接。管理插件或业务插件可以独立重启。
 
 | 调用 | 行为 |
 | --- | --- |
-| `configure(patch)` | 接受 `sshAddress`、`targetAddress`、`servername`、`profile`、`reconnect`。省略的字段保留，`servername: null` 恢复默认值。凭据只能选择部署中列出的 profile。运行时切换目标或 profile 会先关闭旧连接。无效或相同的补丁保留当前连接。 |
+| `configure(patch)` | 拨号行接受 `sshAddress`、`targetAddress`、`servername`、`profile`、`reconnect`。省略的字段保留，`servername: null` 恢复默认值。凭据只能选择部署中列出的 profile。运行时切换目标或 profile 会先关闭旧连接。无效或相同的补丁保留当前连接。 |
 | `start()` | 接受当前配置并开始连接。重复调用复用进行中的尝试。失败后可显式重试。 |
 | `stop()` | 取消拨号、握手或退避，关闭当前连接，并等待传输清理完成。之后修改配置只影响下次启动。 |
 | `status()` | 返回 `desired`、`phase`、`config`、`cursor`、`retryCount`。已知时还包含 SSH 外层 socket 的 `localAddress`、`remoteAddress` 以及 `lastError`、UTC 时间 `retryAt`。 |
 | `waitForChange(cursor)` | 游标匹配时等待变化，否则立即返回最新快照。行重载后重新取得服务，旧游标可用于读取新实例。 |
 
-受管行默认自动启动和重连。配置不完整时处于 `awaiting-config`，补齐后开始拨号。`autoStart: false` 让集成方决定何时启动。静态行省略 `controlService`，提供完整地址和 profile，默认在加载时拨号一次。运行时编辑仅在该行实例内有效。需要在不同对端之间迁移 `wire:<plugin>` 行时，先等待 loader 移除旧传输行，再以同一行 ID 创建新传输。[0.23.0 的远端插件迁移](06-link-tcp-integration.md)
+受管行默认自动启动和重连。配置不完整时处于 `awaiting-config`，补齐后开始拨号。`autoStart: false` 让集成方决定何时启动。静态拨号行省略 `controlService`，提供完整地址和 profile，默认在加载时拨号一次。运行时编辑仅在该行实例内有效。需要在不同对端之间迁移 `wire:<plugin>` 行时，先等待 loader 移除旧传输行，再以同一行 ID 创建新传输。[0.23.0 的远端插件迁移](06-link-tcp-integration.md)
 
-`connected` 表示通道经本端 TLS 验证并交给会话。可通过业务 RPC 确认远端服务就绪。断线后，每次重试都会重新读取凭据并建立新连接。普通网络错误从 500 毫秒开始指数退避，上限 30 秒，连接持续 60 秒后重置。凭据文件错误、SSH 握手失败（包括用户认证失败）和证书拒绝等待 30 秒。主机密钥拒绝、转发被禁止和不兼容的 SSH/TLS 协商会进入 `failed`。修正后调用 `start()`。日志记录地址和错误码，如 `ssh-host-key-rejected` 或 `ssh-forward-denied`。切换重试开关保留健康连接。
+`connected` 表示通道经本端 TLS 验证并交给会话。可通过业务 RPC 确认远端服务就绪。断线后，每次重试都会重新读取凭据并建立新连接。普通网络错误从 500 毫秒开始指数退避，上限 30 秒，连接持续 60 秒后重置。凭据文件错误、SSH 握手失败（包括用户认证失败）和证书拒绝等待 30 秒。主机密钥拒绝、拨号端转发被禁止和不兼容的 SSH/TLS 协商会进入 `failed`。修正后调用 `start()`。日志记录地址和错误码，如 `ssh-host-key-rejected` 或 `ssh-forward-denied`。切换重试开关保留健康连接。
 
 ## 验证与后续模式
 
@@ -76,7 +142,7 @@ go -C link/tcp build -o ../../plugins/go/link-tcp ./cmd/link-tcp
 ```sh
 go -C link/ssh test -race ./...
 npm ci --prefix link/tcp
-node --test link/ssh/test/hosts.mjs
+node --test link/ssh/test/*.mjs
 ```
 
-目前交付原生 Go 拨号。已有的外部 OpenSSH 反向转发仍可搭配 TCP 插件使用。只有 SSH 登录、远端没有 TCP listener 的部署需要单独的 stdio 命令或 subsystem 来适配 rutis。这属于后续模式。[反向转发指南](../guide/link-plugins.md)
+已有的外部 OpenSSH 反向转发仍可搭配 TCP 插件使用。如需在 VPS 上通过 SSH 命令直接启动 rutis 端点，stdio 命令或 subsystem 属于后续模式。[反向转发指南](../guide/link-plugins.md)

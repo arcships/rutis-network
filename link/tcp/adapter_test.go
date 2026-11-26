@@ -24,7 +24,7 @@ func TestListenerDeniesMissingClientCertificateBeforeOpen(t *testing.T) {
 	defer peer.Close()
 	result := make(chan error, 1)
 	go func() {
-		_, err := admit(t.Context(), local, server)
+		_, err := AdmitTLS(t.Context(), local, server)
 		result <- err
 	}()
 	peer.SetDeadline(time.Now().Add(3 * time.Second))

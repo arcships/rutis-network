@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"io"
 	"net"
 	"os"
 	"slices"
@@ -21,19 +22,20 @@ var (
 	errCredentials = errors.New("invalid-credentials")
 	errHostKey     = errors.New("ssh-host-key-rejected")
 	errHandshake   = errors.New("ssh-handshake-failed")
+	errListen      = errors.New("ssh-listen-failed")
 	errForward     = errors.New("ssh-forward-denied")
 	errTarget      = errors.New("ssh-target-unavailable")
 	errAlgorithms  = errors.New("incompatible-ssh")
 )
 
-// Each session owns its outer SSH socket. Closing it interrupts channel reads,
-// writes and window waits even when the server no longer services the channel.
-type tunnel struct {
+// Closing a dial stream releases its dedicated SSH socket. A listen stream
+// closes only its own channel on the shared SSH connection.
+type sessionStream struct {
 	net.Conn
-	outer net.Conn
+	transport net.Conn
 }
 
-func (t *tunnel) Close() error { return t.outer.Close() }
+func (t *sessionStream) Close() error { return t.transport.Close() }
 
 func authenticate(ctx context.Context, raw net.Conn, address string, p profile) (*ssh.Client, error) {
 	hosts, err := knownhosts.NewDB(p.KnownHosts)
@@ -100,37 +102,71 @@ func authenticate(ctx context.Context, raw net.Conn, address string, p profile) 
 	return ssh.NewClient(conn, channels, requests), nil
 }
 
-func dial(ctx context.Context, e endpoint, p profile, handshaking func(net.Conn)) (conn net.Conn, err error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+// open bounds SSH negotiation and the first channel or remote bind request.
+// Each row owns a dedicated SSH connection. Reverse roles share it among their streams.
+func (c *control) open(run context.Context, e endpoint) (done <-chan error, err error) {
+	ctx, cancel := context.WithTimeout(run, 10*time.Second)
 	defer cancel()
-	identity, err := tcp.LoadTLSCredentials(p.CA, p.Cert, p.Key)
-	if err != nil {
-		return nil, err
-	}
-	identity.ServerName = e.ServerName
-	if identity.ServerName == "" {
-		host, _, _ := net.SplitHostPort(e.TargetAddress)
-		identity.ServerName, _, _ = strings.Cut(host, "%")
+	c.update(func(s *snapshot) { s.Phase, s.RetryAt = "dialing", "" })
+	p := c.profiles[e.Profile]
+	var identity *tls.Config
+	if c.role != tunnelRole {
+		identity, err = tcp.LoadTLSCredentials(p.CA, p.Cert, p.Key)
+		if err != nil {
+			return nil, err
+		}
 	}
 	raw, err := (&net.Dialer{}).DialContext(ctx, "tcp", e.SSHAddress)
 	if err != nil {
 		return nil, err
 	}
-	// NewClientConn does not take a context. Closing the outer socket also
-	// interrupts a stalled SSH exchange, channel request or inner TLS handshake.
+	c.update(func(s *snapshot) {
+		s.Phase = "handshaking"
+		s.LocalAddress, s.RemoteAddress = raw.LocalAddr().String(), raw.RemoteAddr().String()
+	})
 	stop := context.AfterFunc(ctx, func() { raw.Close() })
+	defer stop()
 	defer func() {
-		if !stop() {
-			conn, err = nil, ctx.Err()
-		}
 		if err != nil {
 			raw.Close()
+			if ctx.Err() != nil {
+				err = ctx.Err()
+			}
 		}
 	}()
-	handshaking(raw)
 	client, err := authenticate(ctx, raw, e.SSHAddress, p)
 	if err != nil {
 		return nil, err
+	}
+	if c.role != dialRole {
+		ln, err := client.Listen("tcp", e.ListenAddress)
+		if err != nil {
+			return nil, errListen
+		}
+		if !stop() {
+			return nil, ctx.Err()
+		}
+		return c.serveReverse(run, client, ln, identity, e.LocalTarget), nil
+	}
+	conn, err := dialStream(ctx, client, e, identity)
+	if err != nil {
+		return nil, err
+	}
+	if !stop() {
+		return nil, ctx.Err()
+	}
+	done, err = tcp.OpenManaged(run, c.row, &sessionStream{Conn: conn, transport: raw}, c.sessions)
+	if err == nil {
+		c.update(func(s *snapshot) { s.Phase, s.LastError = "connected", "" })
+	}
+	return done, err
+}
+
+func dialStream(ctx context.Context, client *ssh.Client, e endpoint, identity *tls.Config) (net.Conn, error) {
+	identity.ServerName = e.ServerName
+	if identity.ServerName == "" {
+		host, _, _ := net.SplitHostPort(e.TargetAddress)
+		identity.ServerName, _, _ = strings.Cut(host, "%")
 	}
 	stream, err := client.DialContext(ctx, "tcp", e.TargetAddress)
 	if err != nil {
@@ -149,11 +185,14 @@ func dial(ctx context.Context, e endpoint, p profile, handshaking func(net.Conn)
 	if err := secure.HandshakeContext(ctx); err != nil {
 		return nil, err
 	}
-	return &tunnel{Conn: secure, outer: raw}, nil
+	return secure, nil
 }
 
 func errorCode(err error) string {
-	for _, code := range []error{errCredentials, errHostKey, errHandshake, errForward, errTarget, errAlgorithms} {
+	if errors.Is(err, io.EOF) {
+		return "connection-closed"
+	}
+	for _, code := range []error{errCredentials, errHostKey, errHandshake, errForward, errTarget, errAlgorithms, errListen} {
 		if errors.Is(err, code) {
 			return code.Error()
 		}

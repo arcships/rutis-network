@@ -210,7 +210,8 @@ func (c *control) bind(ctx context.Context, dest target) (net.Listener, *tls.Con
 	return listener, identity, nil
 }
 
-func admit(ctx context.Context, conn net.Conn, identity *tls.Config) (*tls.Conn, error) {
+// AdmitTLS verifies the incoming stream and closes it if the handshake fails.
+func AdmitTLS(ctx context.Context, conn net.Conn, identity *tls.Config) (*tls.Conn, error) {
 	secure := tls.Server(conn, identity)
 	handshake, cancel := context.WithTimeout(ctx, handshakeTimeout)
 	err := secure.HandshakeContext(handshake)
@@ -271,7 +272,7 @@ func (c *control) accept(ctx context.Context, listener net.Listener, identity *t
 		clients.Add(1)
 		go func() {
 			defer clients.Done()
-			secure, err := admit(ctx, conn, identity)
+			secure, err := AdmitTLS(ctx, conn, identity)
 			<-slots
 			if err == nil {
 				err = c.serveConn(ctx, secure)

@@ -13,9 +13,9 @@
 
 准入成功等于信任对端注册的身份。adapter 必须在交接前完成验证；失败即关闭连接。证书和 token 只在 adapter 内使用。随机端口只参与寻址。Rust 的 Channel 收发有边界的不透明字节，Greeted 在握手完成后提供身份。[Channel](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/channel/mod.rs) · [Session 与 Greeted](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/mod.rs)
 
-## Go SSH 拨号
+## Go SSH 插件
 
-`go:link-ssh-dial` 用原生 SSH 通道连接远端的 `go:link-tcp-listen`。部署时配置已验证的 SSH 主机密钥、用户私钥或本地 agent，以及远端 listener 的 mTLS 凭据。管理插件可以通过本地服务设置地址、切换凭据、启停连接和观察重试。SSH 行在管理插件重启期间继续持有连接。[两端配置、控制接口与测试](../design/03-link-ssh.md)
+`go:link-ssh-dial` 通过 SSH 连接目标 listener。使用 VPS 中继时，接收端的 `go:link-ssh-listen` 申请远端回环端口并直接接入 rutis 会话，`go:link-ssh-tunnel` 则将入站流转发给现有 TCP 服务。两端都拨入 VPS 原有的 SSH 端口。每个行实例独立提供配置、启停、状态和重连控制。[两端配置、控制接口与测试](../design/03-link-ssh.md)
 
 ## Go 版 libp2p
 

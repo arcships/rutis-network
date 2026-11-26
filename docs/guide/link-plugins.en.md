@@ -13,9 +13,9 @@ The plugins and examples pin rutis 0.23.0, session protocol 5 and plugin API 3. 
 
 Admitting a peer grants trust in the identity it registers. Complete admission before handoff and close a denied connection. The adapter keeps certificates and tokens. A random port selects an address. Rust's Channel carries opaque messages with boundaries. Greeted provides the identity after handshake. [Channel](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/channel/mod.rs) · [Session and Greeted](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/mod.rs)
 
-## Go SSH dialer
+## Go SSH plugins
 
-`go:link-ssh-dial` connects to a remote `go:link-tcp-listen` over a native SSH channel. Deploy it with a verified SSH host key, a user key or local agent, and mTLS credentials for the destination listener. A local control service lets any plugin set addresses, select credentials, start or stop the connection and observe retries. The SSH row owns the connection across manager restarts. [Host configuration, controls and tests](../design/03-link-ssh.en.md)
+`go:link-ssh-dial` reaches a target listener through SSH. To use a VPS relay, the receiving host can run `go:link-ssh-listen` to accept rutis sessions on a remote loopback bind or `go:link-ssh-tunnel` to forward incoming streams to an existing TCP service. Both endpoints dial the existing SSH port on the VPS. Each row provides its own configuration, start, stop, status and reconnect controls. [Host configuration, controls and tests](../design/03-link-ssh.en.md)
 
 ## Go libp2p
 

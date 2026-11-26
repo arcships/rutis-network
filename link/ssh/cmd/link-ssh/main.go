@@ -5,4 +5,4 @@ import (
 	"github.com/arcships/rutis/go/rutis"
 )
 
-func main() { rutis.Serve(linkssh.Dial) }
+func main() { rutis.Serve(linkssh.Dial, linkssh.Listen, linkssh.Tunnel) }

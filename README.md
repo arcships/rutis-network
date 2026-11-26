@@ -10,7 +10,7 @@ The plugins target rutis 0.23.0 (session protocol 5, plugin API 3). Upgrade both
 
 ## Status
 
-The [Go SSH dialer](docs/design/03-link-ssh.en.md) connects to a remote rutis TCP listener through SSH, with managed credentials, endpoint changes and reconnects.
+The [Go SSH plugins](docs/design/03-link-ssh.en.md) dial rutis peers, accept sessions through a VPS, and reverse-forward streams to an existing TCP service.
 
 The [Cloudflare Tunnel Go plugin](docs/design/05-cloudflare-plugin-control.en.md) connects two rutis 0.23 hosts. The guide includes both configurations, a working Go service example and the local control API.
 

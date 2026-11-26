@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"net"
 	"os"
 	"strconv"
 	"sync"
@@ -16,18 +15,22 @@ import (
 )
 
 type snapshot struct {
-	Cursor        string   `json:"cursor"`
-	Desired       string   `json:"desired"`
-	Phase         string   `json:"phase"`
-	Config        settings `json:"config"`
-	LocalAddress  string   `json:"localAddress,omitempty"`
-	RemoteAddress string   `json:"remoteAddress,omitempty"`
-	LastError     string   `json:"lastError,omitempty"`
-	RetryCount    int      `json:"retryCount"`
-	RetryAt       string   `json:"retryAt,omitempty"`
+	Cursor          string   `json:"cursor"`
+	Desired         string   `json:"desired"`
+	Phase           string   `json:"phase"`
+	Config          settings `json:"config"`
+	LocalAddress    string   `json:"localAddress,omitempty"`
+	RemoteAddress   string   `json:"remoteAddress,omitempty"`
+	BoundAddress    string   `json:"boundAddress,omitempty"`
+	Connections     int      `json:"connections"`
+	LastClientError string   `json:"lastClientError,omitempty"`
+	LastError       string   `json:"lastError,omitempty"`
+	RetryCount      int      `json:"retryCount"`
+	RetryAt         string   `json:"retryAt,omitempty"`
 }
 
 type control struct {
+	role     role
 	row      context.Context
 	profiles map[string]profile
 	sessions tcp.Sessions
@@ -80,24 +83,6 @@ func (c *control) WaitForChange(ctx context.Context, cursor string) (snapshot, e
 	}
 }
 
-func (c *control) open(ctx context.Context, e endpoint) (<-chan error, error) {
-	c.update(func(s *snapshot) { s.Phase, s.RetryAt = "dialing", "" })
-	conn, err := dial(ctx, e, c.profiles[e.Profile], func(raw net.Conn) {
-		c.update(func(s *snapshot) {
-			s.Phase = "handshaking"
-			s.LocalAddress, s.RemoteAddress = raw.LocalAddr().String(), raw.RemoteAddr().String()
-		})
-	})
-	if err != nil {
-		return nil, err
-	}
-	done, err := tcp.OpenManaged(ctx, c.row, conn, c.sessions)
-	if err == nil {
-		c.update(func(s *snapshot) { s.Phase, s.LastError = "connected", "" })
-	}
-	return done, err
-}
-
 func (c *control) run(ctx context.Context, e endpoint) {
 	const initial = 500 * time.Millisecond
 	backoff := initial
@@ -116,7 +101,7 @@ func (c *control) run(ctx context.Context, e endpoint) {
 		code := errorCode(err)
 		delay := retryDelay(code, backoff)
 		c.update(func(s *snapshot) {
-			s.LastError, s.LocalAddress, s.RemoteAddress = code, "", ""
+			s.LastError, s.LocalAddress, s.RemoteAddress, s.BoundAddress = code, "", "", ""
 			if !s.Config.Reconnect {
 				delay = 0
 			}
@@ -128,7 +113,7 @@ func (c *control) run(ctx context.Context, e endpoint) {
 				s.RetryCount++
 			}
 		})
-		fmt.Fprintln(os.Stderr, "link/ssh", e.SSHAddress, e.TargetAddress, code)
+		fmt.Fprintln(os.Stderr, "link/ssh", e.SSHAddress, e.relayAddress(), code)
 		if delay == 0 {
 			return
 		}
@@ -152,11 +137,11 @@ func (c *control) join() {
 func (c *control) launch(cfg settings) {
 	c.update(func(s *snapshot) {
 		*s = snapshot{Desired: "running", Phase: "awaiting-config", Config: cfg}
-		if cfg.ready() {
+		if cfg.ready(c.role) {
 			s.Phase = "dialing"
 		}
 	})
-	if !cfg.ready() {
+	if !cfg.ready(c.role) {
 		return
 	}
 	ctx, cancel := context.WithCancel(c.row)
@@ -176,8 +161,8 @@ func (c *control) Start() error {
 	if err != nil {
 		return err
 	}
-	if !s.Config.ready() {
-		return errors.New("configure sshAddress, targetAddress and profile before starting")
+	if !s.Config.ready(c.role) {
+		return errors.New("configure the SSH endpoint and credential profile before starting")
 	}
 	if s.Desired != "running" || s.Phase == "failed" {
 		c.join()
@@ -201,7 +186,7 @@ func (c *control) Configure(patch map[string]any) error {
 	if err != nil {
 		return err
 	}
-	next, err := s.Config.patch(patch, c.profiles)
+	next, err := s.Config.patch(patch, c.role, c.profiles)
 	if err != nil || next == s.Config {
 		return err
 	}
@@ -220,7 +205,7 @@ func (c *control) Configure(patch map[string]any) error {
 		if phase == "retrying" && !next.Reconnect {
 			c.join()
 			c.update(func(s *snapshot) {
-				s.Phase, s.RetryAt, s.LocalAddress, s.RemoteAddress = "failed", "", "", ""
+				s.Phase, s.RetryAt, s.LocalAddress, s.RemoteAddress, s.BoundAddress = "failed", "", "", "", ""
 			})
 		} else if phase == "failed" && next.Reconnect && retryDelay(last, time.Second) > 0 {
 			c.join()
@@ -230,42 +215,58 @@ func (c *control) Configure(patch map[string]any) error {
 	return nil
 }
 
-var Dial = rutis.Define(rutis.Plugin[config]{
-	Name: "link-ssh-dial", Inject: []string{"rutis/sessions"}, Schema: schema(),
-	Apply: func(row *rutis.Ctx, cfg config) error {
-		if err := cfg.validate(); err != nil {
-			return err
-		}
-		c := &control{row: row, profiles: cfg.Profiles, instance: rand.Text(), changed: make(chan struct{})}
+var (
+	Dial   = define("link-ssh-dial", dialRole)
+	Listen = define("link-ssh-listen", listenRole)
+	Tunnel = define("link-ssh-tunnel", tunnelRole)
+)
+
+func define(name string, r role) *rutis.Definition {
+	var inject []string
+	if r != tunnelRole {
+		inject = []string{"rutis/sessions"}
+	}
+	return rutis.Define(rutis.Plugin[config]{
+		Name: name, Inject: inject, Schema: schema(r),
+		Apply: func(row *rutis.Ctx, cfg config) error { return apply(row, cfg, r) },
+	})
+}
+
+func apply(row *rutis.Ctx, cfg config, r role) error {
+	if err := cfg.validate(r); err != nil {
+		return err
+	}
+	c := &control{role: r, row: row, profiles: cfg.Profiles, instance: rand.Text(), changed: make(chan struct{})}
+	if r != tunnelRole {
 		if err := row.Use("rutis/sessions", &c.sessions); err != nil {
 			return err
 		}
-		options := settings{endpoint: cfg.endpoint, Reconnect: cfg.ControlService != ""}
-		if cfg.Reconnect != nil {
-			options.Reconnect = *cfg.Reconnect
+	}
+	options := settings{endpoint: cfg.endpoint, Reconnect: cfg.ControlService != "" || r != dialRole}
+	if cfg.Reconnect != nil {
+		options.Reconnect = *cfg.Reconnect
+	}
+	if cfg.ControlService == "" && !options.Reconnect {
+		done, err := c.open(row, cfg.endpoint)
+		if err != nil {
+			return fmt.Errorf("link/ssh %s %s %s", cfg.SSHAddress, cfg.relayAddress(), errorCode(err))
 		}
-		if cfg.ControlService == "" && !options.Reconnect {
-			done, err := c.open(row, cfg.endpoint)
-			if err != nil {
-				return fmt.Errorf("link/ssh %s %s %s", cfg.SSHAddress, cfg.TargetAddress, errorCode(err))
+		row.Go(func(ctx context.Context) error {
+			if err := <-done; err != nil && ctx.Err() == nil {
+				return errors.New(errorCode(err))
 			}
-			row.Go(func(ctx context.Context) error {
-				if err := <-done; err != nil && ctx.Err() == nil {
-					return errors.New(errorCode(err))
-				}
-				return nil
-			})
 			return nil
-		}
-		row.Effect(func(context.Context) error { c.Stop(); return nil })
-		if cfg.AutoStart == nil || *cfg.AutoStart {
-			c.launch(options)
-		} else {
-			c.update(func(s *snapshot) { *s = snapshot{Desired: "stopped", Phase: "idle", Config: options} })
-		}
-		if cfg.ControlService != "" {
-			row.Provide(cfg.ControlService, c)
-		}
+		})
 		return nil
-	},
-})
+	}
+	row.Effect(func(context.Context) error { c.Stop(); return nil })
+	if cfg.AutoStart == nil || *cfg.AutoStart {
+		c.launch(options)
+	} else {
+		c.update(func(s *snapshot) { *s = snapshot{Desired: "stopped", Phase: "idle", Config: options} })
+	}
+	if cfg.ControlService != "" {
+		row.Provide(cfg.ControlService, c)
+	}
+	return nil
+}

@@ -31,11 +31,11 @@ func TestConfigureValidatesWholePatch(t *testing.T) {
 			t.Fatal("invalid patch mutated settings")
 		}
 	}
-	next, err := initial.patch(map[string]any{"sshAddress": "[::1]:2222", "servername": "office.local", "reconnect": true}, profiles)
+	next, err := initial.patch(map[string]any{"sshAddress": "[::1]:2222", "servername": "office.local", "reconnect": true}, dialRole, profiles)
 	if err != nil || next.TargetAddress != initial.TargetAddress || !next.Reconnect {
 		t.Fatalf("patch: %+v, %v", next, err)
 	}
-	next, err = next.patch(map[string]any{"servername": nil}, profiles)
+	next, err = next.patch(map[string]any{"servername": nil}, dialRole, profiles)
 	if err != nil || next.ServerName != "" {
 		t.Fatal("failed to restore default TLS server name")
 	}
