@@ -167,11 +167,13 @@ flowchart TB
 
 #### Full mesh
 
-Keep one connection per member pair. The four nodes share an authorized roster and agree that the lower stable ID dials. This assigns one initiator per edge and produces N(N−1)/2 edges for N members.
+Keep one bidirectional session per authorized member pair. The two members agree on one initiator based on reachability. If only one end can dial the other, that end initiates. If both can dial, the lower stable ID breaks the tie. If neither can dial, the edge stays disconnected. Once all pairs connect, N members have N(N−1)/2 edges.
+
+In the diagram, stable IDs increase from A through D. A cannot dial B, but B can dial A, so B initiates that session. The other five pairs are reachable in both directions and use the ID tie-breaker.
 
 ```mermaid
 flowchart TB
-    source["Discovery · A, B, C and D each read the full roster<br/>and resolve the other three endpoints"] --> dial["Dial · A → B, C, D<br/>B → C, D and C → D"]
+    source["Discovery · Each node resolves peers from the authorized roster"] --> dial["Only B can dial on the A–B edge<br/>All other pairs can dial either way, so the lower ID dials<br/>B → A, C, D / A → C, D / C → D"]
     dial --> links
     subgraph links["Established bidirectional links · 6"]
         direction LR
@@ -186,11 +188,13 @@ flowchart TB
 
 #### Partial mesh with bounded degree
 
-Nodes can learn candidates from bootstrap peers and known neighbors, then keep a subset of permitted neighbors. Here each node keeps at most three edges. Even if A learns D’s endpoint, it keeps B and C. Multi-hop communication also requires a connected graph and forwarding.
+Nodes learn candidates from bootstrap peers and known neighbors. Each node has **one limit of three distinct neighbors across inbound and outbound sessions**, with one session per neighbor. Reserve a slot from the same budget when dialing a new neighbor or admitting an inbound one. Concurrent attempts count against the budget. Release the slot if setup fails or the session ends.
+
+In the diagram, B accepts A and dials C and D, filling all three slots. Even if E is an authorized member, B must wait for a free slot before establishing a link with E. Multi-hop communication also requires a connected graph and forwarding.
 
 ```mermaid
 flowchart TB
-    source["Discovery · Start at configured bootstrap endpoints<br/>Peer exchange yields a local candidate set"] --> dial["Dial selected peers · A → B, C and B → C, D<br/>C → E and D → E"]
+    source["Discovery · Start at configured bootstrap endpoints<br/>Peer exchange yields a local candidate set"] --> dial["Inbound and outbound share three neighbor slots<br/>A → B, C / B → C, D / C → E / D → E"]
     dial --> links
     subgraph links["Established bidirectional links · 6"]
         direction LR
