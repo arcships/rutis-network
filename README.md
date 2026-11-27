@@ -17,7 +17,7 @@ The [Wireshark protocol family survey](docs/research/wireshark-support.en.md) ev
 
 ## Development checks
 
-From the repository root, use Git, Make, Go 1.24 or newer with automatic toolchain selection, and a supported Node.js version (`^22.18.0 || ^24.11.0 || >=26.0.0`). Run `make setup` after checkout or a lockfile change to install the pinned formatter and the TypeScript packages' development dependencies.
+From the repository root, use Git, Make, Go with toolchain selection enabled, and a supported Node.js version (`^22.18.0 || ^24.11.0 || >=26.0.0`). Run `make setup` after checkout or a lockfile change to install the pinned formatter and the TypeScript packages' development dependencies.
 
 | Command | What it runs |
 | --- | --- |
@@ -26,7 +26,7 @@ From the repository root, use Git, Make, Go 1.24 or newer with automatic toolcha
 | `make test` | Run Go short tests in each module and Vitest unit tests in each TypeScript package. |
 | `make check` | Check formatting, run Go vet and strict TypeScript checks, then run the fast tests. |
 
-PR checks run on Linux. The Go jobs use each module's `go.mod`; consumers of the TCP bridge use its checked-out source in a temporary Go workspace. For a single job, run e.g. `make go-check GO_MODULES=link/ssh` or `make typecheck ts-test TS_PACKAGES=link/webrtc/web`. The TCP and WebRTC packages also provide `npm run test:integration` and `npm run test:delivery` for real hosts, browsers and package installations.
+The root commands and Linux PR jobs use Go 1.27.4 from [.go-version](.go-version), including its gofmt. To use that toolchain for standalone commands in the same shell, run `export GOTOOLCHAIN="go$(cat .go-version)"` from the repository root. Each module's `go.mod` declares its minimum Go version for consumers. Checks for modules that depend on the TCP bridge use the checked-out bridge in a temporary Go workspace. For a single job, run e.g. `make go-check GO_MODULES=link/ssh` or `make typecheck ts-test TS_PACKAGES=link/webrtc/web`. The TCP and WebRTC packages also provide `npm run test:integration` and `npm run test:delivery` for real hosts, browsers and package installations.
 
 ## Status
 

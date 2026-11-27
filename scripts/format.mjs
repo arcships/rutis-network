@@ -1,5 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { lstatSync } from 'node:fs'
+import { join } from 'node:path'
 
 const mode = process.argv[2]
 if (!['fmt', 'fmt-check'].includes(mode)) throw Error('Use make fmt or make fmt-check')
@@ -14,7 +15,8 @@ const files = execFileSync('git', ['ls-files', '-z', '--', '*.go', '*.ts', '*.mt
 const go = files.filter((file) => file.endsWith('.go'))
 if (go.length) {
   // gofmt -l reports differences on stdout with exit code zero.
-  const result = spawnSync('gofmt', [write ? '-w' : '-l', ...go], {
+  const goroot = execFileSync('go', ['env', 'GOROOT'], { encoding: 'utf8' }).trim()
+  const result = spawnSync(join(goroot, 'bin', 'gofmt'), [write ? '-w' : '-l', ...go], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'inherit'],
   })

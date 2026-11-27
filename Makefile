@@ -1,4 +1,5 @@
 .DEFAULT_GOAL := check
+export GOTOOLCHAIN := go$(strip $(shell cat .go-version))
 
 # Discover checked-in projects, including new plugins outside link/.
 GO_MODULES := $(patsubst %/go.mod,%,$(wildcard $(shell git ls-files '*/go.mod')))
