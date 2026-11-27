@@ -362,7 +362,7 @@ func TestAuthorityRestart(t *testing.T) {
 		cert := &x509.Certificate{DNSNames: []string{name}, Raw: []byte(name)}
 		return peer.NewContext(t.Context(), &peer.Peer{AuthInfo: credentials.TLSInfo{State: tls.ConnectionState{VerifiedChains: [][]*x509.Certificate{{cert}}}}})
 	}
-	const lease = 80 * time.Millisecond
+	const lease = time.Second
 	open := func() *Control {
 		c, err := newControl(cfg, lease)
 		if err != nil {
@@ -381,26 +381,53 @@ func TestAuthorityRestart(t *testing.T) {
 			return err == nil
 		})
 	}
+	resolve := func(c *Control, host, target string, previous uint64) *wire.Route {
+		t.Helper()
+		route, err := c.Resolve(peerCtx(host), &wire.Registration{Pair: "p", Target: target, PreviousGeneration: previous})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return route
+	}
+	claim := func(host, target string, route *wire.Route) *wire.Claim {
+		return &wire.Claim{Region: "r", Instance: "new", Pair: "p", Target: target,
+			Generation: route.Generation, Ticket: route.Ticket, CertificateHash: certificateHash(peerCtx(host))}
+	}
+	admit := func(c *Control, ticket *wire.Claim) {
+		t.Helper()
+		if _, err := c.Admit(peerCtx("relay.test"), ticket); err != nil {
+			t.Fatal(err)
+		}
+	}
 	a := open()
 	start(a)
-	in := &wire.Registration{Pair: "p", Target: "b"}
-	old, err := a.Resolve(peerCtx("a.test"), in)
-	if err != nil {
-		t.Fatal(err)
-	}
+	peerRoute := resolve(a, "b.test", "a", 0)
+	admit(a, claim("b.test", "a", peerRoute))
+	old := resolve(a, "a.test", "b", 0)
+	admit(a, claim("a.test", "b", old))
+	current := resolve(a, "a.test", "b", 0)
+	admit(a, claim("a.test", "b", current))
+	// Issuing a later ticket alone must not supersede the current instance.
+	unspent := resolve(a, "a.test", "b", 0)
 	if err := a.Close(); err != nil {
 		t.Fatal(err)
 	}
 	b := open()
 	start(b)
-	fresh, err := b.Resolve(peerCtx("a.test"), in)
-	if err != nil || fresh.Generation <= old.Generation {
-		t.Fatal(fresh, err)
-	}
-	_, err = b.Admit(peerCtx("relay.test"), &wire.Claim{Region: "r", Instance: "new", Pair: "p", Target: "b", Generation: old.Generation, Ticket: old.Ticket})
+	// The old instance missed its replacement trailers and retries first.
+	_, err := b.Resolve(peerCtx("a.test"), &wire.Registration{Pair: "p", Target: "b", PreviousGeneration: old.Generation})
+	expectReason(t, err, codes.Aborted, "REPLACED")
+	_, err = b.Admit(peerCtx("relay.test"), claim("a.test", "b", unspent))
 	if status.Code(err) != codes.PermissionDenied {
 		t.Fatal(err)
 	}
+	fresh := resolve(b, "a.test", "b", current.Generation)
+	if fresh.Generation <= unspent.Generation {
+		t.Fatal("route generation did not advance across restart")
+	}
+	admit(b, claim("a.test", "b", fresh))
+	peerFresh := resolve(b, "b.test", "a", peerRoute.Generation)
+	admit(b, claim("b.test", "a", peerFresh))
 	_, err = b.Heartbeat(peerCtx("relay.test"), &wire.RegionReport{Region: "r", Instance: "duplicate"})
 	if status.Code(err) != codes.AlreadyExists {
 		t.Fatal(err)

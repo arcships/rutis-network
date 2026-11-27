@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"maps"
@@ -58,12 +59,11 @@ type issuedRoute struct {
 }
 type placement struct {
 	CloudPair
-	region       string
-	epoch        uint64
-	admitted     bool              // at least one ticket redeemed against this reservation
-	lastAdmitted map[string]uint64 // per member, retained across placements
-	reserved     time.Time
-	routes       map[string]issuedRoute
+	region   string
+	epoch    uint64
+	admitted bool // at least one ticket redeemed against this reservation
+	reserved time.Time
+	routes   map[string]issuedRoute
 }
 
 // Control is the single route authority in the reference deployment. A cold
@@ -84,6 +84,7 @@ type Control struct {
 
 const regionLease = 12 * time.Second
 const ticketTTL = 30 * time.Second
+const routesBucket = "routes"
 
 func NewControl(cfg ControlConfig) (*Control, error) { return newControl(cfg, regionLease) }
 func newControl(cfg ControlConfig, lease time.Duration) (*Control, error) {
@@ -142,7 +143,7 @@ func newControl(cfg ControlConfig, lease time.Duration) (*Control, error) {
 		}
 		p.Members = slices.Clone(p.Members)
 		p.Regions = slices.Clone(p.Regions)
-		c.pairs[key] = &placement{CloudPair: p, routes: map[string]issuedRoute{}, lastAdmitted: map[string]uint64{}}
+		c.pairs[key] = &placement{CloudPair: p, routes: map[string]issuedRoute{}}
 	}
 	for tenant, n := range c.quota {
 		if !tenants[tenant] || n < 1 {
@@ -178,7 +179,7 @@ func (c *Control) Close() error {
 func (c *Control) nextGeneration() (uint64, error) {
 	var next uint64
 	err := c.db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte("routes"))
+		bucket, err := tx.CreateBucketIfNotExists([]byte(routesBucket))
 		if err != nil {
 			return err
 		}
@@ -187,6 +188,44 @@ func (c *Control) nextGeneration() (uint64, error) {
 	})
 	return next, err
 }
+
+// The routes bucket's sequence allocates tickets. Its entries record only
+// redeemed generations. All three labels exclude '/'.
+func (p *placement) admissionKey(member string) []byte {
+	return []byte(p.Tenant + "/" + p.ID + "/" + member)
+}
+
+func (c *Control) lastAdmitted(key []byte) (uint64, error) {
+	var generation uint64
+	err := c.db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(routesBucket))
+		if bucket == nil {
+			return nil
+		}
+		value := bucket.Get(key)
+		if value == nil {
+			return nil
+		}
+		if len(value) != 8 {
+			return errors.New("invalid admission generation")
+		}
+		generation = binary.BigEndian.Uint64(value)
+		return nil
+	})
+	return generation, err
+}
+
+func (c *Control) recordAdmission(key []byte, generation uint64) error {
+	return c.db.Update(func(tx *bolt.Tx) error {
+		// The transaction that issued this ticket created the bucket.
+		bucket := tx.Bucket([]byte(routesBucket))
+		if bucket == nil {
+			return errors.New("missing route generation store")
+		}
+		return bucket.Put(key, binary.BigEndian.AppendUint64(nil, generation))
+	})
+}
+
 func randomTicket() string {
 	var b [32]byte
 	rand.Read(b[:])
@@ -384,8 +423,14 @@ func (c *Control) Resolve(ctx context.Context, in *wire.Registration) (*wire.Rou
 		return nil, err
 	}
 	now := time.Now()
-	if in.PreviousGeneration != 0 && in.PreviousGeneration < p.lastAdmitted[member.id] {
-		return nil, pairError(codes.Aborted, "REPLACED", in.Pair, in.Target, in.PreviousGeneration)
+	if in.PreviousGeneration != 0 {
+		last, err := c.lastAdmitted(p.admissionKey(member.id))
+		if err != nil {
+			return nil, status.Error(codes.Unavailable, "generation store unavailable")
+		}
+		if in.PreviousGeneration < last {
+			return nil, pairError(codes.Aborted, "REPLACED", in.Pair, in.Target, in.PreviousGeneration)
+		}
 	}
 	c.record(member, in, now)
 	g, err := c.choose(p, in.Region, now)
@@ -431,9 +476,11 @@ func (c *Control) Admit(ctx context.Context, in *wire.Claim) (*wire.Member, erro
 					g.fullUntil = now.Add(c.lease)
 					return nil, pairError(codes.ResourceExhausted, "STREAM_QUOTA", p.ID, in.Target, in.Generation)
 				}
+				if err := c.recordAdmission(p.admissionKey(member), t.generation); err != nil {
+					return nil, status.Error(codes.Unavailable, "generation store unavailable")
+				}
 				delete(p.routes, member)
 				p.admitted = true
-				p.lastAdmitted[member] = t.generation
 				return &wire.Member{Tenant: p.Tenant, Id: member}, nil
 			}
 		}
