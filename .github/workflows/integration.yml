@@ -38,7 +38,7 @@ jobs:
     needs: scope
     if: needs.scope.outputs.suites != '[]'
     name: Integration / ${{ matrix.suite.transport }}
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.suite.runner || 'ubuntu-24.04' }}
     timeout-minutes: 25
     strategy:
       fail-fast: false
@@ -53,7 +53,9 @@ jobs:
           go-version-file: .go-version
           cache-dependency-path: |
             link/tcp/go.sum
-            link/${{ matrix.suite.transport }}/go.sum
+            link/webrtc/go.sum
+            discovery/mdns/go.sum
+            group/peer/go.sum
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22.18.0'
@@ -69,3 +71,5 @@ jobs:
         working-directory: ${{ matrix.suite.package }}
         run: node_modules/.bin/playwright install --with-deps chromium firefox
       - run: make "integration-$TRANSPORT"
+        env:
+          MDNS_TEST_INTERFACE: ${{ matrix.suite.transport == 'peer-group' && 'lo0' || '' }}

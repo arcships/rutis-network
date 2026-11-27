@@ -84,6 +84,8 @@ GOWORK=off GOBIN="$PWD/plugins/go" go install github.com/arcships/rutis-network/
 
 需要自动发现端口时，发布端的 `go:tcp-offer-source` 订阅监听控制服务，接收端的 `go:tcp-offer-dial` 从发现服务选择一个匹配的 `rutis.tcp` v1 入口，配置本机的专属拨号器。CA、证书和私钥放在各自的 TCP 行中，预期服务端身份由接收端配置。[mDNS 配置与双端示例](../../discovery/mdns/README.zh-CN.md)
 
+多成员组网时，把 mDNS 浏览服务注入 `go:peer-group`，再将各 TCP 说明适配器的发现来源改为组网行输出的服务。拓扑决定交付哪些出站说明，TCP 行验证预期对端。[拓扑配置与三节点环形示例](../../group/peer/README.zh-CN.md)
+
 在仓库根目录运行以下检查。集成测试使用 Node ≥22.18、npm、OpenSSL 和支持控制 socket 的 Unix 宿主。测试编译 Go 二进制，启动真实 rutis 宿主，通过 Go 拨号插件和单次拨号的 TypeScript 参考实现调用远端服务。Rust 示例使用 Cargo。[TypeScript 参考实现](../../link/tcp/dial.ts) · [宿主测试](../../link/tcp/node/test/hosts.test.mjs)
 
 ```sh
