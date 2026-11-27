@@ -190,3 +190,8 @@ go -C link/grpc build -o example/device/plugins/go/link-grpc ./cmd/link-grpc
 Run `rutis-host run link/grpc/example/cloud/rutis.json` and `rutis-host run link/grpc/example/device/rutis.json` in separate terminals. Run `rutis-host call --config link/grpc/example/device/rutis.json device.submit '"build"'` on the device. On a fresh service the reply contains `{"id":"job-1","progress":"job-1 queued"}`. To exercise the two hosts with generated certificates on macOS or Linux, set `RUTIS_HOST` to the absolute path of rutis-host and run `go -C link/grpc test -race -count=1 ./...`.
 
 Each admitted stream carries one session, with one rutis message per protobuf frame (up to 16 MiB). The device retries a disconnect with 0.5–30 s backoff. If the cloud returns `PermissionDenied` or `Unauthenticated`, including on an established tunnel, the device records that code and retries after 30 s. Each reconnect rereads the device's CA, certificate and private key. If a rotation temporarily leaves the certificate and key out of sync, retries continue with backoff. An interrupted job call may already have reached the scheduler. The link reconnects without replaying it. The Go 0.23 session API does not expose peer IDs to the listener or a total outbound queue limit. [Wire contract](../../link/grpc/wire/link.proto)
+
+
+## Cloud links for outbound-only hosts
+
+Mount a `go:link-grpc` row at each end and configure the same tenant-scoped pair with reciprocal targets. A directory authenticates both hosts, assigns an allowed region and issues admission tickets. The relay forwards the two streams. A worker can run a plugin mounted remotely with `wire:go:worker-jobs`. [Deploy a two-region relay and run the worker example](grpc-cloud.en.md)

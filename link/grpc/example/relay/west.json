@@ -1,0 +1,15 @@
+{
+  "listen": "127.0.0.1:7445",
+  "caFile": "/etc/rutis/grpc/ca.pem",
+  "certFile": "/etc/rutis/grpc/west.pem",
+  "keyFile": "/etc/rutis/grpc/west.key",
+  "relay": {
+    "address": "127.0.0.1:7443",
+    "serverName": "directory.test",
+    "region": "west",
+    "maxStreams": 64,
+    "caFile": "/etc/rutis/grpc/ca.pem",
+    "certFile": "/etc/rutis/grpc/west-agent.pem",
+    "keyFile": "/etc/rutis/grpc/west-agent.key"
+  }
+}

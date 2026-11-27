@@ -53,6 +53,7 @@ jobs:
           go-version-file: .go-version
           cache-dependency-path: |
             link/tcp/go.sum
+            link/grpc/go.sum
             link/webrtc/go.sum
             link/websocket/go.sum
             discovery/mdns/go.sum

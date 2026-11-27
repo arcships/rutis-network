@@ -2,7 +2,7 @@
 
 已实现的 Go 适配器适用于 rutis 0.23.0。设备插件连接云服务内部的插件，云端插件复用应用已有的 gRPC 监听器和业务对象。集成测试覆盖双向调用和断线恢复。[构建、配置和运行示例](../guide/link-plugins.md#设备插件连接-go-云服务内的插件)。
 
-下文保留了 2026-11-08 的设计讨论，其中包括可扩展的 relay 和多区域部署。当前直连实现使用 mTLS 和带版本的 Tunnel RPC。服务端检查客户端证书和插件绑定状态后才发送初始元数据 `rutis-link-accepted: 1`。客户端收到确认后挂载本地会话。
+云部署已实现目录、按租户配对的双出站连接、云端 worker 和按租约运行的区域中继。v1 protobuf 由本仓库维护。一个配对选择一个获准区域，两端各打开一条流，区域切换后重新建立会话。[部署、配置和故障验收](../guide/grpc-cloud.md)
 
 关联 issue：[#7](https://github.com/arcships/rutis-network/issues/7)。依赖：[#1](https://github.com/arcships/rutis-network/issues/1)。
 
@@ -43,7 +43,7 @@ message Frame {
 
 | 方式 | 做法 |
 | --- | --- |
-| mTLS | 客户端证书；服务端校验 CN/SAN；不把证书身份传给 session |
+| mTLS | 服务端验证客户端证书链，并匹配配置的 DNS SAN |
 | OAuth/JWT | `authorization: Bearer`；校验 issuer/audience/scope |
 | API key | metadata；只在 adapter 配置里 |
 | 失败 | 返回 `UNAUTHENTICATED`/`PERMISSION_DENIED`；不创建 session |
@@ -79,8 +79,9 @@ message Frame {
 
 - **模型**：relay 不挂 session、不握手、不解析 `payload`；A/B 各自与自己的 session 握手，`Hello` 端到端。relay 只把两条 stream 的 `payload` 原样对接。
 - **配对**：`x-rutis-pair` + `x-rutis-target` 定位两条 stream；租户 id 来自准入，配对键只在租户内有效。
-- **代次**：每次重连 `x-rutis-generation` 递增；同 pair 的新代次到达时，relay 关闭旧代次的两条 stream，再对接新代次。
-- **失败**：配对超时/找不到对端时，两端都收到 `UNAVAILABLE` 和结构化 `data`（pair、target、generation、reason）；不创建 session。
+- 目录为每次成功选路分配递增的 `x-rutis-generation`。同一成员的新实例接管时，中继关闭原配对。旧实例收到 `REPLACED` 后停止重试，对端收到 `PEER_REPLACED` 后立即重新配对。自动重连携带上次取得的代次，目录会拒绝已被接管的旧实例。
+- 配对等待超时后，等待方收到 `UNAVAILABLE / PAIR_TIMEOUT` 并立即重新配对。普通网络故障仍按指数退避重试。
+- 目录为新配对在一个允许区域同时预留两条流。满载时改选其他允许区域，已有成员接入的配对继续使用原区域。区域租约到期后，该租约下的预留和待用票据一起失效。
 - **不做**：relay 不做身份、不做 session 顶替、不解析 `Hello`；这些都在 A/B。
 - **边界**：relay/控制面是独立的云服务或应用，不是本地链接层的 manager/注册表，也不替 link 管凭据；不违反 #1 D11。
 
@@ -133,12 +134,9 @@ message Frame {
 - 不把 gRPC-Web 当浏览器 bidi 方案。
 - 不在一个 stream 里多路复用多个 session（先不做）。
 
-## 11. 开放问题
+## 11. 协议决定
 
-- O1：proto 归 rutis-network 还是 rutis 主仓库？版本策略？
-- O2（已关闭）：relay 不解析 `payload`；只按 metadata/租户路由。
-- O3：一条 stream 一个 session 的成本（每 session 一个 HTTP/2 stream）是否可接受。
-- O4：多区域故障切换时，是否允许 session 状态迁移？先不做。
+v1 协议由 rutis-network 维护。目录负责准入和分配 generation，中继验证路由元数据并原样转发完整消息。每对宿主各用一条流，建立一个端到端会话。下一代配对重新握手。
 
 ## 关联
 
