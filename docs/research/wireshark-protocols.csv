@@ -411,7 +411,7 @@ dmx_sip,DMX SIP,2.2.0 to 4.6.10,media,application,d/dmx_sip.html
 dmx_test,DMX Test Frame,2.2.0 to 4.6.10,media,application,d/dmx_test.html
 dmx_text,DMX Text Frame,2.2.0 to 4.6.10,media,application,d/dmx_text.html
 dnp3,Distributed Network Protocol 3.0,1.0.0 to 4.6.10,utilities,gateway,d/dnp3.html
-dns,Domain Name System,1.0.0 to 4.6.10,discovery,trial-service,d/dns.html
+dns,Domain Name System,1.0.0 to 4.6.10,discovery,existing-service,d/dns.html
 dnsserver,DNS Server,1.0.0 to 4.6.10,enterprise,application,d/dnsserver.html
 do-irp,Digital Object Identifier Resolution Protocol,4.2.0 to 4.6.10,discovery,reuse,d/do-irp.html
 docsis,DOCSIS,1.0.0 to 4.6.10,access,reuse,d/docsis.html

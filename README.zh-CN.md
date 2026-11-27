@@ -13,9 +13,11 @@ rutis 自己只管会话这一侧：连接插件打开一条通道，交给服�
 
 [安全、稳定与可信研究](docs/research/network-assurance.md)沿设备、网关到云应用的路径分析准入、故障恢复和数据来源。
 
-[Wireshark 协议族与支持建议](docs/research/wireshark-support.md)按 50 个分组逐项评估过滤器索引，并给出五项待验证的插件能力。
+[Wireshark 协议族与支持建议](docs/research/wireshark-support.md)按 50 个分组逐项评估过滤器索引，并给出四项待验证的插件能力。
 
 ## 状态
+
+Go DNS-SD/mDNS 插件可在指定网卡上发现和公布局域网入口。消费插件可读取当前候选并等待变化。[配置与 Go 接口](discovery/mdns/README.zh-CN.md)
 
 浏览器之间、浏览器与原生 rutis 宿主之间可通过 WebRTC DataChannel 双向调用服务，支持直连和经过认证的 TURN 中继。[WebRTC 配置与示例](docs/design/08-link-webrtc.md)
 

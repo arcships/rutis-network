@@ -13,9 +13,11 @@ For device integration, the [network stack survey](docs/research/network-stacks.
 
 [Security, reliability and trustworthiness](docs/research/network-assurance.en.md) follows a device-to-cloud path through admission, failure recovery and data provenance.
 
-The [Wireshark protocol family survey](docs/research/wireshark-support.en.md) evaluates the display filter index across 50 groups and proposes five plugin capabilities to validate.
+The [Wireshark protocol family survey](docs/research/wireshark-support.en.md) evaluates the display filter index across 50 groups and proposes four further plugin capabilities to validate.
 
 ## Status
+
+The Go DNS-SD/mDNS plugin discovers and advertises local ingress endpoints on a selected interface. A consuming plugin can read the current candidates and wait for changes. [Configuration and Go API](discovery/mdns/README.md)
 
 Browsers can connect to each other or to a native rutis host over a WebRTC DataChannel, directly or via authenticated TURN. [WebRTC setup and example](docs/design/08-link-webrtc.en.md)
 

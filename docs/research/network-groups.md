@@ -242,7 +242,7 @@ flowchart TB
     link <-->|获准的传输通道| peer["对端 link 与 rutis 会话"]
 ```
 
-虚线表示发现、策略与控制反馈，实线表示已建连接上的消息路径。`go:discover-mdns` 和 `go:peer-group` 均为拟议的普通 Go 插件。已有 TCP link 可接受目标配置并实施 mTLS 准入，成功后将通道交给 `rutis/sessions.open(far)`。[TCP 控制接口](../design/06-link-tcp-integration.md) · [插件组合契约 D11](../design/01-link-plugin-contract.md)
+虚线表示发现、策略与控制反馈，实线表示已建连接上的消息路径。[Go DNS-SD/mDNS 插件](../../discovery/mdns/README.zh-CN.md)已实现发现。拟议的 `go:peer-group` 插件负责选邻和管理拨号目标。已有 TCP link 可接受目标配置并实施 mTLS 准入，成功后将通道交给 `rutis/sessions.open(far)`。[TCP 控制接口](../design/06-link-tcp-integration.md) · [插件组合契约 D11](../design/01-link-plugin-contract.md)
 
 | 组件 | 一行配置负责什么 | 谁来消费 |
 | --- | --- | --- |
