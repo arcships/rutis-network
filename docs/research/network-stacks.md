@@ -6,6 +6,20 @@
 
 本调查按**可观察的协议族和交接接口**盘点常见、行业专用、罕见和存量网络。一个部署可以跨多行，例如无线接入、IP 适配、传输、设备模型各占一层。表中列代表协议和关键变体，厂商私有扩展、新版本和跨层排列可沿同一方法补录。每行最后给出集成判断与代表性一手资料。
 
+## 网络协议有多少
+
+这份调查按插件面对的接口归并为 52 个条目。若改按可解析的线协议和格式计，规模已达数千。2026 年 11 月 27 日核对的三种统计口径如下。
+
+| 统计来源 | 数量 | 一个计数单位代表什么 |
+| --- | ---: | --- |
+| IANA IP Protocol Numbers | 148 个编号 | IPv4 Protocol 和 IPv6 Next Header 共用 8 位编号空间。登记表把 0–147 逐项列出，其中含扩展首部和历史用途。148–252 当时待分配，253、254 供实验，255 保留。[登记表](https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml) |
+| Wireshark 4.6.10 | 约 3,000 种 | 官方显示过滤器参考给出的解析覆盖规模。主协议、子协议和可解析格式的划分取决于工具。[Wireshark 显示过滤器参考](https://www.wireshark.org/docs/dfref/) |
+| IANA Service Names and Port Numbers | 7,336 个不同服务名 | 从 CSV 的 `Service Name` 列去掉空值并按名字去重，同名的 TCP、UDP 登记只计一次。一个协议可服务多个注册名称，串行、非 IP 和私有协议也可能完全不在这张表里。[登记表 CSV](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv) |
+
+例如 MQTT 经 TLS/TCP 运行时，IP 首部只标出 TCP。抓包工具具备分别解析 TCP、TLS 和 MQTT 的能力，能否看到 MQTT 还取决于能否解密。三种口径互相交叠，无法相加得到协议总数。
+
+对组网插件，现有清单里还可细分出几个方向：BFD 观察转发路径存活，IGMP/MLD 表达本链路的组播接收意愿，PIM-SM 在路由器间建立组播分发路径，RPKI-to-Router 提供可供路由器校验路由起源的数据，TACACS+ 用于网络设备管理访问。同样一句“节点在线且可信”，这些协议各自只能为其中一部分提供证据。[BFD](https://datatracker.ietf.org/doc/html/rfc5880) · [PIM-SM](https://datatracker.ietf.org/doc/html/rfc7761) · [RPKI-to-Router](https://datatracker.ietf.org/doc/html/rfc8210) · [TACACS+](https://datatracker.ietf.org/doc/html/rfc8907)
+
 **怎样读这份清单**
 
 - **系统提供 IP。** 复用已有 TCP、WebSocket、gRPC 等，前提是实际对端实现同一协议、具备资源并允许连接。位于同一 IP 网络也可能受休眠、NAT 或隔离策略限制。

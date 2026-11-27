@@ -6,6 +6,20 @@ Before connecting a Thread thermostat, find out what the device exposes. A borde
 
 This inventory covers common, sector-specific, unusual and legacy networks by **protocol family and observable handoff**. A deployment can span several rows for access, IP adaptation, transport and its device model. The tables identify representative protocols and significant variants. Vendor extensions, new versions and new combinations can be classified by the same method. Each row ends with an integration judgment and representative primary sources.
 
+## How many network protocols are there?
+
+This survey groups protocols into 52 entries by the interface a plugin encounters. Counting parseable wire protocols and formats yields a scale of thousands. Three reference counts checked on November 27, 2026 illustrate the difference.
+
+| Source | Count | What one item represents |
+| --- | ---: | --- |
+| IANA IP Protocol Numbers | 148 numbered entries | IPv4 Protocol and IPv6 Next Header share an eight-bit number space. The registry lists 0–147 individually, including extension headers and historical uses. At the time, 148–252 were unassigned, 253 and 254 were for experiments, and 255 was reserved. [Registry](https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml) |
+| Wireshark 4.6.10 | About 3,000 | Parser coverage reported by the official Display Filter Reference. The tool determines how it separates protocols, subprotocols and formats. [Wireshark Display Filter Reference](https://www.wireshark.org/docs/dfref/) |
+| IANA Service Names and Port Numbers | 7,336 distinct service names | Drop blanks and deduplicate the CSV's `Service Name` column, counting a name registered for both TCP and UDP once. Multiple names can use one protocol. Serial, non-IP and private protocols may have no entry. [Registry CSV](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv) |
+
+For MQTT over TLS over TCP, the IP header identifies TCP. A packet analyzer can have separate parsers for TCP, TLS and MQTT, although observing MQTT in that trace requires decryption. The three counts overlap and cannot be added to produce a protocol total.
+
+Several areas in the catalog merit finer distinctions when building network plugins. BFD observes forwarding-path liveness. IGMP/MLD signal local multicast reception interest. PIM-SM builds multicast distribution paths between routers. RPKI-to-Router supplies data for validating route origins. TACACS+ supports administrative access to network devices. Each can substantiate only part of a claim that a node is reachable and trusted. [BFD](https://datatracker.ietf.org/doc/html/rfc5880) · [PIM-SM](https://datatracker.ietf.org/doc/html/rfc7761) · [RPKI-to-Router](https://datatracker.ietf.org/doc/html/rfc8210) · [TACACS+](https://datatracker.ietf.org/doc/html/rfc8907)
+
 **How to read the catalog**
 
 - **The system exposes IP.** Reuse an existing TCP, WebSocket or gRPC link when the actual peer implements the same protocol, has the resources and admits the connection. Sleep cycles, NAT and isolation policies can still restrict reachability.
