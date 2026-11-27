@@ -74,7 +74,8 @@ func (t target) tlsName() string {
 	return t.Host
 }
 
-func validHost(name string) bool {
+// ValidHost accepts DNS names and IP literals used by the network dialers.
+func ValidHost(name string) bool {
 	if ip, err := netip.ParseAddr(name); err == nil {
 		zone := ip.Zone()
 		return !strings.ContainsAny(zone, "%/[]") && strings.IndexFunc(zone, func(r rune) bool {
@@ -102,10 +103,10 @@ func (t target) validate(dial bool) error {
 	if !dial && (t.Host != "" || t.ServerName != "") {
 		return errors.New("listen only accepts port")
 	}
-	if t.Host != "" && !validHost(t.Host) {
+	if t.Host != "" && !ValidHost(t.Host) {
 		return errors.New("invalid host")
 	}
-	if t.ServerName != "" && (!validHost(t.ServerName) || strings.Contains(t.ServerName, "%")) {
+	if t.ServerName != "" && (!ValidHost(t.ServerName) || strings.Contains(t.ServerName, "%")) {
 		return errors.New("invalid servername")
 	}
 	if t.Port != nil && (*t.Port < 0 || *t.Port > 65535 || dial && *t.Port == 0) {

@@ -220,7 +220,7 @@ func TestPeerReset(t *testing.T) {
 		t.Fatal(err)
 	}
 	peer.Close()
-	if err := <-done; errorCode(err) != "ECONNRESET" {
+	if err := <-done; TransportErrorCode(err) != "ECONNRESET" {
 		t.Fatalf("reset: %v", err)
 	}
 }
@@ -236,7 +236,7 @@ func TestStopDuringOpenEndsLateSession(t *testing.T) {
 	finished := make(chan error, 1)
 	ends := 0
 	go func() {
-		done, err := openStream(transport, row, local, Sessions{Open: func(ctx context.Context, _ Far) (Near, error) {
+		done, err := OpenManaged(transport, row, local, Sessions{Open: func(ctx context.Context, _ Far) (Near, error) {
 			close(mounted)
 			select {
 			case <-ctx.Done():

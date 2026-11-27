@@ -10,6 +10,8 @@ rutis 自己只管会话这一侧：连接插件打开一条通道，交给服�
 
 ## 状态
 
+[Go SSH 插件](docs/design/03-link-ssh.md) 支持通过 SSH 拨号、经 VPS 监听并接入 rutis 会话，以及反向转发到已有 TCP 服务。
+
 [Cloudflare Tunnel Go 插件](docs/design/05-cloudflare-plugin-control.md)可连接两台 rutis 0.23 宿主。指南包含两端配置、可运行的 Go 服务示例和本地控制接口。
 
 [开发指南](docs/guide/link-plugins.md)包含 Go TCP bridge、支持运行时管理的拨号与回环监听插件、用于互通验证的 TypeScript 参考实现、经过验证的 frp 和 OpenSSH 转发配置，以及可运行的 Rust 监听示例。其余工作按以下 issue 跟踪。
