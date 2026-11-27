@@ -13,7 +13,7 @@
 | 统计来源 | 数量 | 一个计数单位代表什么 |
 | --- | ---: | --- |
 | IANA IP Protocol Numbers | 148 个编号 | IPv4 Protocol 和 IPv6 Next Header 共用 8 位编号空间。登记表把 0–147 逐项列出，其中含扩展首部和历史用途。148–252 当时待分配，253、254 供实验，255 保留。[登记表](https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml) |
-| Wireshark 4.6.10 | 约 3,000 种 | 官方显示过滤器参考给出的解析覆盖规模。主协议、子协议和可解析格式的划分取决于工具。[Wireshark 显示过滤器参考](https://www.wireshark.org/docs/dfref/) |
+| Wireshark 4.6.10 | 约 3,000 种 | 官方概述给出的解析覆盖规模。本次从字母索引逐项提取 2,166 个过滤器键，其中 2,056 个的版本范围包含 4.6.10。[官方索引](https://www.wireshark.org/docs/dfref/) · [50 个协议族分组及支持建议](wireshark-support.md) |
 | IANA Service Names and Port Numbers | 7,336 个不同服务名 | 从 CSV 的 `Service Name` 列去掉空值并按名字去重，同名的 TCP、UDP 登记只计一次。一个协议可服务多个注册名称，串行、非 IP 和私有协议也可能完全不在这张表里。[登记表 CSV](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv) |
 
 例如 MQTT 经 TLS/TCP 运行时，IP 首部只标出 TCP。抓包工具具备分别解析 TCP、TLS 和 MQTT 的能力，能否看到 MQTT 还取决于能否解密。三种口径互相交叠，无法相加得到协议总数。

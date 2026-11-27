@@ -13,7 +13,7 @@ This survey groups protocols into 52 entries by the interface a plugin encounter
 | Source | Count | What one item represents |
 | --- | ---: | --- |
 | IANA IP Protocol Numbers | 148 numbered entries | IPv4 Protocol and IPv6 Next Header share an eight-bit number space. The registry lists 0–147 individually, including extension headers and historical uses. At the time, 148–252 were unassigned, 253 and 254 were for experiments, and 255 was reserved. [Registry](https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml) |
-| Wireshark 4.6.10 | About 3,000 | Parser coverage reported by the official Display Filter Reference. The tool determines how it separates protocols, subprotocols and formats. [Wireshark Display Filter Reference](https://www.wireshark.org/docs/dfref/) |
+| Wireshark 4.6.10 | About 3,000 | Decoder coverage reported in the official introduction. The alphabetical index enumerates 2,166 filter keys, of which 2,056 have version ranges that include 4.6.10. [Official index](https://www.wireshark.org/docs/dfref/) · [50 family groups and support decisions](wireshark-support.en.md) |
 | IANA Service Names and Port Numbers | 7,336 distinct service names | Drop blanks and deduplicate the CSV's `Service Name` column, counting a name registered for both TCP and UDP once. Multiple names can use one protocol. Serial, non-IP and private protocols may have no entry. [Registry CSV](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv) |
 
 For MQTT over TLS over TCP, the IP header identifies TCP. A packet analyzer can have separate parsers for TCP, TLS and MQTT, although observing MQTT in that trace requires decryption. The three counts overlap and cannot be added to produce a protocol total.

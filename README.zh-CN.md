@@ -13,6 +13,8 @@ rutis 自己只管会话这一侧：连接插件打开一条通道，交给服�
 
 [安全、稳定与可信研究](docs/research/network-assurance.md)沿设备、网关到云应用的路径分析准入、故障恢复和数据来源。
 
+[Wireshark 协议族与支持建议](docs/research/wireshark-support.md)按 50 个分组逐项评估过滤器索引，并给出六项可验收的插件能力。
+
 ## 状态
 
 [Go SSH 插件](docs/design/03-link-ssh.md) 支持通过 SSH 拨号、经 VPS 监听并接入 rutis 会话，以及反向转发到已有 TCP 服务。

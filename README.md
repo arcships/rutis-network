@@ -13,6 +13,8 @@ For device integration, the [network stack survey](docs/research/network-stacks.
 
 [Security, reliability and trustworthiness](docs/research/network-assurance.en.md) follows a device-to-cloud path through admission, failure recovery and data provenance.
 
+The [Wireshark protocol family survey](docs/research/wireshark-support.en.md) evaluates the display filter index across 50 groups and proposes six testable plugin capabilities.
+
 ## Status
 
 The [Go SSH plugins](docs/design/03-link-ssh.en.md) dial rutis peers, accept sessions through a VPS, and reverse-forward streams to an existing TCP service.
