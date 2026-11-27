@@ -69,3 +69,25 @@ jobs:
         working-directory: ${{ matrix.suite.package }}
         run: node_modules/.bin/playwright install --with-deps chromium firefox
       - run: make "integration-$TRANSPORT"
+      - name: Pack the WebRTC browser ESM and declarations
+        if: matrix.suite.transport == 'webrtc'
+        id: pack
+        working-directory: ${{ matrix.suite.package }}
+        shell: bash
+        run: |
+          filename=$(npm pack --json --pack-destination "$RUNNER_TEMP" | jq -er '.[0].filename')
+          echo "archive=$RUNNER_TEMP/$filename" >> "$GITHUB_OUTPUT"
+      - name: Install the tarball, type-check the consumer and run browser RPC
+        if: matrix.suite.transport == 'webrtc'
+        working-directory: ${{ matrix.suite.package }}
+        env:
+          WEBRTC_TARBALL: ${{ steps.pack.outputs.archive }}
+        run: npm run test:package
+      - name: Upload the verified npm tarball
+        if: matrix.suite.transport == 'webrtc'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: webrtc-npm-package
+          path: ${{ steps.pack.outputs.archive }}
+          if-no-files-found: error
+          retention-days: 30

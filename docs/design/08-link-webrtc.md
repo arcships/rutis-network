@@ -48,7 +48,15 @@ printf 'A: %s\nB: %s\n' "$PAIR_A_TOKEN" "$PAIR_B_TOKEN"
 
 在 `link/webrtc` 使用上面示例的配对凭据和可选的 TURN 设置，执行 `npm run dev --prefix web`，即可启动页面和同源信令。保存浏览器 TS 后，tsdown 重新构建 ESM，成功后由 Vite 刷新已打开的页面。构建失败时终端显示错误，页面仍能读取上一份成功产物。保存 Node 配对模块会重启示例服务。页面刷新后重新连接即可建立新会话。
 
-在 `link/webrtc/web` 执行 `npm pack`，即可生成包含浏览器 ESM 和类型声明的压缩包。在应用内安装该包，通过 `@arcships/rutis-link-webrtc` 导入 `createWebRtcLink`、`createPageEndpoint` 和 `httpSignaling`。普通 HTML 可以直接导入构建生成的 `dist/link-webrtc.mjs`。示例信令服务和 TURN 服务各自部署。安装 Chromium 后，执行 `npm run test:delivery` 可验证开发重载、构建出错后恢复、仓库外消费端的严格类型检查和真实 RPC。
+在 `link/webrtc/web` 执行 `npm ci && npm pack`，会生成 `arcships-rutis-link-webrtc-0.1.0.tgz`。也可以从 WebRTC CI 的 `webrtc-npm-package` 下载已验收的 tarball。在使用方的 TypeScript 项目中安装：
+
+```sh
+npm install ./arcships-rutis-link-webrtc-0.1.0.tgz
+```
+
+从 `@arcships/rutis-link-webrtc` 导入 `createWebRtcLink`、`createPageEndpoint`、`httpSignaling` 及其类型。包入口指向浏览器 ESM 和对应的声明文件。普通 HTML 页面也可以直接加载包中的 `dist/link-webrtc.mjs`。信令和 TURN 服务分别部署。
+
+在 `link/webrtc/web` 安装 Chromium（`npx playwright install chromium`），执行 `WEBRTC_TARBALL=/绝对路径/package.tgz npm run test:package` 可以验收指定文件。独立应用安装 tarball，使用 `strict: true`、`skipLibCheck: false` 检查类型并用 Vite 构建。两个 Chromium 页面再通过认证 TURN 完成远端 echo 和回调。`npm run test:delivery` 还会验证开发重载和构建失败后的恢复。[TypeScript 消费端示例](../../link/webrtc/web/test/fixtures/consumer/app.ts)
 
 ## 原生宿主与页面集成
 

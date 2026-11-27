@@ -1,2 +1,3 @@
 dist/
 /web/.rutis/
+/web/*.tgz

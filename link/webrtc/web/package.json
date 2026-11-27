@@ -6,12 +6,13 @@
     "dev": "node --watch ../example/server.mjs --dev",
     "typecheck": "tsc -p tsconfig.browser.json --noEmit && tsc -p tsconfig.node.json",
     "build": "npm run typecheck && tsdown && tsc -p tsconfig.browser.json --emitDeclarationOnly",
-    "prepack": "npm run build 1>&2",
+    "prepack": "npm run build 1>&2 && node scripts/package-licenses.mjs",
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "vitest run",
     "pretest:integration": "npm run build",
     "test:integration": "node --test --test-reporter=../../../scripts/integration-reporter.mjs test/*.test.mjs",
-    "test:delivery": "node --test test/delivery.mjs"
+    "test:delivery": "node --test --test-reporter=../../../scripts/integration-reporter.mjs test/delivery.mjs test/package.mjs",
+    "test:package": "node --test --test-reporter=../../../scripts/integration-reporter.mjs test/package.mjs"
   },
   "devDependencies": {
     "@arcships/rutis": "0.23.0",
@@ -25,7 +26,7 @@
     "vite": "8.4.0",
     "vitest": "5.1.2"
   },
-  "version": "0.0.0",
+  "version": "0.1.0",
   "engines": {
     "node": ">=22.18"
   },
@@ -36,12 +37,14 @@
     "dist/browser/link.d.ts",
     "dist/browser/signaling.d.ts",
     "dist/browser/types.d.ts",
-    "dist/shared/signaling.d.ts"
+    "dist/shared/signaling.d.ts",
+    "dist/LICENSES.txt"
   ],
   "exports": {
     ".": {
       "types": "./dist/browser/index.d.mts",
       "import": "./dist/link-webrtc.mjs"
     }
-  }
+  },
+  "license": "MIT"
 }

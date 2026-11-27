@@ -37,6 +37,7 @@ if (changed(['link/tcp/'])) suites.push({ transport: 'tcp', package: 'link/tcp/n
 if (
   changed([
     'link/webrtc/',
+    'LICENSE',
     ':(glob)link/tcp/*.go',
     ':(exclude,glob)link/tcp/*_test.go',
     'link/tcp/go.mod',
