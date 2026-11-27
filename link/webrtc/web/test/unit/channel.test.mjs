@@ -1,8 +1,8 @@
-import test from 'node:test'
+import { test, vi } from 'vitest'
 import assert from 'node:assert/strict'
-import { attachChannel } from '../src/browser/channel.ts'
-import { createPairing } from '../src/node/pairing.ts'
-import { createWebRtcLink } from '../src/browser/link.ts'
+import { attachChannel } from '../../src/browser/channel.ts'
+import { createPairing } from '../../src/node/pairing.ts'
+import { createWebRtcLink } from '../../src/browser/link.ts'
 
 test('one bounded message each way, slow consumer, close and invalid records', async () => {
   const lifeA = new AbortController(),
@@ -248,7 +248,8 @@ test('a TURN renewal is bound to both members and the completed previous negotia
 })
 
 test('an expired, undelivered TURN renewal can be acquired again by both peers', async (t) => {
-  t.mock.timers.enable({ apis: ['Date'], now: 10000 })
+  vi.useFakeTimers({ toFake: ['Date'], now: 10000 })
+  t.onTestFinished(() => vi.useRealTimers())
   const pairId = 'pair'
   const handle = createPairing({ pairId, members: ['a', 'b'], lifetimeMs: 1000, refreshAfterMs: 500 })
   const root = await handle('a', 'acquire', { pairId })
@@ -258,7 +259,7 @@ test('an expired, undelivered TURN renewal can be acquired again by both peers',
   const input = { pairId, renewOf: attemptId, after: attemptId }
   assert.equal(await handle('a', 'acquire', input), null)
   const lost = await handle('b', 'acquire', input)
-  t.mock.timers.tick(1001)
+  vi.setSystemTime(Date.now() + 1001)
   assert.equal(await handle('b', 'acquire', input), null)
   assert.equal(await handle('b', 'acquire', input), null)
   const fresh = await handle('a', 'acquire', input)
@@ -271,7 +272,8 @@ test('an expired, undelivered TURN renewal can be acquired again by both peers',
 })
 
 test('a waiting browser tab leaves the established session able to renew TURN', async (t) => {
-  t.mock.timers.enable({ apis: ['Date'], now: 10000 })
+  vi.useFakeTimers({ toFake: ['Date'], now: 10000 })
+  t.onTestFinished(() => vi.useRealTimers())
   const pairId = 'device-and-page'
   const handle = createPairing({ pairId, members: ['a', 'b'], lifetimeMs: 1000, refreshAfterMs: 2500 })
   const root = await handle('a', 'acquire', { pairId })
@@ -279,7 +281,7 @@ test('a waiting browser tab leaves the established session able to renew TURN', 
     handle(member, 'publish', { pairId, attemptId, type, sdp: type })
   await publish('a', root.attemptId, 'offer')
   await publish('b', root.attemptId, 'answer')
-  t.mock.timers.tick(2500)
+  vi.setSystemTime(Date.now() + 2500)
   const next = await handle('a', 'acquire', { pairId, after: null })
   await publish('a', next.attemptId, 'offer')
   const renew = { pairId, renewOf: root.attemptId, after: root.attemptId }

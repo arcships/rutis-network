@@ -3,23 +3,27 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "npm run typecheck && tsc -p tsconfig.browser.json --emitDeclarationOnly && node scripts/build.mjs",
-    "pretest": "npm run build",
-    "test": "node --test test/*.test.mjs",
-    "prepack": "npm run build",
     "dev": "node --watch ../example/server.mjs --dev",
     "typecheck": "tsc -p tsconfig.browser.json --noEmit && tsc -p tsconfig.node.json",
+    "build": "npm run typecheck && tsdown && tsc -p tsconfig.browser.json --emitDeclarationOnly",
+    "prepack": "npm run build 1>&2",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "vitest run",
+    "pretest:integration": "npm run build",
+    "test:integration": "node --test test/*.test.mjs",
     "test:delivery": "node --test test/delivery.mjs"
   },
   "devDependencies": {
     "@arcships/rutis": "0.23.0",
     "@arcships/rutis-host": "0.23.0",
-    "esbuild": "0.28.1",
-    "playwright": "1.62.1",
     "@arcships/rutis-runtime": "0.23.0",
-    "buffer": "6.0.3",
     "@types/node": "^22.0.0",
-    "typescript": "6.0.3"
+    "buffer": "6.0.3",
+    "playwright": "1.62.1",
+    "tsdown": "0.23.7",
+    "typescript": "6.0.3",
+    "vite": "8.4.0",
+    "vitest": "5.1.2"
   },
   "version": "0.0.0",
   "engines": {

@@ -134,6 +134,8 @@ Start the peer with `npm run dev:peer` and keep it running. In a second terminal
 | Node/TS | `npm run dev` | `node_modules/.bin/rutis-host call --config dev witness.echo 37` |
 | Go | `node_modules/.bin/rutis-host dev ..` | `node_modules/.bin/rutis-host call --config .. witness.echo 37` |
 
-The expected reply is `["loopback",37]`. Go edits rebuild the binary. The 0.23 Node runtime caches imports below the mounted entry, so esbuild watches the local TS modules and atomically replaces a single dev entry after each successful build. The host reloads that row; the dialer establishes a fresh connection.
+The expected reply is `["loopback",37]`. Go edits rebuild the binary. The 0.23 Node runtime caches imports below the mounted entry, so tsdown watches the local TS modules and atomically replaces a single dev entry after each successful build. The host reloads that row; the dialer establishes a fresh connection.
 
 Run `npm pack` from the Node package to build the runtime ESM and declarations into a local tarball. Install it alongside `@arcships/rutis-runtime@0.23.0` in the consumer’s Node project. Set `runtimes.node.project` to that directory and the row’s `name` to `rutis-network-tcp-reference`. Its configuration is `port`, `ca`, `cert` and `key` for a loopback mTLS connection. Existing source rows can still use `link/tcp/dial.ts`. When migrating a previous checkout, move its old `link/tcp/node_modules` aside before installing in `node/` so both entry points use the same runtime dependencies. Run `npm run test:delivery` to exercise source edits and an external tarball installation.
+
+Run the package commands with a supported Node development version (`^22.18.0 || ^24.11.0 || >=26.0.0`). `npm run test:unit` runs TCP framing tests with Vitest. `npm run test:integration` runs host and control tests with the Node test runner. `npm test` runs both.

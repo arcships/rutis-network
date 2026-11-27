@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict'
-import test from 'node:test'
+import { test } from 'vitest'
 import { setImmediate as tick } from 'node:timers/promises'
 import { createRequire } from 'node:module'
-import { createPageEndpoint } from '../dist/link-webrtc.mjs'
+import { createPageEndpoint } from '../../src/browser/endpoint.ts'
 import { dirname, join } from 'node:path'
 
-const runtime = dirname(createRequire(import.meta.url).resolve('@arcships/rutis-runtime/package.json'))
-const { Session } = await import(join(runtime, 'src/session.mjs'))
-const { decode } = await import(join(runtime, 'src/codec.mjs'))
+// Load the stock peer through Node, outside the browser aliases used for the page.
+const require = createRequire(import.meta.url)
+const runtime = dirname(require.resolve('@arcships/rutis-runtime/package.json'))
+const { Session } = require(join(runtime, 'src/session.mjs'))
+const { decode } = require(join(runtime, 'src/codec.mjs'))
 const decoder = new TextDecoder()
 
 function connect(t, left, right) {
@@ -19,7 +21,7 @@ function connect(t, left, right) {
   }
   a = left.sessions.open({ send: (bytes) => forward('left', bytes, b), close: () => b.end() })
   b = right.sessions.open({ send: (bytes) => forward('right', bytes, a), close: () => a.end() })
-  t.after(() => {
+  t.onTestFinished(() => {
     a.end()
     b.end()
   })
@@ -117,7 +119,7 @@ test('a stock protocol-5 object reference can publish and withdraw methods', asy
     send: (b) => peer.receive(decode(decoder.decode(b))),
     close: () => peer.close(),
   })
-  t.after(() => {
+  t.onTestFinished(() => {
     near.end()
     peer.close()
   })

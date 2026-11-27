@@ -117,14 +117,19 @@ test('Go and Node source reload and installation of the packed TCP plugin', asyn
   const dial = join(node, 'src/dial.ts')
   const oldTS = await readFile(dial, 'utf8')
   assert.ok(oldTS.includes('port: config.port'))
+  const published = await readFile(join(dev, 'plugin.mjs'), 'utf8')
+  await writeFile(dial, oldTS + '\nconst invalid = ;\n')
+  await client.waitFor(/PARSE_ERROR|Unexpected token/)
+  assert.equal(await readFile(join(dev, 'plugin.mjs'), 'utf8'), published)
+  await expectCall(dev, 'witness.echo', 'loopback', client.output)
   await writeFile(dial, oldTS.replace('port: config.port', 'port: ' + peerPort))
   await expectCall(dev, 'witness.echo', 'packed', client.output)
   await writeFile(dial, oldTS)
   const consumer = join(env.dir, 'consumer')
   await mkdir(consumer)
   await writeFile(join(consumer, 'package.json'), '{"private":true,"type":"module"}')
-  const { stdout } = await exec('npm', ['pack', '--silent', '--pack-destination', consumer], { cwd: node })
-  const tarball = stdout.trim().split('\n').at(-1)
+  const { stdout } = await exec('npm', ['pack', '--json', '--pack-destination', consumer], { cwd: node })
+  const [{ filename: tarball }] = JSON.parse(stdout)
   await exec(
     'npm',
     [

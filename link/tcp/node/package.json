@@ -6,30 +6,29 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "test": "node --test test/*.test.mjs",
-    "test:tunnels": "node --test test/tunnels.mjs",
-    "typecheck": "tsc --noEmit",
-    "prepack": "npm run build",
     "dev": "node scripts/dev.mjs",
-    "build": "tsc",
     "dev:setup": "node scripts/setup-dev.mjs",
     "dev:peer": "rutis-host run ../.rutis/peer.json",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && tsdown",
+    "prepack": "npm run build 1>&2",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "vitest run",
+    "test:integration": "node --test test/*.test.mjs",
+    "test:tunnels": "node --test test/tunnels.mjs",
     "test:delivery": "node --test test/delivery.mjs"
   },
   "devDependencies": {
     "@arcships/rutis-host": "0.23.0",
     "@types/node": "^22.0.0",
+    "tsdown": "0.23.7",
     "typescript": "6.0.3",
-    "esbuild": "0.28.1"
+    "vitest": "5.1.2"
   },
   "version": "0.0.0",
   "files": [
     "dist/index.js",
-    "dist/index.d.ts",
-    "dist/dial.js",
-    "dist/dial.d.ts",
-    "dist/bridge.js",
-    "dist/bridge.d.ts"
+    "dist/index.d.ts"
   ],
   "dependencies": {
     "@arcships/rutis": "0.23.0"
