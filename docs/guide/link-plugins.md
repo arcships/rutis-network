@@ -13,6 +13,10 @@
 
 准入成功等于信任对端注册的身份。adapter 必须在交接前完成验证；失败即关闭连接。证书和 token 只在 adapter 内使用。随机端口只参与寻址。Rust 的 Channel 收发有边界的不透明字节，Greeted 在握手完成后提供身份。[Channel](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/channel/mod.rs) · [Session 与 Greeted](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/mod.rs)
 
+## Go 版 Tailscale
+
+`go:link-tailscale` 通过本机 tailnet 按标签发现 worker，为每台建立独立连接，也支持指定单个节点。两种配置都可使用系统 tailscaled 或独立 tsnet 节点。管理插件通过 `rutis/loader` 创建、重载和移除连接行。[配置双端与管理连接](../design/04-link-tailscale.md)
+
 ## Go SSH 插件
 
 `go:link-ssh-dial` 通过 SSH 连接目标 listener。使用 VPS 中继时，接收端的 `go:link-ssh-listen` 申请远端回环端口并直接接入 rutis 会话，`go:link-ssh-tunnel` 则将入站流转发给现有 TCP 服务。两端都拨入 VPS 原有的 SSH 端口。每个行实例独立提供配置、启停、状态和重连控制。[两端配置、控制接口与测试](../design/03-link-ssh.md)
