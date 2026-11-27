@@ -18,13 +18,13 @@ For cross-domain trust, authorization during a partition and path recovery, see 
 
 ## 2. Deriving capabilities from network types
 
-Topology, administrative boundaries and availability over time are independent dimensions. A factory can use a mesh inside a workshop, connect to other factories through a gateway and upload data whenever the cloud uplink is available.
+Topology, administrative boundaries and availability over time are independent dimensions. A domain may use an internal mesh and connect to another domain through one boundary endpoint over an intermittent link.
 
 | Network type | What a plugin can observe from its location | Capability implied |
 | --- | --- | --- |
 | LAN or proximity network | Service instances appear and disappear on the local link. Addresses can change. | Browse by type, resolve addresses and expire records. Check admission when connecting. [DNS-SD](https://datatracker.ietf.org/doc/html/rfc6763) |
 | Internet or cellular star | Devices can dial out and the hub can call back. A path between devices needs its own check. | A known ingress address, calls over an established connection, and introductions or relaying when required. [gRPC example](../guide/link-plugins.en.md) |
-| Tree or hierarchy | An upstream node may know only the factory entrance. A downstream node knows its workshops and devices. | Address a domain or prefix, select a next hop or delegate to a downstream gateway. |
+| Tree or hierarchy | A parent can advertise a subtree ingress while a directory inside the subtree resolves individual nodes. | Address a domain or prefix, select a next hop or delegate to a downstream gateway. |
 | Enterprise VPN or overlay | A node can participate in several networks, each with its own names, tags and visibility. | Identify the network used for observation and dialing. Reuse its directory and admission policy. [Tailscale plugin](../design/04-link-tailscale.en.md) |
 | Cluster service network | A stable service name can represent several interchangeable backends. | Select the service endpoint or enumerate instances. Network reachability and application job requirements offer different selection criteria. [Kubernetes Service](https://kubernetes.io/docs/concepts/services-networking/service/) |
 | Peer-to-peer or self-organizing mesh | Nodes know a subset of their neighbors. Several paths may lead to a destination. | Bootstrap, rendezvous, peer discovery and path selection. Hop-by-hop dissemination also needs bounds on scope and duplicate forwarding. [libp2p DHT](https://libp2p.io/docs/kademlia-dht/) |
@@ -72,34 +72,66 @@ A Go discovery plugin could use its configuration row to choose the network to o
 
 These proposed experiments can use independent Go plugins alongside the existing links.
 
-1. **Proximity discovery.** A discovers B's advertised collection service, but B currently refuses admission. A should distinguish a valid record from the refused connection attempt. When the record expires, the discovery view removes it. The application still owns its device roster.
-2. **Two administrative domains.** Two devices in domain A provide the same collection service name in their own scopes. A announces a single ingress to domain B. Disconnect the inter-domain path. B can report the failed path and retain its last observation with an expiry. Restore the path, then explicitly withdraw the ingress. B should observe withdrawal while the second service remains private. Use the duplicate service names to test domain scope and verify that external callers can invoke only the methods explicitly exported at the ingress.
+1. **Proximity discovery.** A discovers B's advertised service, but B currently refuses admission. A should distinguish a valid record from the refused connection attempt. When the record expires, the discovery view removes it. The application still owns its device roster.
+2. **Two administrative domains.** Two devices in domain A provide the same service name in their own scopes. A announces a single ingress to domain B. Disconnect the inter-domain path. B can report the failed path and retain its last observation with an expiry. Restore the path, then explicitly withdraw the ingress. B should observe withdrawal while the second service remains private. Use the duplicate service names to test domain scope and verify that external callers can invoke only the methods explicitly exported at the ingress.
 3. **Two paths and an in-flight call.** A and C have direct and relayed paths. Cut the direct path after job submission but before the application receipt. The network can report failure and establish another session. The application can look up the job by ID or retry safely. Check path recovery and the actual number of job executions separately.
 4. **Asynchronous delivery.** A leaves a message with B and goes offline. C appears the next day. Deliver one valid message and let a second expire. Observe B's durable receipt, delivery to C and the outcome of application processing separately. Check that duplicate delivery does not execute the business operation twice.
 
 ## 6. A plugin design for discovery and network formation
 
-Consider one controller and ten collectors in a workshop. Each collector needs one connection to the controller. The controller can call back over the established session. All eleven devices can be visible on the LAN, but there is no reason to maintain the 55 connections of a full mesh. **Discovery reports candidate endpoints. Group policy decides which connections this host should maintain. A link implements each selected connection.** Each host only needs its part of the topology.
+### Selecting neighbors by topology
 
-Introduce two independently deployable Go plugins. Their names, discovery interface and policy configuration below are proposals. The existing TCP control interface already has the necessary operations. [TCP controls](../design/06-link-tcp-integration.en.md) · [Plugin composition contract D11](../design/01-link-plugin-contract.en.md)
-
-This example follows one collector connecting to the workshop controller. Dotted arrows carry advertisements, policy decisions and link status. Solid arrows trace application requests and replies. Once mTLS admission succeeds, the link passes the channel to `rutis/sessions.open(far)`.
+Suppose discovery sees four nodes A, B, C and D in one scope, and local policy admits all four as group members. In a **star** with A at its center, B needs one connection to A. In a **full mesh**, B needs connections to A, C and D. The candidate set is identical. Topology determines which edges to maintain. Each undirected line represents one desired bidirectional rutis session.
 
 ```mermaid
 flowchart TB
-    advert["Controller advertises its LAN ingress"] -. DNS-SD / mDNS .-> discovery["Discovery plugin · go:discover-mdns"]
-    discovery -. Candidate addresses, interface and expiry .-> group["Group policy plugin · go:peer-group"]
-    policy["Collector's local policy"] -. Target, allowed subnet and expected identity .-> group
-    group -. Configure target, start or stop .-> link["Link plugin · go:link-tcp-dial"]
-    link -. Link state and latest error .-> group
-    app["Collector application plugin"] <-->|Call by service name| session["Local rutis session"]
-    session <-->|Bidirectional messages| link
-    link <-->|mTLS connection| peer["Controller link and rutis session"]
+    subgraph star["Star · 3 edges"]
+        sa((A)) --- sb((B))
+        sa --- sc((C))
+        sa --- sd((D))
+    end
+    subgraph full["Full mesh · 6 edges"]
+        fa((A)) --- fb((B))
+        fa --- fc((C))
+        fa --- fd((D))
+        fb --- fc
+        fb --- fd
+        fc --- fd
+    end
 ```
+
+| Topology | What discovery must supply | How group policy selects edges and dial owners |
+| --- | --- | --- |
+| Point-to-point | One or more valid endpoints for a designated peer. A fixed address can come from configuration. | A dials B. Multiple addresses are alternative paths to that peer. One working connection suffices. |
+| Chain | Endpoints for adjacent nodes. Configuration or a membership directory supplies the node order. | In A–B–C–D, each node dials its successor. The last node only listens. Losing an interior edge splits the chain. |
+| Ring | Endpoints for the predecessor and successor. Configuration or a membership directory supplies the ordered roster. | Each node dials its successor, with the last dialing the first. Use a common revision of the order to adjust adjacent edges when membership changes. |
+| Star | Endpoints for the designated hub. Leaves only need to discover the hub. | Each leaf dials the hub once and the hub listens. Leaf-to-leaf communication requires a separate forwarding capability at the hub. |
+| Tree | Permitted parents for the local node and their endpoints. | Each non-root node dials one parent and may accept children. Check levels or ancestry when reparenting to prevent cycles. |
+| Full mesh | All authorized members and their endpoints. Maintaining the full topology requires a consistent membership view. | Keep one edge per pair. For example, the node with the lower agreed stable member ID dials. N nodes have N(N−1)/2 edges. |
+| Partial mesh with bounded degree | Bootstrap peers and subsequently discovered candidate neighbors. A node may have a partial view. | Select authorized neighbors, bound the number of connections and assign a dial owner to each edge. Multi-hop reachability also requires a connected graph and routing or forwarding. |
+
+**Inter-domain connections** can be layered on any of these topologies. Each domain forms its own network and advertises permitted boundary endpoints to the other. Inter-domain policy selects the edges and dial owners between them. Route advertisements or gateway exports define which internal prefixes or services are reachable. A transparent relay can also carry a logical edge while leaving the original nodes as the session endpoints. [Intermediate node roles](#3-what-an-intermediate-node-does)
+
+### How discovery, group policy and links fit together
+
+Topology is a policy input to `go:peer-group`. It matches **candidate endpoints with a source and expiry** to **the neighbors this host should maintain**, then hands the dial target to a dedicated link row. A LAN can use DNS-SD/mDNS, a fixed point-to-point link can read configuration and an overlay can use its directory. The same topology can use different discovery sources.
+
+```mermaid
+flowchart TB
+    discovery["Discovery source · e.g. go:discover-mdns"] -. Candidate endpoints, scope and expiry .-> group["Group policy · go:peer-group"]
+    topology["Topology and permitted members"] -. Desired neighbors and dial owner .-> group
+    group -. Configure target, start or stop .-> link["Dedicated local link row"]
+    link -. Link state and errors .-> group
+    app["Application plugin"] <-->|Call by service name| session
+    session["Local rutis session"] <-->|Bidirectional messages| link
+    link <-->|Admitted transport channel| peer["Peer link and rutis session"]
+```
+
+Dotted arrows show discovery, policy and control feedback. Solid arrows trace messages on an established connection. Both `go:discover-mdns` and `go:peer-group` are proposed Go plugins. The existing TCP link accepts a target and performs mTLS admission before handing the channel to `rutis/sessions.open(far)`. [TCP control interface](../design/06-link-tcp-integration.en.md) · [Plugin composition contract D11](../design/01-link-plugin-contract.en.md)
 
 | Component | Responsibility of one configured row | Consumer |
 | --- | --- | --- |
-| `go:discover-mdns` | Browse DNS-SD services on the specified interface and DNS domain, or advertise a locally configured ingress. Provide a named read-only service such as `shop-discovery`. | A UI can display candidates independently. A group policy can subscribe to the same observations. |
+| `go:discover-mdns` | Browse DNS-SD services on the specified interface and DNS domain, or advertise a locally configured ingress. Provide a named read-only service such as `lan-discovery`. | A UI can display candidates independently. A group policy can subscribe to the same observations. |
 | `go:peer-group` | Declare the intended peers, allowed discovery source and dedicated dialing service. Continuously compare the intent with observed link state and initiate or stop connections as needed. | A management UI can inspect the selection reason, transport state and latest error for each target. Application plugins still use rutis service names. |
 | Existing link row | Dial the address, authenticate the expected peer, handle retries and own the session lifecycle. The deployment supplies credentials to this row. | A group row operates only the explicitly injected local control services it exclusively owns. |
 
@@ -111,47 +143,39 @@ A **connection target** answers “who is this host allowed to connect to, and w
 
 **Connection state** has three independently observable parts per target. The discovery record can be current, the link can pass local admission and attach, and an application service can become callable. The group row can expose the first two, the chosen address and the last error via `status()` and `waitForChange(cursor)`. Service registration or a successful call supplies evidence for the third. Go's `sessions.open` does not return the rutis ID from the handshake. Advertisements and certificates cannot supply that ID. [TCP status fields](../design/06-link-tcp-integration.en.md)
 
-The model can express three common topologies. They differ in the targets each host selects and the edges it keeps.
+### Mapping a topology edge to configuration
 
-| Topology | Connections this host should maintain |
-| --- | --- |
-| Star | Each leaf keeps one edge to its designated hub. The hub accepts multiple inbound connections. |
-| Bounded mesh | Each node connects to a subset of its permitted neighbors. Policy limits the count and designates one dial owner per edge. Local neighbor visibility alone cannot guarantee a connected graph. |
-| Network-to-network | Domains A and B each designate a boundary ingress and maintain an edge between them. Deployment policy defines which prefixes or services may be advertised. For limited sharing, terminate calls at a gateway, explicitly export allowed interfaces and isolate internal services. |
-
-### First configuration and lifecycle
-
-Start with each leaf dialing a hub whose identity is known locally. This is a **proposed leaf configuration**. Discovery and dialing services are isolated in the local management scope. The deployment supplies the TCP row's credentials. The policy selects an address and port when the endpoint changes.
+The first version proposes explicit neighbors. The configuration below expands one edge with A dialing B. For point-to-point it is the whole topology. In a star or tree it can be the uplink to a hub or parent. A complete ring or mesh also needs the membership selection and coordination described above. This proposed configuration for A isolates discovery, status and dialing services in the local management scope.
 
 ```json
 {
   "rows": [
     {
-      "id": "browse-shop",
+      "id": "browse-lan",
       "name": "go:discover-mdns",
-      "isolate": {"shop-discovery": "management"},
-      "config": {"service": "shop-discovery", "interface": "eth0", "domain": "local.", "browse": "_rutis._tcp"}
+      "isolate": {"lan-discovery": "management"},
+      "config": {"service": "lan-discovery", "interface": "eth0", "domain": "local.", "browse": "_rutis._tcp"}
     },
     {
-      "id": "to-hub",
+      "id": "to-b",
       "name": "go:link-tcp-dial",
-      "isolate": {"hub-link": "management"},
-      "config": {"controlService": "hub-link", "autoStart": false, "ca": "/etc/rutis/ca.pem", "cert": "/etc/rutis/leaf.pem", "key": "/etc/rutis/leaf.key"}
+      "isolate": {"b-link": "management"},
+      "config": {"controlService": "b-link", "autoStart": false, "ca": "/etc/rutis/ca.pem", "cert": "/etc/rutis/a.pem", "key": "/etc/rutis/a.key"}
     },
     {
-      "id": "shop",
+      "id": "local-group",
       "name": "go:peer-group",
-      "inject": ["shop-discovery", "hub-link"],
-      "isolate": {"shop-discovery": "management", "hub-link": "management", "shop-status": "management"},
-      "config": {"source": "shop-discovery", "service": "shop-status", "targets": [{"id": "controller", "instance": "shop-hub", "allowedCIDRs": ["192.168.20.0/24"], "servername": "hub.shop.example", "link": "hub-link"}]}
+      "inject": ["lan-discovery", "b-link"],
+      "isolate": {"lan-discovery": "management", "b-link": "management", "group-status": "management"},
+      "config": {"source": "lan-discovery", "service": "group-status", "targets": [{"id": "b", "instance": "node-b", "allowedCIDRs": ["192.168.20.0/24"], "servername": "b.example", "link": "b-link"}]}
     }
   ]
 }
 ```
 
-The controller runs a publishing row and announces instance `shop-hub` with an actual LAN ingress, for example `192.168.20.8:7443`. The ingress must carry the mTLS byte stream through to the controller, where leaf certificates are checked. The current Go TCP listener binds only to IPv4 loopback. For a two-host trial, provide a configured LAN TCP forwarder to that loopback port. Advertise when the ingress is ready and withdraw when it stops. The controller listens and each leaf dials, giving the controller ten bidirectional connections. [Existing listener and forwarding options](../guide/link-plugins.en.md) · [TCP listener restriction](../design/06-link-tcp.en.md)
+B advertises instance `node-b` and a reachable TCP ingress such as `192.168.20.8:7443` on the designated interface. B verifies A's certificate using mTLS. The existing Go TCP listener binds only to IPv4 loopback, so a cross-host trial needs an ingress that forwards the TCP stream to B's loopback listener. Advertise when the ingress is ready and withdraw when it stops. [Existing listener and forwarding options](../guide/link-plugins.en.md) · [TCP listener restriction](../design/06-link-tcp.en.md)
 
-A leaf validates the source and the resolved IP against its permitted range, then calls `configure({host, port, servername})` and `start()` on `hub-link`. Pass the checked IP as `host` and the locally configured name as `servername`. Serialize decisions per target using the latest discovery and link snapshots. Repeated announcements only refresh the expiry. With multiple addresses, keep a healthy path and select a still-valid address after disconnect. The TCP row backs off on transient failures. The group row avoids parallel attempts for the same target. After a service reload, read both snapshots before taking action. Start with one preconfigured dial row per target and validate ordinary cross-host service calls. [Existing TCP configuration and retry behavior](../design/06-link-tcp-integration.en.md)
+A validates the source and the resolved IP against its permitted range, then calls `configure({host, port, servername})` and `start()` on `b-link`. Pass the checked IP as `host` and the locally configured name as `servername`. Serialize decisions per target using the latest discovery and link snapshots. Repeated announcements only refresh the expiry. With multiple addresses, keep a healthy path and select a still-valid address after disconnect. The TCP row backs off on transient failures. The group row avoids parallel attempts for the same target. After a service reload, read both snapshots before taking action. Start with one preconfigured dial row per target and validate ordinary cross-host service calls. [Existing TCP configuration and retry behavior](../design/06-link-tcp-integration.en.md)
 
 | Event | Default behavior and acceptance criterion |
 | --- | --- |
