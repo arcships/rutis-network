@@ -13,12 +13,20 @@ version=${tag##*/}
 }
 repo=$(cd "$(dirname "$0")/.." && pwd -P)
 commands=("$repo/$module"/cmd/*/main.go)
-if [[ ${#commands[@]} != 1 ]]; then
+if [[ $module == link/grpc ]]; then
+  binary=link-grpc
+  programs=("$binary" grpc-cloud)
+elif [[ ${#commands[@]} == 1 ]]; then
+  binary=$(basename "$(dirname "${commands[0]}")")
+  programs=("$binary")
+else
   echo "Expected exactly one plugin command under $module/cmd" >&2
   exit 1
 fi
-binary=$(basename "$(dirname "${commands[0]}")")
-package="github.com/arcships/rutis-network/$module/cmd/$binary"
+packages=()
+for program in "${programs[@]}"; do
+  packages+=("github.com/arcships/rutis-network/$module/cmd/$program@$version")
+done
 mkdir "$output"
 output=$(cd "$output" && pwd -P)
 work=$(mktemp -d)
@@ -59,18 +67,25 @@ archives=()
 for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64; do
   export GOOS=${target%/*} GOARCH=${target#*/}
   echo "Packaging $tag for $target"
-  go install -trimpath "$package@$version"
+  go install -trimpath "${packages[@]}"
   bindir="$GOPATH/bin"
   if [[ ${GOOS}_${GOARCH} != "$host" ]]; then bindir+="/${GOOS}_${GOARCH}"; fi
-  executable=$binary
-  if [[ $GOOS == windows ]]; then executable+=.exe; fi
   bundle="$work/bundle"
   cp -R "$common" "$bundle"
-  mv "$bindir/$executable" "$bundle/plugins/go/"
+  installed=()
+  for program in "${programs[@]}"; do
+    dest="$bundle/plugins/go"
+    if [[ $program != "$binary" ]]; then dest="$bundle/bin"; fi
+    mkdir -p "$dest"
+    executable=$program
+    if [[ $GOOS == windows ]]; then executable+=.exe; fi
+    mv "$bindir/$executable" "$dest/"
+    installed+=("$dest/$executable")
+  done
 
   # Include the notices for dependencies actually linked into this target.
-  go version -m -json "$bundle/plugins/go/$executable" \
-    | jq -r '.Deps[] | "\(.Path)@\(.Version)"' | xargs -r go mod download -json \
+  go version -m -json "${installed[@]}" \
+    | jq -r '.Deps[] | "\(.Path)@\(.Version)"' | sort -u | xargs -r go mod download -json \
     | jq -r '[.Path, .Dir] | @tsv' | while IFS=$'\t' read -r dep source; do
         copy_notices "$source" "$bundle/licenses/go/$dep"
       done

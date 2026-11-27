@@ -35,7 +35,7 @@ Pages can call rutis services on another page or a native host in both direction
 
 ## Install the Go plugins
 
-Each Go plugin has its own release tag. The v0.1.0 releases provide Linux/amd64 binaries. Starting with the next release of each plugin, choose a `.tar.gz` for Linux or macOS (`amd64` or `arm64`), or a `.zip` for Windows (`amd64`). macOS archives use `darwin` in the filename. The Windows mDNS plugin supports browsing. DNS-SD publishing and interface-bound description HTTP require macOS or Linux. [Plugin releases](https://github.com/arcships/rutis-network/releases)
+Each Go plugin has its own release tag. For the current releases, choose a `.tar.gz` for Linux or macOS (`amd64` or `arm64`), or a `.zip` for Windows (`amd64`). macOS archives use `darwin` in the filename. The Windows mDNS plugin supports browsing. DNS-SD publishing and interface-bound description HTTP require macOS or Linux. [Plugin releases](https://github.com/arcships/rutis-network/releases)
 
 Download the archive for your host and the matching release’s `SHA256SUMS`. For example, to install TCP v0.1.0 on Linux/amd64, run the commands below in a new directory.
 
@@ -58,7 +58,7 @@ GOWORK=off GOBIN="$PWD/plugins/go" go install github.com/arcships/rutis-network/
 
 To build from a checkout, run `go -C link/tcp build -o ../../plugins/go/link-tcp ./cmd/link-tcp` from the repository root.
 
-To release a plugin, push its next module tag (for example, `link/tcp/v0.1.1`) on a tested commit from `main`. Only that tag triggers packaging. The Ubuntu runner cross-compiles the tagged plugin for all five targets and publishes the archives and a single `SHA256SUMS` file together. TCP archives include a sample `rutis.json`. WebRTC archives include the browser module and type declarations under `browser/`. [Release workflow](../../.github/workflows/release.yml)
+To release a plugin, push its next module tag (for example, `link/tcp/v0.1.1`) on a tested commit from `main`. Only that tag triggers packaging. The Ubuntu runner cross-compiles the tagged plugin for all five targets and publishes the archives and a single `SHA256SUMS` file together. TCP archives include a sample `rutis.json`. gRPC archives include the host plugin under `plugins/go/` and the standalone directory and relay command under `bin/`. WebRTC archives include the browser module and type declarations under `browser/`. [Release workflow](../../.github/workflows/release.yml)
 
 Configure the dialing host with the listener’s port, its trusted CA and a client identity. The default is one connection attempt.
 
