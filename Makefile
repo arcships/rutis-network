@@ -8,6 +8,7 @@ TS_PROJECT_FILES := $(wildcard $(shell git ls-files '*/package-lock.json' '*/tsd
 TS_PACKAGES := $(sort $(patsubst %/,%,$(dir $(TS_PROJECT_FILES))))
 
 .PHONY: setup fmt fmt-check check test go-check go-vet go-test ts-setup typecheck ts-test list-go list-ts
+.PHONY: integration integration-tcp integration-webrtc
 
 setup: ts-setup
 	npm ci
@@ -25,10 +26,20 @@ test: go-test ts-test
 go-check: go-vet go-test
 
 go-vet:
-	@set -e; for mod in $(GO_MODULES); do sh scripts/module-go.sh "$$mod" vet -mod=readonly ./...; done
+	@set -e; for mod in $(GO_MODULES); do sh scripts/in-go-module.sh "$$mod" go vet -mod=readonly ./...; done
 
 go-test:
-	@set -e; for mod in $(GO_MODULES); do sh scripts/module-go.sh "$$mod" test -mod=readonly -short ./...; done
+	@set -e; for mod in $(GO_MODULES); do sh scripts/in-go-module.sh "$$mod" go test -mod=readonly -short ./...; done
+
+integration: integration-tcp integration-webrtc
+
+integration-tcp:
+	# Warm the Go build cache before the timed host tests start.
+	sh scripts/in-go-module.sh link/tcp go build -mod=readonly ./cmd/link-tcp ./test/fixtures/mounter
+	sh scripts/in-go-module.sh link/tcp npm --prefix node run test:integration
+
+integration-webrtc:
+	sh scripts/in-go-module.sh link/webrtc npm --prefix web run test:integration
 
 typecheck:
 	@set -e; for pkg in $(TS_PACKAGES); do echo "Typecheck $$pkg"; npm run typecheck --prefix "$$pkg"; done

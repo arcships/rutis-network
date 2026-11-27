@@ -10,7 +10,7 @@
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "vitest run",
     "pretest:integration": "npm run build",
-    "test:integration": "node --test test/*.test.mjs",
+    "test:integration": "node --test --test-reporter=../../../scripts/integration-reporter.mjs test/*.test.mjs",
     "test:delivery": "node --test test/delivery.mjs"
   },
   "devDependencies": {
