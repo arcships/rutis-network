@@ -3,7 +3,9 @@ export GOTOOLCHAIN := go$(strip $(shell cat .go-version))
 
 # Discover checked-in projects, including new plugins outside link/.
 GO_MODULES := $(patsubst %/go.mod,%,$(wildcard $(shell git ls-files '*/go.mod')))
-TS_PACKAGES := $(patsubst %/package-lock.json,%,$(wildcard $(shell git ls-files '*/package-lock.json')))
+# A plugin with a missing npm lockfile must still reach npm ci.
+TS_PROJECT_FILES := $(wildcard $(shell git ls-files '*/package-lock.json' '*/tsdown.config.*'))
+TS_PACKAGES := $(sort $(patsubst %/,%,$(dir $(TS_PROJECT_FILES))))
 
 .PHONY: setup fmt fmt-check check test go-check go-vet go-test ts-setup typecheck ts-test list-go list-ts
 
