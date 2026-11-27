@@ -39,7 +39,7 @@ If you don’t know a peer’s address on the local network, use the DNS-SD/mDNS
 
 To try rutis locally, run two hosts and call a service in one process from the other. If you already have a tailnet, try adding a worker and then removing it. To connect a different environment, use the connection plugin contract to build an adapter. [Two-host example](docs/design/06-link-tcp-integration.en.md#develop-and-load-the-tcp-plugins) · [Worker discovery](docs/design/04-link-tailscale.en.md#discover-workers-by-tag) · [Connection plugin contract](docs/design/01-link-plugin-contract.en.md)
 
-The plugins target **rutis 0.23.0**, session protocol 5, and plugin API 3. Use matching hosts and language runtimes on both ends. A prebuilt TCP plugin is available for Linux/amd64. [Install the TCP release](docs/guide/link-plugins.en.md#install-the-go-plugins)
+The plugins target **rutis 0.23.0**, session protocol 5, and plugin API 3. Use matching hosts and language runtimes on both ends. Each Go plugin has its own [releases](https://github.com/arcships/rutis-network/releases). Choose the archive for your host’s OS and CPU. [Install a prebuilt plugin](docs/guide/link-plugins.en.md#install-the-go-plugins)
 
 To work on the repository, run `make setup` at the root to install development dependencies, then `make check` for formatting, static checks, and fast tests.
 

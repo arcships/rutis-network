@@ -31,13 +31,15 @@
 
 ## 安装 Go 插件
 
-TCP 首个版本为 `v0.1.0`。Linux/amd64 宿主可以直接下载预编译归档。以下命令在新建目录中校验并解压，配置对应 rutis-host 0.23.0、会话协议 5 和插件 API 3。[TCP v0.1.0 Release](https://github.com/arcships/rutis-network/releases/tag/link%2Ftcp%2Fv0.1.0)
+每个 Go 插件都有自己的版本标签。已发布的 v0.1.0 提供 Linux/amd64 安装包。从各插件的下一次发布开始，Linux 和 macOS 提供 amd64、arm64 两种 `.tar.gz` 包，Windows 提供 amd64 的 `.zip` 包。macOS 的文件名中写作 `darwin`。Windows 上的 mDNS 插件可以浏览服务，广播 DNS-SD 服务和绑定指定网卡的描述文档 HTTP 服务需要 macOS 或 Linux。[插件下载](https://github.com/arcships/rutis-network/releases)
+
+下载与宿主匹配的安装包和同一版本的 `SHA256SUMS`。以在 Linux/amd64 上安装 TCP v0.1.0 为例：
 
 ```sh
 mkdir tcp-v0.1.0 && cd tcp-v0.1.0
 gh release download link/tcp/v0.1.0 --repo arcships/rutis-network \
   --pattern 'link-tcp-v0.1.0-linux-amd64.tar.gz' --pattern SHA256SUMS
-sha256sum -c SHA256SUMS
+sha256sum --ignore-missing -c SHA256SUMS
 tar -xzf link-tcp-v0.1.0-linux-amd64.tar.gz
 ```
 
@@ -52,7 +54,7 @@ GOWORK=off GOBIN="$PWD/plugins/go" go install github.com/arcships/rutis-network/
 
 从源码构建时，可在仓库根目录执行 `go -C link/tcp build -o ../../plugins/go/link-tcp ./cmd/link-tcp`。
 
-维护者在通过 CI 的 `main` 提交上推送子模块标签（例如 `link/tcp/v0.1.0`）。PR 会用临时标签演练消费者安装。正式标签触发相同的安装和 RPC 测试，发布归档和校验和，再从公开的 Release 下载并通过两个原版宿主执行远端 echo。[发布工作流](../../.github/workflows/release-tcp.yml)
+发布某个插件时，在已通过 CI 的 `main` 提交上推送该模块的新版本标签，例如 `link/tcp/v0.1.1`。只有版本标签会触发打包。Ubuntu runner 交叉编译该插件，一次发布五个平台包和一份 `SHA256SUMS`。TCP 包内附带示例 `rutis.json`，WebRTC 包内的 `browser/` 包含浏览器模块和类型声明。[发布工作流](../../.github/workflows/release.yml)
 
 在拨号宿主配置监听端口、用于验证服务端的 CA 和本机的客户端证书与私钥。默认只拨号一次。
 
