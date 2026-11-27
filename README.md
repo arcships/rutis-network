@@ -21,6 +21,8 @@ The [connection plugin guide](docs/guide/link-plugins.en.md) includes the Go TCP
 3. [#3](https://github.com/arcships/rutis-network/issues/3)–[#9](https://github.com/arcships/rutis-network/issues/9) — the links themselves (SSH, Tailscale, Cloudflare Tunnel, TCP bridge, gRPC, mobile devices, iroh). [#6](https://github.com/arcships/rutis-network/issues/6), the TCP bridge, is the foundation the TCP-shaped adapters share.
 4. [#10](https://github.com/arcships/rutis-network/issues/10) — the ecosystem: language templates, the executable conformance suite, a catalogue of adapters, CI and the license.
 
+The [Go Tailscale plugin guide](docs/design/04-link-tailscale.en.md) covers tag-based worker discovery and single-node connections using the system daemon or an embedded tsnet node.
+
 The [Go libp2p plugin guide](docs/design/09-p2p-plugins.en.md) gives the dial and listen configurations and the control methods for a single link.
 
 The drafts these issues were written from are in [docs/issue-drafts/link-plugins](docs/issue-drafts/link-plugins/README.md); the design drafts are in the draft PRs for each issue (they land in `docs/design/` when merged); the guide for coding agents is [.agents/skills/rutis-link-plugin](.agents/skills/rutis-link-plugin/SKILL.md).
