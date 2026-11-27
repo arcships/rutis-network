@@ -6,6 +6,8 @@ A device may be the only party able to dial, yet the cloud can call it back over
 
 This research uses rutis 0.23.0 as its baseline. Here the network layer includes the discovery, reachability and transport plugins in `rutis-network`, a broader scope than IP. Existing implementations illustrate the boundary. Optional services and proposed experiments describe the remaining design space.
 
+The [network stack survey](network-stacks.en.md) applies these boundaries to IoT, industrial and specialized networks by inspecting the IP interface, duplex stream, attributes, short messages or one-way observations a device exposes.
+
 ## 1. What rutis already provides
 
 - A link can hand an admitted, reliable, ordered, bidirectional message channel to `rutis/sessions.open(far)`. The link row owns admission, framing and the connection lifecycle. Rutis learns the peer's self-declared ID from the session Hello and manages remote plugins, service scope and online events. A service can already reach a third node through an intermediate host. Providers with the same service name in one scope can conflict at registration. [Link plugin contract](../design/01-link-plugin-contract.en.md) · [Connecting rutis nodes](https://github.com/arcships/rutis/blob/v0.23.0/docs/guide/nodes.en.md)
