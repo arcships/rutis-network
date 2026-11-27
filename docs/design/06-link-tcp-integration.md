@@ -40,7 +40,7 @@
 
 例如，用户选定服务器后，将对象 `{"host":"office.example.com","port":7443}` 传给 `configure`。调用 `status()` 取得快照，再把其中的字符串 `cursor` 传给 `waitForChange`。用户断开时调用 `stop()`。方法、参数和返回值在各语言间共用。
 
-**让控制服务和调用方处于同一个本地隔离作用域。** 上例在两行中为相同服务名指定了相同的 `isolate` 标签。宿主会将根作用域中的普通服务导出给已连接对端。[宿主导出规则](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/services.rs) · [集成测试](../../link/tcp/test/control.test.mjs)
+**让控制服务和调用方处于同一个本地隔离作用域。** 上例在两行中为相同服务名指定了相同的 `isolate` 标签。宿主会将根作用域中的普通服务导出给已连接对端。[宿主导出规则](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/services.rs) · [集成测试](../../link/tcp/node/test/control.test.mjs)
 
 ## 从插件代码动态挂载
 
@@ -121,4 +121,19 @@
 
 普通跨端服务调用可以直接用 `configure` 切换目标。如果宿主还通过 `wire:<plugin>` 运行远端插件，rutis 0.23.0 的 `near.end` 只确认输入结束，旧插件此时可能仍在卸载。新 socket 已连通时，原行的路由仍可能被旧会话占用。
 
-要把这类远端插件可靠地迁到另一台宿主，先等待 `rutis/loader.remove("wire")` 返回，再调用 `rutis/loader.create(options, "local-links")`。沿用 `id: "wire"` 和原隔离组，在 `options.config` 中写入新目标和所需配置。宿主会释放旧行并将已有的 `wire:<plugin>` 行挂到新对端。新实例会产生新的控制句柄和游标，业务就绪可用一次实际服务调用确认。[原版宿主集成测试](../../link/tcp/test/control.test.mjs)
+要把这类远端插件可靠地迁到另一台宿主，先等待 `rutis/loader.remove("wire")` 返回，再调用 `rutis/loader.create(options, "local-links")`。沿用 `id: "wire"` 和原隔离组，在 `options.config` 中写入新目标和所需配置。宿主会释放旧行并将已有的 `wire:<plugin>` 行挂到新对端。新实例会产生新的控制句柄和游标，业务就绪可用一次实际服务调用确认。[原版宿主集成测试](../../link/tcp/node/test/control.test.mjs)
+
+## 开发运行和打包加载
+
+在 `link/tcp/node` 执行 `npm ci` 和 `npm run dev:setup`。准备命令使用 Go 和 OpenSSL 构建具有独立宿主 ID 的回环对端，生成七天有效的本地 mTLS 证书，并写入两个开发配置。首次准备时可通过 `PORT` 更改默认端口 17443。再次执行准备命令会保留已有配置和私钥，补齐缺失配置，并在证书已到期或将在一天内到期时续签。续签后重启对端和开发宿主以加载证书。
+
+执行 `npm run dev:peer` 并保持运行。在第二个终端进入相同目录，选择要修改的插件。
+
+| 目标 | 启动命令 | 首次连接或修改源码后的调用 |
+| --- | --- | --- |
+| Node/TS | `npm run dev` | `node_modules/.bin/rutis-host call --config dev witness.echo 37` |
+| Go | `node_modules/.bin/rutis-host dev ..` | `node_modules/.bin/rutis-host call --config .. witness.echo 37` |
+
+预期返回 `["loopback",37]`。修改 Go 源码后，宿主会重编译二进制。0.23 的 Node 运行时会缓存插件入口导入的模块，因此开发命令用 esbuild 监听本地 TS 模块，构建成功后原子替换单个开发入口。宿主重载该行，拨号插件重新建立连接。
+
+在 Node 包目录执行 `npm pack`，即可生成包含 ESM 和类型声明的本地压缩包。在集成方的 Node 工程中安装该包和 `@arcships/rutis-runtime@0.23.0`，将 `runtimes.node.project` 指向该工程，行的 `name` 填 `rutis-network-tcp-reference`。该参考插件用 `port`、`ca`、`cert`、`key` 配置回环 mTLS 连接。已有源码行仍可挂载 `link/tcp/dial.ts`。迁移已有检出时请先移走旧的 `link/tcp/node_modules`，再在 `node/` 安装，以便两个入口使用同一份运行时依赖。执行 `npm run test:delivery` 可验证源码重载和仓库外安装。

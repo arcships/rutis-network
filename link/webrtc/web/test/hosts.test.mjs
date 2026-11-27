@@ -10,7 +10,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { setTimeout as delay } from 'node:timers/promises'
 import { chromium, firefox } from 'playwright'
-import { manager } from '../../tcp/test/fixtures/manager.mjs'
+import { manager } from '../../../tcp/node/test/fixtures/manager.mjs'
 
 const exec = promisify(execFile)
 const project = fileURLToPath(new URL('../', import.meta.url))
@@ -43,11 +43,11 @@ async function fixture(t) {
   })
   await mkdir(join(dir, 'plugins'))
   await Promise.all([
-    exec('go', ['build', '-o', join(dir, 'relay'), './example/turn'], { cwd: project }),
-    exec('go', ['build', '-o', join(dir, 'plugins/link-webrtc'), './cmd/link-webrtc'], { cwd: project }),
+    exec('go', ['build', '-o', join(dir, 'relay'), './example/turn'], { cwd: join(project, '..') }),
+    exec('go', ['build', '-o', join(dir, 'plugins/link-webrtc'), './cmd/link-webrtc'], { cwd: join(project, '..') }),
   ])
   const controller = join(dir, 'controller.mjs')
-  await copyFile(new URL('../../tcp/test/fixtures/controller.mjs', import.meta.url), controller)
+  await copyFile(new URL('../../../tcp/node/test/fixtures/controller.mjs', import.meta.url), controller)
   await symlink(join(project, 'node_modules'), join(dir, 'node_modules'), 'dir')
   function processFor(program, args, env) {
     const child = spawn(program, args, { env, stdio: ['ignore', 'pipe', 'pipe'] })
@@ -79,7 +79,7 @@ async function fixture(t) {
   const pairings = new Map()
   async function addPair(id, turnTTL = 3600) {
     const relayOnly = id.endsWith('relay')
-    const server = processFor(process.execPath, [join(project, 'example/server.mjs')], {
+    const server = processFor(process.execPath, [join(project, '../example/server.mjs')], {
       ...environment,
       PORT: '0',
       PAIR_ID: id,

@@ -17,9 +17,9 @@ async function frp(env, listenerPort) {
     LINK_LISTEN_PORT: String(listenerPort), FRP_TOKEN_FILE: tokenFile,
     FRP_CA_FILE: env.identity.ca, FRP_CERT_FILE: env.identity.cert, FRP_KEY_FILE: env.identity.key,
   } }
-  const server = processFor(env, 'frps', ['-c', join(project, 'tunnels/frps.toml')], options)
+  const server = processFor(env, 'frps', ['-c', join(project, '../tunnels/frps.toml')], options)
   await server.waitFor(/frps started successfully/)
-  const client = processFor(env, 'frpc', ['-c', join(project, 'tunnels/frpc.toml')], options)
+  const client = processFor(env, 'frpc', ['-c', join(project, '../tunnels/frpc.toml')], options)
   await client.waitFor(/start proxy success/)
   return forwardPort
 }
@@ -31,7 +31,7 @@ async function ssh(env, listenerPort) {
     'Host fixture', 'HostName 127.0.0.1', `Port ${port}`, `User ${userInfo().username}`,
     `IdentityFile "${identity}"`, 'IdentitiesOnly yes', `UserKnownHostsFile "${knownHosts}"`,
   ].join('\n') + '\n')
-  const forward = processFor(env, join(project, 'tunnels/ssh-reverse.sh'), [sshConfig, 'fixture', '0', String(listenerPort)])
+  const forward = processFor(env, join(project, '../tunnels/ssh-reverse.sh'), [sshConfig, 'fixture', '0', String(listenerPort)])
   return Number((await forward.waitFor(/Allocated port (\d+) for remote forward/))[1])
 }
 

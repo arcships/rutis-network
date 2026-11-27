@@ -34,7 +34,7 @@ export async function setup(t) {
     '-config', join(dir, 'cert.cnf'), '-keyout', key, '-out', cert])
   const goDir = join(dir, 'go')
   await mkdir(goDir)
-  await exec('go', ['build', '-o', join(goDir, 'link-tcp'), './cmd/link-tcp'], { cwd: project })
+  await exec('go', ['build', '-o', join(goDir, 'link-tcp'), './cmd/link-tcp'], { cwd: join(project, '..') })
   return { dir, stops, goDir, identity: { ca: cert, cert, key } }
 }
 

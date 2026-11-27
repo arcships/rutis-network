@@ -1,7 +1,7 @@
 import { createServer } from 'node:http'
-import { createHmac, timingSafeEqual } from 'node:crypto'
+import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
-import { createPairing } from '../pairing.mjs'
+import { createPairing } from '../web/src/node/pairing.ts'
 
 const secrets = [process.env.PAIR_A_TOKEN, process.env.PAIR_B_TOKEN]
 if (secrets.some((x) => !x || x.length < 20) || secrets[0] === secrets[1])
@@ -29,16 +29,52 @@ const signaling = createPairing({
     return servers
   },
 })
-const html = await readFile(new URL('./index.html', import.meta.url))
-const bundle = await readFile(new URL('../dist/link-webrtc.mjs', import.meta.url))
+const htmlFile = new URL('./index.html', import.meta.url)
+const dev = process.argv.includes('--dev')
+const clients = new Set()
+let bundle, revision
+function changed() {
+  revision = randomUUID()
+  for (const client of clients) client.write('data: ' + revision + '\n\n')
+}
+if (dev) {
+  const { watchBrowser } = await import('../web/scripts/build.mjs')
+  await watchBrowser((bytes) => {
+    bundle = bytes
+    changed()
+  })
+  const { watch } = await import('node:fs')
+  watch(new URL('.', htmlFile), (_, name) => {
+    if (name === 'index.html') changed()
+  })
+} else {
+  bundle = await readFile(new URL('../dist/link-webrtc.mjs', import.meta.url))
+}
 const server = createServer(async (req, res) => {
   try {
     res.setHeader('cache-control', 'no-store')
+    if (dev && req.method === 'GET' && req.url === '/__reload') {
+      res.writeHead(200, { 'content-type': 'text/event-stream' })
+      res.write('data: ' + (revision ?? '') + '\n\n')
+      clients.add(res)
+      res.on('close', () => clients.delete(res))
+      return
+    }
     if (req.method === 'GET' && req.url === '/') {
       res.setHeader('content-type', 'text/html; charset=utf-8')
-      return res.end(html)
+      const html = await readFile(htmlFile, 'utf8')
+      const reload = dev
+        ? `<script>new EventSource('/__reload').onmessage = e => {
+        if (e.data && e.data !== ${JSON.stringify(revision ?? '')}) location.reload()
+      }</script>`
+        : ''
+      return res.end(html.replace('</html>', reload + '</html>'))
     }
     if (req.method === 'GET' && req.url === '/link-webrtc.mjs') {
+      if (!bundle) {
+        res.writeHead(503)
+        return res.end('Waiting for a successful build')
+      }
       res.setHeader('content-type', 'text/javascript')
       return res.end(bundle)
     }

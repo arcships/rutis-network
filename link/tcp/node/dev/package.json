@@ -1,0 +1,6 @@
+{
+  "name": "rutis-network-tcp-reference",
+  "private": true,
+  "type": "module",
+  "main": "plugin.mjs"
+}

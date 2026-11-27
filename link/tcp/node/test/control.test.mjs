@@ -51,7 +51,7 @@ test('a TCP row mounted by the loader inherits the group’s local control scope
 
 test('a dynamic TCP row survives manager and business plugin restarts until the transport is removed', { timeout: 45000 }, async t => {
   const env = await setup(t)
-  await exec('go', ['build', '-o', join(env.goDir, 'mounter'), './test/fixtures/mounter'], { cwd: project })
+  await exec('go', ['build', '-o', join(env.goDir, 'mounter'), '../test/fixtures/mounter'], { cwd: project })
   const isolate = { 'office-tcp': 'management', 'office-owner': 'management' }
   const owner = row('owner', 'go:mounter', {})
   const binding = { ...row('deliver', 'go:link-tcp-attach', {

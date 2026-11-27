@@ -3,7 +3,7 @@ import test from 'node:test'
 import { once } from 'node:events'
 import { createConnection, createServer } from 'node:net'
 import { setImmediate } from 'node:timers/promises'
-import { maxMessage, openTcp } from '../bridge.ts'
+import { maxMessage, openTcp } from '../../bridge.ts'
 
 function frame(bytes) {
   const header = Buffer.alloc(4)

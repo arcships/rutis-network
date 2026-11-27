@@ -66,19 +66,19 @@ Managed dialers connect and retry by default. Changing a live endpoint closes th
 
 On the accepting host, use the same runtime configuration and a row named `go:link-tcp-listen`. Supply the server certificate and key and a CA dedicated to admitted clients. The listener binds to IPv4 loopback. The dialer accepts a DNS name, IPv4 address or IPv6 address in `host`. Port zero lets the listener choose and report a free port as `link/tcp listening 127.0.0.1:<port>`. Each verified client gets a separate session. Unloading the row closes the listener, pending TLS handshakes and admitted sockets. [Go adapters](../../link/tcp/adapter.go) · [Go bridge](../../link/tcp/bridge.go)
 
-Run the checks below from the repository root. Integration tests use Node ≥22.18, npm, OpenSSL and a Unix host with control-socket support. They build the Go binary, start real rutis hosts and call a remote service through both the Go dialer and the single-dial TypeScript reference. The Rust example uses Cargo. [TypeScript reference](../../link/tcp/dial.ts) · [Host tests](../../link/tcp/test/hosts.test.mjs)
+Run the checks below from the repository root. Integration tests use Node ≥22.18, npm, OpenSSL and a Unix host with control-socket support. They build the Go binary, start real rutis hosts and call a remote service through both the Go dialer and the single-dial TypeScript reference. The Rust example uses Cargo. [TypeScript reference](../../link/tcp/dial.ts) · [Host tests](../../link/tcp/node/test/hosts.test.mjs)
 
 ```sh
 go -C link/tcp test -race ./...
-npm ci --prefix link/tcp
-npm --prefix link/tcp run typecheck
-npm --prefix link/tcp test
+npm ci --prefix link/tcp/node
+npm --prefix link/tcp/node run typecheck
+npm --prefix link/tcp/node test
 cargo test --locked --manifest-path examples/rust-listen/Cargo.toml
 ```
 
 Set `"reconnect": true` in the dial config for a persistent row. A port-only dialer verifies `localhost`. An explicit `host` defaults to verifying that name or IP. Set `servername` to the expected DNS name on the peer certificate when forwarding a different service to loopback. Each attempt rereads the key and certificates, including after rotation. A disconnect starts a fresh session and a fresh frame stream. A temporary failure prints, for example, `link/tcp 127.0.0.1:7443 ECONNREFUSED (retry in 500ms)`. Certificate rejection waits 30 seconds. Removing the row cancels the retry and releases its socket. See the [TCP design](../design/06-link-tcp.en.md) for the state and framing rules.
 
-TCP accepts empty frames and carries up to 16 MiB per frame. On 0.23.0, applications can send a large value in successive chunks on one session and reassemble them in order. Leave room for encoding and metadata in each message. The integration example transfers 17 MiB using chunks of up to 4 MiB. Transparent chunking of a single large call depends on `sessions.open` exposing the frame limit. [Chunked echo example](../../link/tcp/test/fixtures/large.mjs) · [Upstream issue](https://github.com/arcships/rutis/issues/1411)
+TCP accepts empty frames and carries up to 16 MiB per frame. On 0.23.0, applications can send a large value in successive chunks on one session and reassemble them in order. Leave room for encoding and metadata in each message. The integration example transfers 17 MiB using chunks of up to 4 MiB. Transparent chunking of a single large call depends on `sessions.open` exposing the frame limit. [Chunked echo example](../../link/tcp/node/test/fixtures/large.mjs) · [Upstream issue](https://github.com/arcships/rutis/issues/1411)
 
 ## Reverse tunnels
 
@@ -93,7 +93,7 @@ The service machine runs the rutis listener and the forwarding client. The relay
 To run both real tunnel tests, put `frpc`, `frps` (tested with 0.72.0), `ssh` and `ssh-keygen` on PATH. The tests use `/usr/sbin/sshd` by default, or the executable in `SSHD`. The local user must be able to run a test daemon. No external accounts are required. Each test creates temporary keys and a loopback relay, starts two rutis hosts and verifies the reply to a remote service call. From the repository root:
 
 ```sh
-npm --prefix link/tcp run test:tunnels
+npm --prefix link/tcp/node run test:tunnels
 ```
 
 ## Handoff in TypeScript and Python
