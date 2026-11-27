@@ -66,12 +66,13 @@ func schema(listen bool) map[string]any {
 }
 
 type listener struct {
-	path     string
-	tokenSum [sha256.Size]byte
-	sessions tcp.Sessions
-	ctx      context.Context
-	row      context.Context
-	active   sync.Mutex
+	path         string
+	tokenSum     [sha256.Size]byte
+	sessions     tcp.Sessions
+	ctx          context.Context
+	row          context.Context
+	active       sync.Mutex
+	pingInterval time.Duration
 }
 
 func (l *listener) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -79,11 +80,16 @@ func (l *listener) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	value, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
-	sum := sha256.Sum256([]byte(value))
-	if !ok || len(r.Header.Values("Authorization")) != 1 || subtle.ConstantTimeCompare(sum[:], l.tokenSum[:]) != 1 {
+	scheme, value, ok := strings.Cut(r.Header.Get("Authorization"), " ")
+	sum := sha256.Sum256([]byte(strings.TrimLeft(value, " ")))
+	if !ok || !strings.EqualFold(scheme, "Bearer") || len(r.Header.Values("Authorization")) != 1 || subtle.ConstantTimeCompare(sum[:], l.tokenSum[:]) != 1 {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
+	}
+	// Gorilla reads the first field line for both parsing and negotiation.
+	if offers := r.Header.Values("Sec-WebSocket-Protocol"); len(offers) > 1 {
+		r = r.Clone(r.Context())
+		r.Header.Set("Sec-WebSocket-Protocol", strings.Join(offers, ","))
 	}
 	if !slices.Contains(websocket.Subprotocols(r), protocol) {
 		http.Error(w, "expected "+protocol, http.StatusBadRequest)
@@ -102,7 +108,7 @@ func (l *listener) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	upgrade := websocket.Upgrader{Subprotocols: []string{protocol}, HandshakeTimeout: 5 * time.Second}
 	conn, err := upgrade.Upgrade(w, r, nil)
 	if err == nil {
-		_ = serveSession(l.ctx, l.row, conn, l.sessions)
+		_ = serveSession(l.ctx, l.row, conn, l.sessions, l.pingInterval)
 	}
 }
 
@@ -133,7 +139,7 @@ var Listen = rutis.Define(rutis.Plugin[config]{
 			return err
 		}
 		ctx, cancel := context.WithCancel(row)
-		l := &listener{path: u.EscapedPath(), tokenSum: sha256.Sum256([]byte(token)), sessions: sessions, ctx: ctx, row: row}
+		l := &listener{path: u.EscapedPath(), tokenSum: sha256.Sum256([]byte(token)), sessions: sessions, ctx: ctx, row: row, pingInterval: pingInterval}
 		server := &http.Server{
 			Handler: l,
 			TLSConfig: &tls.Config{
@@ -178,9 +184,28 @@ const maxDelay = 30 * time.Second
 
 func dial(ctx context.Context, address, token string, tlsConfig *tls.Config) (*websocket.Conn, time.Duration, error) {
 	dialer := websocket.Dialer{TLSClientConfig: tlsConfig, Subprotocols: []string{protocol}, HandshakeTimeout: 8 * time.Second}
+	// Gorilla reads the Upgrade response directly from the socket. Its own
+	// handshake context is canceled even on success, so watch the row context.
+	var stopClose func() bool
+	dialer.NetDialContext = func(connectCtx context.Context, network, addr string) (net.Conn, error) {
+		raw, err := (&net.Dialer{}).DialContext(connectCtx, network, addr)
+		if err == nil {
+			stopClose = context.AfterFunc(ctx, func() { _ = raw.Close() })
+		}
+		return raw, err
+	}
 	conn, resp, err := dialer.DialContext(ctx, address, http.Header{"Authorization": {"Bearer " + token}})
+	if stopClose != nil {
+		stopClose()
+	}
 	if resp != nil {
 		defer resp.Body.Close()
+	}
+	if ctx.Err() != nil {
+		if conn != nil {
+			_ = conn.Close()
+		}
+		return nil, 0, ctx.Err()
 	}
 	if err != nil {
 		var failure *tls.CertificateVerificationError
@@ -224,7 +249,7 @@ var Dial = rutis.Define(rutis.Plugin[config]{
 				conn, minimum, err := dial(ctx, u.String(), token, identity)
 				if err == nil {
 					opened := time.Now()
-					err = serveSession(ctx, row, conn, sessions)
+					err = serveSession(ctx, row, conn, sessions, pingInterval)
 					if time.Since(opened) >= time.Minute {
 						backoff = initial
 					}

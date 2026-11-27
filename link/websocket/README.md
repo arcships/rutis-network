@@ -19,7 +19,9 @@ Install `link-websocket` on both hosts. B runs `go:link-websocket-listen`. A run
 
 TLS ends at the WSS listener when a relay forwards bytes transparently. A reverse proxy that terminates WSS can read the bearer token and the session traffic. Possession of the pair's token grants connection admission. Keep the private key on the listener.
 
-Each rutis message occupies one UTF-8 WebSocket text message, up to 16 MiB. Disconnects trigger redial with backoff from 0.5 to 30 seconds. An HTTP authentication refusal or certificate verification failure waits 30 seconds. An incompatible handshake stops the dial task until the row reloads.
+Each rutis message occupies one UTF-8 WebSocket text message, up to 16 MiB. Both ends send a WebSocket Ping every 10 seconds. An idle peer that answers with Pong stays connected. If a read waits 30 seconds without a message, Ping or Pong, the plugin closes the session and frees the listener slot.
+
+Disconnects trigger redial with backoff from 0.5 to 30 seconds. An HTTP authentication refusal or certificate verification failure waits 30 seconds. An incompatible handshake stops the dial task until the row reloads. Unloading the dialer also cancels a pending HTTP Upgrade.
 
 ## Verify
 

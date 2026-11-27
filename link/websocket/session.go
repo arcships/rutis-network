@@ -16,6 +16,7 @@ import (
 
 const protocol = "rutis.5"
 const maxMessage = 16 << 20
+const pingInterval = 10 * time.Second
 
 var errIncompatible = errors.New("incompatible websocket protocol")
 
@@ -38,7 +39,7 @@ func closeFrame(reason tcp.CloseReason) []byte {
 	return websocket.FormatCloseMessage(code, text)
 }
 
-func serveSession(parent, row context.Context, conn *websocket.Conn, sessions tcp.Sessions) error {
+func serveSession(parent, row context.Context, conn *websocket.Conn, sessions tcp.Sessions, interval time.Duration) error {
 	ctx, cancel := context.WithCancelCause(parent)
 	defer cancel(nil)
 	closeConn := sync.OnceFunc(func() { _ = conn.Close() })
@@ -86,8 +87,39 @@ func serveSession(parent, row context.Context, conn *websocket.Conn, sessions tc
 	if err != nil {
 		return err
 	}
+	// The reader owns both the control handlers and the read deadline.
+	resetDeadline := func() error { return conn.SetReadDeadline(time.Now().Add(3 * interval)) }
+	conn.SetPongHandler(func(string) error { return resetDeadline() })
+	replyPing := conn.PingHandler()
+	conn.SetPingHandler(func(data string) error {
+		if err := resetDeadline(); err != nil {
+			return err
+		}
+		return replyPing(data)
+	})
+	pingsDone := make(chan struct{})
+	go func() {
+		defer close(pingsDone)
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(3*interval)); err != nil {
+					cancel(err)
+					return
+				}
+			}
+		}
+	}()
 	reason := tcp.CloseReason{Kind: "done"}
 	for ctx.Err() == nil {
+		// Time spent waiting for near.Receive is local backpressure.
+		if err = resetDeadline(); err != nil {
+			break
+		}
 		var kind int
 		var data []byte
 		kind, data, err = conn.ReadMessage()
@@ -114,12 +146,14 @@ func serveSession(parent, row context.Context, conn *websocket.Conn, sessions tc
 			break
 		}
 	}
-	closeConn()
-	if localClose.Load() {
-		return nil
-	}
 	if cause := context.Cause(ctx); cause != nil {
 		err = cause
+	}
+	cancel(nil)
+	closeConn()
+	<-pingsDone
+	if localClose.Load() {
+		return nil
 	}
 	if row.Err() == nil {
 		if endErr := near.End(row, reason); err == nil {

@@ -18,10 +18,10 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func testListener(t *testing.T, sessions tcp.Sessions) (string, *tls.Config) {
+func testListener(t *testing.T, interval time.Duration, sessions tcp.Sessions) (string, *tls.Config) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
-	l := &listener{path: "/rutis", tokenSum: sha256.Sum256([]byte("pair")), sessions: sessions, ctx: ctx, row: ctx}
+	l := &listener{path: "/rutis", tokenSum: sha256.Sum256([]byte("pair")), sessions: sessions, ctx: ctx, row: ctx, pingInterval: interval}
 	server := httptest.NewTLSServer(l)
 	t.Cleanup(func() {
 		cancel()
@@ -36,7 +36,7 @@ func testListener(t *testing.T, sessions tcp.Sessions) (string, *tls.Config) {
 
 func TestAdmissionPrecedesSession(t *testing.T) {
 	var opens atomic.Int32
-	address, trusted := testListener(t, tcp.Sessions{Open: func(context.Context, tcp.Far) (tcp.Near, error) {
+	address, trusted := testListener(t, pingInterval, tcp.Sessions{Open: func(context.Context, tcp.Far) (tcp.Near, error) {
 		opens.Add(1)
 		return tcp.Near{}, errors.New("unexpected open")
 	}})
@@ -73,7 +73,7 @@ func TestMessageBoundariesAndClose(t *testing.T) {
 	opened := make(chan tcp.Far, 1)
 	received := make(chan []byte, 2)
 	ended := make(chan tcp.CloseReason, 1)
-	address, identity := testListener(t, tcp.Sessions{Open: func(_ context.Context, far tcp.Far) (tcp.Near, error) {
+	address, identity := testListener(t, pingInterval, tcp.Sessions{Open: func(_ context.Context, far tcp.Far) (tcp.Near, error) {
 		opened <- far
 		return tcp.Near{
 			Receive: func(_ context.Context, data []byte) error { received <- data; return nil },
@@ -82,7 +82,9 @@ func TestMessageBoundariesAndClose(t *testing.T) {
 	}})
 	connect := func() *websocket.Conn {
 		t.Helper()
-		conn, _, err := dial(t.Context(), address, "pair", identity)
+		handshake, cancel := context.WithCancel(t.Context())
+		conn, _, err := dial(handshake, address, "pair", identity)
+		cancel() // The caller owns the socket after a successful Upgrade.
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -139,7 +141,7 @@ func TestLocalCloseAndOversize(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			opened := make(chan tcp.Far, 1)
-			address, identity := testListener(t, tcp.Sessions{Open: func(_ context.Context, far tcp.Far) (tcp.Near, error) {
+			address, identity := testListener(t, pingInterval, tcp.Sessions{Open: func(_ context.Context, far tcp.Far) (tcp.Near, error) {
 				opened <- far
 				return tcp.Near{End: func(context.Context, tcp.CloseReason) error { return nil }}, nil
 			}})
