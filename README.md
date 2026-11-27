@@ -10,6 +10,8 @@ The plugins target rutis 0.23.0 (session protocol 5, plugin API 3). Upgrade both
 
 ## Status
 
+Browsers can connect to each other or to a native rutis host over a WebRTC DataChannel, directly or via authenticated TURN. [WebRTC setup and example](docs/design/08-link-webrtc.en.md)
+
 The [Go SSH plugins](docs/design/03-link-ssh.en.md) dial rutis peers, accept sessions through a VPS, and reverse-forward streams to an existing TCP service.
 
 The [Cloudflare Tunnel Go plugin](docs/design/05-cloudflare-plugin-control.en.md) connects two rutis 0.23 hosts. The guide includes both configurations, a working Go service example and the local control API.

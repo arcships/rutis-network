@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Rutis WebRTC pairing</title>
+  <h1>Connect a rutis peer</h1>
+  <form id="setup">
+    <p>
+      <label>Page endpoint ID <input name="id" required pattern="[a-z0-9\-]+" placeholder="page-a" /></label>
+    </p>
+    <p>
+      <label>Pair ID <input name="pair" value="desk-and-page" required /></label>
+    </p>
+    <p>
+      <label>Pairing credential <input name="token" type="password" required autocomplete="off" /></label>
+    </p>
+    <p>
+      <label
+        >ICE policy
+        <select name="policy">
+          <option value="all">Allow direct or TURN</option>
+          <option value="relay">Require TURN</option>
+        </select></label
+      >
+    </p>
+    <button>Connect</button> <button type="button" id="stop" disabled>Disconnect</button>
+  </form>
+  <p><output id="status">Stopped</output></p>
+  <form id="rpc">
+    <label>Remote service <input name="service" required placeholder="page-b" /></label>
+    <button>Call echo</button>
+  </form>
+  <p><output id="reply"></output></p>
+  <script type="module">
+    import { createPageEndpoint, createWebRtcLink, httpSignaling } from './link-webrtc.mjs'
+    let link, endpoint
+    const setup = document.querySelector('#setup'),
+      stop = document.querySelector('#stop'),
+      status = document.querySelector('#status'),
+      rpc = document.querySelector('#rpc'),
+      reply = document.querySelector('#reply')
+    setup.onsubmit = async (event) => {
+      event.preventDefault()
+      if (link) return
+      try {
+        const data = new FormData(setup),
+          id = data.get('id')
+        endpoint = createPageEndpoint(id)
+        endpoint.provide(id, { echo: (value) => [id, value] })
+        const signaling = httpSignaling('/signal', {
+          headers: { Authorization: 'Bearer ' + data.get('token') },
+        })
+        const current = (link = createWebRtcLink({
+          sessions: endpoint.sessions,
+          signaling,
+          config: { pairId: data.get('pair'), iceTransportPolicy: data.get('policy') },
+        }))
+        stop.disabled = false
+        for (let s = current.status(); link === current; s = await current.waitForChange(s.cursor)) {
+          status.value = [s.phase, s.route, s.lastError].filter(Boolean).join(' · ')
+        }
+      } catch (error) {
+        status.value = error.message
+      }
+    }
+    stop.onclick = async () => {
+      const old = link
+      link = undefined
+      await old?.stop()
+      stop.disabled = true
+      status.value = 'Stopped'
+    }
+    rpc.onsubmit = async (event) => {
+      event.preventDefault()
+      try {
+        reply.value = JSON.stringify(await endpoint.call(new FormData(rpc).get('service'), 'echo', 'hello'))
+      } catch (error) {
+        reply.value = error.message
+      }
+    }
+  </script>
+</html>

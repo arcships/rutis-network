@@ -10,6 +10,8 @@ rutis 自己只管会话这一侧：连接插件打开一条通道，交给服�
 
 ## 状态
 
+浏览器之间、浏览器与原生 rutis 宿主之间可通过 WebRTC DataChannel 双向调用服务，支持直连和经过认证的 TURN 中继。[WebRTC 配置与示例](docs/design/08-link-webrtc.md)
+
 [Go SSH 插件](docs/design/03-link-ssh.md) 支持通过 SSH 拨号、经 VPS 监听并接入 rutis 会话，以及反向转发到已有 TCP 服务。
 
 [Cloudflare Tunnel Go 插件](docs/design/05-cloudflare-plugin-control.md)可连接两台 rutis 0.23 宿主。指南包含两端配置、可运行的 Go 服务示例和本地控制接口。
