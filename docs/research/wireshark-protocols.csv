@@ -1599,7 +1599,7 @@ rsvp,Resource ReserVation Protocol (RSVP),1.0.0 to 4.6.10,routing,reuse,r/rsvp.h
 rsync,RSYNC File Synchroniser,1.0.0 to 4.6.10,file,application,r/rsync.html
 rtacser,RTAC Serial,1.12.0 to 4.6.10,industrial,gateway,r/rtacser.html
 rtag,802.1cb R-TAG,4.2.0 to 4.6.10,routing,reuse,r/rtag.html
-rtcdc,WebRTC Datachannel Protocol,1.10.0 to 4.6.10,webrtc,trial-link,r/rtcdc.html
+rtcdc,WebRTC Datachannel Protocol,1.10.0 to 4.6.10,webrtc,existing-link,r/rtcdc.html
 rtcfg,RTcfg,1.0.0 to 4.6.10,industrial,gateway,r/rtcfg.html
 rtcp,Real-time Transport Control Protocol,1.0.0 to 4.6.10,voice,application,r/rtcp.html
 rtitcp,RTI TCP Transport Protocol,2.2.0 to 4.6.10,messaging,gateway,r/rtitcp.html

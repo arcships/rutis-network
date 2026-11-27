@@ -27,7 +27,7 @@
 - **设备公开对象、命令或资源。** 由 Go 控制器或网关插件说设备原生协议，向 rutis 提供属性、事件或操作。此时 rutis 的对端可以位于网关，设备自身只运行原协议。
 - **网络提供主题、数据报、短报文、单向广播或异时交付。** 按原承诺公开发布、接收、排队、过期或回执。链路确认、下一站接收、目标接收和业务执行分别记录。对实时性敏感的现场控制交给现场控制器。
 
-实现基线为 rutis 0.23.0。本仓库已有 Go TCP、SSH、Cloudflare、Tailscale、gRPC 和 libp2p 插件。下列技术的接法属于研究判断，其他设备或协议的硬件支持需分别验证。[插件指南](../guide/link-plugins.md) · [链接契约](../design/01-link-plugin-contract.md)
+实现基线为 rutis 0.23.0。本仓库已有 Go TCP、SSH、Cloudflare、Tailscale、gRPC、libp2p 和原生 WebRTC 插件。下列技术的接法属于研究判断，其他设备或协议的硬件支持需分别验证。[插件指南](../guide/link-plugins.md) · [链接契约](../design/01-link-plugin-contract.md)
 
 ## 1. 近场、家庭和园区物联
 

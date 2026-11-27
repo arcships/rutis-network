@@ -4,7 +4,7 @@
 
 **Start with local service discovery.** Two plugins can already establish sessions over TCP, SSH or gRPC. The libp2p plugin already supports direct QUIC and relays. Tailscale also discovers tagged nodes within a tailnet. An ordinary LAN still needs a standalone way to find a dialable plugin and tell when its record has expired. Devices and brokers present another gap. A UDP instrument delivers datagrams and an MQTT broker delivers topic messages. The device itself can run its native protocol throughout. [Tailscale tag discovery](../design/04-link-tailscale.en.md) · [Network groups and service boundaries](network-groups.en.md) · [Existing libp2p paths](../design/09-p2p-plugins.en.md)
 
-## Six capabilities to validate
+## Five capabilities to validate
 
 The ordering below is a research recommendation. Each row describes a small, independently testable Go plugin capability. The filter key identifies an actual index entry, while a capability may use several protocols.
 
@@ -15,7 +15,8 @@ The ordering below is a research recommendation. Each row describes a small, ind
 | **First · `mqtt`** | Publish and subscribe on an existing broker. The protocol plugin owns connection, subscription recovery, QoS and retained flags. The application owns topic conventions, payloads, device identity and command receipts. | Fan out to two ordinary subscribers. On resubscription, preserve the broker's retained flag and judge freshness from device timestamps. Exercise QoS 1 redelivery and observe the device's separate command receipt. [MQTT 5](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html) · [Worked device example](communication-protocols.en.md) |
 | **With a constrained device · `coap`** | Send requests to a resource. Subscribe when the peer supports Observe. Preserve the response code, resource identity and freshness information. | Exercise duplicate requests, timeout, observation cancellation and an offline device. An empty ACK cannot complete an operation that needs the resource result. [CoAP](https://www.rfc-editor.org/rfc/rfc7252.html) · [Observe](https://www.rfc-editor.org/rfc/rfc7641.html) |
 | **With an Android peer · `adb`** | Follow the mobile design and use authorized ADB port forwarding with the existing TCP bridge. The device must be running a peer plugin. | Complete a remote call across two rutis hosts. Reject an unauthorized device, close the session on unplug and release the forwarding rule when its configuration stops. [Mobile design PR #18](https://github.com/arcships/rutis-network/pull/18) · [ADB](https://developer.android.com/tools/adb) |
-| **With a browser peer · `rtcdc`** | Carry rutis messages over a reliable, ordered, bidirectional WebRTC DataChannel. Reuse ICE, STUN and TURN. The deployment supplies signaling and a verifiable binding to the intended peer. | Make calls between a browser and Go over both direct and forced-relay paths. Check admission failure, message limits, slow-reader backpressure and close. Reject partial reliability or unordered delivery before handoff. [WebRTC Data Channels](https://www.rfc-editor.org/rfc/rfc8831.html) · [Link contract](../design/01-link-plugin-contract.en.md) |
+
+**WebRTC is implemented.** Browser and native Go peers can establish a rutis session over a reliable, ordered DataChannel. The deployment authorizes pairing and provides signaling. ICE can select a direct path or a TURN relay. Verify calls in both directions on each path during integration. [WebRTC plugin and acceptance checks](../design/08-link-webrtc.en.md)
 
 **Each network role makes a distinct promise.** DNS-SD yields a candidate address with an expiry. A router chooses the IP next hop. A transparent relay forwards traffic while admission and endpoint identity are verified at their respective layers. An MQTT or Zigbee gateway can terminate the native protocol and deliver a topic message or device event to rutis. Group membership, tenant assignment, temperature units and command completion belong to the application. A cloud service can embed one of the two peer plugins in a gRPC session. [Cloud-service gRPC plugin](../design/07-link-grpc.en.md) · [Security, reliability and trustworthiness](network-assurance.en.md)
 
@@ -27,8 +28,8 @@ The CSV assigns each key one primary family and one decision, preserving its ups
 
 | CSV decision | Entries | Meaning for rutis-network |
 | --- | ---: | --- |
-| `existing-link` | 5 | This repository implements TCP, SSH and gRPC. QUIC is available through libp2p. The rutis host provides WebSocket. Products such as Cloudflare and Tailscale use multiple protocols, so plugin counts are tracked separately. [Link contract](../design/01-link-plugin-contract.en.md) |
-| `trial-link` | 2 | Test the ADB and WebRTC configurations above against the session contract when a corresponding peer exists. |
+| `existing-link` | 6 | This repository implements TCP, SSH, gRPC and WebRTC. QUIC is available through libp2p. The rutis host provides WebSocket. Products and filters are counted separately. [Link contract](../design/01-link-plugin-contract.en.md) |
+| `trial-link` | 1 | Test the session contract over authorized ADB forwarding to a peer plugin on the device. |
 | `trial-service` | 4 | DNS service discovery, UDP datagrams, MQTT topics and CoAP resources each justify a native service interface. |
 | `reuse` | 779 | Consume the host, library, daemon or network service, for example TLS, BGP or STUN. |
 | `gateway` | 406 | Integrate on demand for a named device, controller or broker. One gateway often covers many filters. |
@@ -47,7 +48,7 @@ The CSV assigns each key one primary family and one decision, preserving its ups
 | --- | ---: | --- | --- |
 | Transport and reliable multicast · `transport` | 28 / 28 | `tcp`, `quic`, `udp`, `sctp`, `pgm` | TCP and QUIC already carry sessions. UDP preserves datagram boundaries. SCTP and reliable multicast need a specific peer and delivery requirement. |
 | Web, proxies and streaming RPC · `web` | 17 / 17 | `http2`, `grpc`, `websocket`, `http3` | Use the existing gRPC bidirectional stream or host WebSocket. Expose unary HTTP calls as application methods. |
-| WebRTC data channels · `webrtc` | 1 / 1 | `rtcdc` | For a browser peer, test a reliable ordered channel and assign ownership of signaling, ICE and admission. |
+| WebRTC data channels · `webrtc` | 1 / 1 | `rtcdc` | Use the existing WebRTC plugin for reliable, ordered session messages over a direct or TURN-relayed path. [Plugin guide](../design/08-link-webrtc.en.md) |
 | Remote terminals, desktops and proxies · `remote` | 26 / 26 | `ssh`, `rdp`, `vnc`, `socks` | SSH already carries sessions. Screen updates, clipboard and input belong to a remote-control service. |
 | Naming, address configuration and discovery · `discovery` | 24 / 25 | `dns`, `dhcp`, `srvloc` | Start with DNS-SD. Leave DHCP to the host and scope vendor discovery records to the network that produced them. |
 | NAT traversal and relaying · `traversal` | 5 / 6 | `stun`, `turnchannel`, `portcontrol` | Use a traversal library or TURN service within the link. Report whether the selected path is direct or relayed. |

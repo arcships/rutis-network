@@ -13,7 +13,7 @@ For device integration, the [network stack survey](docs/research/network-stacks.
 
 [Security, reliability and trustworthiness](docs/research/network-assurance.en.md) follows a device-to-cloud path through admission, failure recovery and data provenance.
 
-The [Wireshark protocol family survey](docs/research/wireshark-support.en.md) evaluates the display filter index across 50 groups and proposes six testable plugin capabilities.
+The [Wireshark protocol family survey](docs/research/wireshark-support.en.md) evaluates the display filter index across 50 groups and proposes five plugin capabilities to validate.
 
 ## Status
 

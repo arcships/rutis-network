@@ -13,7 +13,7 @@ rutis 自己只管会话这一侧：连接插件打开一条通道，交给服�
 
 [安全、稳定与可信研究](docs/research/network-assurance.md)沿设备、网关到云应用的路径分析准入、故障恢复和数据来源。
 
-[Wireshark 协议族与支持建议](docs/research/wireshark-support.md)按 50 个分组逐项评估过滤器索引，并给出六项可验收的插件能力。
+[Wireshark 协议族与支持建议](docs/research/wireshark-support.md)按 50 个分组逐项评估过滤器索引，并给出五项待验证的插件能力。
 
 ## 状态
 

@@ -4,7 +4,7 @@
 
 **最值得先补的是局域网服务发现。** 现在两端插件已经可以通过 TCP、SSH、gRPC 等建立会话，libp2p 也已经支持直接 QUIC 和中继。Tailscale 已能按标签在 tailnet 中发现节点。普通局域网还缺一个可独立使用的发现接口，让调用方找到可拨的插件，并知道记录什么时候失效。另一类缺口是原生设备和消息网络的接入。UDP 设备交付报文，MQTT broker 交付主题消息，普通设备自身可以完全不运行 rutis。[Tailscale 标签发现](../design/04-link-tailscale.md) · [组网与服务边界](network-groups.md) · [libp2p 已实现的路径](../design/09-p2p-plugins.md)
 
-## 建议验证的六项能力
+## 建议验证的五项能力
 
 这里的优先顺序是研究判断。表中写的是 Go 插件可以独立验收的最小能力。每一项都以 Wireshark 索引中实际出现的键定位，具体能力可以跨多层协议。
 
@@ -15,7 +15,8 @@
 | **先做 · `mqtt`** | 在已有 broker 上发布和订阅。协议插件负责连接、订阅恢复、QoS 和 retained 标志。业务插件定义主题、载荷、设备身份和命令回执。 | 用两个普通订阅验证扇出。重新订阅时保留 broker 回送的 retained 标志，用设备时间戳判断读数新鲜度。验证 QoS 1 重投和独立的设备执行回执。[MQTT 5](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html) · [设备上报示例](communication-protocols.md) |
 | **有受限设备时 · `coap`** | 向指定资源发请求。对端支持 Observe 时可订阅变化，结果保留响应码、资源标识和新鲜度信息。 | 验证重复请求、超时、观察取消和设备离线。空 ACK 不能完成一次需要资源结果的操作。[CoAP](https://www.rfc-editor.org/rfc/rfc7252.html) · [Observe](https://www.rfc-editor.org/rfc/rfc7641.html) |
 | **有 Android 对端时 · `adb`** | 沿用移动设备设计，通过已授权设备的 ADB 端口转发接已有 TCP bridge。设备侧必须有运行中的对端插件。 | 两台 rutis 宿主可完成远程调用。未授权设备无法接入，拔线能结束会话，停止对应配置能释放转发规则。[移动设备设计 PR #18](https://github.com/arcships/rutis-network/pull/18) · [ADB](https://developer.android.com/tools/adb) |
-| **有浏览器对等连接需求时 · `rtcdc`** | 以 WebRTC DataChannel 搬运 rutis 消息，限定可靠、有序的双向通道。复用 ICE、STUN、TURN，由部署方提供信令和可验证的对端绑定。 | 浏览器与 Go 端在直连和强制中继下均可互调。验证准入失败、最大消息、慢读回压和关闭。部分可靠或无序的配置须在交接前拒绝。[WebRTC Data Channels](https://www.rfc-editor.org/rfc/rfc8831.html) · [链接契约](../design/01-link-plugin-contract.md) |
+
+**WebRTC 已有实现。** 浏览器和原生 Go 端可用可靠、有序的 DataChannel 建立 rutis 会话。部署方授权配对并提供信令，ICE 可以选择直连或 TURN 中继。集成时可分别验证两条路径上的服务互调。[WebRTC 插件与验收](../design/08-link-webrtc.md)
 
 **组网中各角色交付的东西不同。** DNS-SD 给出带期限的候选地址。路由器选择 IP 下一跳。透明 relay 帮两端转发，准入和两端会话身份仍由相应层验证。MQTT 或 Zigbee 网关则能终止原协议，向 rutis 交付一条主题消息或设备事件。组成员资格、租户归属、温度单位和命令是否执行由业务端决定。云端插件可以嵌在云服务里，和设备侧插件共同构成 gRPC 会话的两端。[gRPC 云服务插件](../design/07-link-grpc.md) · [安全、稳定与可信](network-assurance.md)
 
@@ -27,8 +28,8 @@ CSV 中每个键只有一个主分类和一个结论，保留上游名称、全�
 
 | CSV 结论 | 条目数 | 对 rutis-network 的含义 |
 | --- | ---: | --- |
-| `existing-link` | 5 | TCP、SSH、gRPC 有本仓库插件；QUIC 有 libp2p 路径；WebSocket 由 rutis 宿主提供。Cloudflare、Tailscale 等产品可复用多种协议，插件数和过滤器数分别统计。[链接契约](../design/01-link-plugin-contract.md) |
-| `trial-link` | 2 | ADB 和 WebRTC 的受限配置值得在有相应对端时验证会话契约。 |
+| `existing-link` | 6 | 本仓库已有 TCP、SSH、gRPC 和 WebRTC 插件。QUIC 有 libp2p 路径，WebSocket 由 rutis 宿主提供。产品和过滤器的统计单位不同。[链接契约](../design/01-link-plugin-contract.md) |
+| `trial-link` | 1 | 在设备上运行对端插件，通过已授权的 ADB 转发验证会话契约。 |
 | `trial-service` | 4 | DNS 服务发现、UDP 报文、MQTT 主题和 CoAP 资源可以分别提供通用接口。 |
 | `reuse` | 779 | 依赖系统、库、守护进程或已有网络服务提供的能力，例如 TLS、BGP、STUN。 |
 | `gateway` | 406 | 有明确设备、控制器或 broker 时按需接入。一个网关往往覆盖许多过滤器。 |
@@ -47,7 +48,7 @@ CSV 中每个键只有一个主分类和一个结论，保留上游名称、全�
 | --- | ---: | --- | --- |
 | 传输与可靠组播 · `transport` | 28 / 28 | `tcp`, `quic`, `udp`, `sctp`, `pgm` | TCP 和 QUIC 已有会话路径。UDP 适合保留报文边界。SCTP 或可靠组播要有明确对端与交付需求。 |
 | Web、代理与流式 RPC · `web` | 17 / 17 | `http2`, `grpc`, `websocket`, `http3` | 已有 gRPC 双向流和宿主 WebSocket。单次 HTTP 调用导出为应用方法。 |
-| WebRTC 数据通道 · `webrtc` | 1 / 1 | `rtcdc` | 浏览器到插件时验证可靠有序通道。信令、ICE 和准入各有所有者。 |
+| WebRTC 数据通道 · `webrtc` | 1 / 1 | `rtcdc` | 复用已有 WebRTC 插件，经直连或 TURN 传送可靠、有序的会话消息。[插件指南](../design/08-link-webrtc.md) |
 | 远程终端、桌面与代理 · `remote` | 26 / 26 | `ssh`, `rdp`, `vnc`, `socks` | SSH 已能搬运会话。桌面帧、剪贴板和输入属于远控服务。 |
 | 命名、地址配置与发现 · `discovery` | 24 / 25 | `dns`, `dhcp`, `srvloc` | DNS-SD 值得先做。DHCP 由系统运行，厂商发现结果只在声明的作用域内有效。 |
 | NAT 穿越与中继 · `traversal` | 5 / 6 | `stun`, `turnchannel`, `portcontrol` | 在具体 link 内调用穿越库或 TURN 服务，记录实际走了直连还是中继。 |

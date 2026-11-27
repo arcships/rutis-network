@@ -27,7 +27,7 @@ Several areas in the catalog merit finer distinctions when building network plug
 - **The device exposes objects, commands or resources.** A Go controller or gateway plugin speaks the native protocol and exports properties, events or operations to rutis. The gateway can host the rutis peer while the device continues to run its own protocol.
 - **The network exposes topics, datagrams, short messages, one-way broadcasts or deferred delivery.** Offer publish, receive, queue, expiry or receipts according to its actual contract. Record link acknowledgment, next-hop acceptance, destination receipt and business execution separately. Preserve time-critical loops on the field controller.
 
-The implementation baseline is rutis 0.23.0. This repository already has Go plugins for TCP, SSH, Cloudflare, Tailscale, gRPC and libp2p. Integration choices below are research judgments. Other device and protocol profiles require separate hardware or implementation validation. [Plugin guide](../guide/link-plugins.en.md) · [Link contract](../design/01-link-plugin-contract.en.md)
+The implementation baseline is rutis 0.23.0. This repository already has Go plugins for TCP, SSH, Cloudflare, Tailscale, gRPC, libp2p and native WebRTC. Integration choices below are research judgments. Other device and protocol profiles require separate hardware or implementation validation. [Plugin guide](../guide/link-plugins.en.md) · [Link contract](../design/01-link-plugin-contract.en.md)
 
 ## 1. Proximity, home and campus IoT
 
