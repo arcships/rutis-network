@@ -25,8 +25,13 @@ From the repository root, use Git, Make, Go with toolchain selection enabled, an
 | `make fmt-check` | List files that need formatting and exit with an error if any do. Leaves source files untouched. |
 | `make test` | Run Go short tests in each module and Vitest unit tests in each TypeScript package. |
 | `make check` | Check formatting, run Go vet and strict TypeScript checks, then run the fast tests. |
+| `make integration` | Run the TCP host and WebRTC browser/TURN integration suites. Select one with `make integration-tcp` or `make integration-webrtc`. |
 
-The root commands and Linux PR jobs use Go 1.27.4 from [.go-version](.go-version), including its gofmt. To use that toolchain for standalone commands in the same shell, run `export GOTOOLCHAIN="go$(cat .go-version)"` from the repository root. Each module's `go.mod` declares its minimum Go version for consumers. Checks for modules that depend on the TCP bridge use the checked-out bridge in a temporary Go workspace. For a single job, run e.g. `make go-check GO_MODULES=link/ssh` or `make typecheck ts-test TS_PACKAGES=link/webrtc/web`. The TCP and WebRTC packages also provide `npm run test:integration` and `npm run test:delivery` for real hosts, browsers and package installations.
+The root commands and Linux PR jobs use Go 1.27.4 from [.go-version](.go-version), including its gofmt. To use that toolchain for standalone commands in the same shell, run `export GOTOOLCHAIN="go$(cat .go-version)"` from the repository root. Each module's `go.mod` declares its minimum Go version for consumers. Checks for modules that depend on the TCP bridge use the checked-out bridge in a temporary Go workspace. For a single job, run e.g. `make go-check GO_MODULES=link/ssh` or `make typecheck ts-test TS_PACKAGES=link/webrtc/web`. Both packages provide `npm run test:delivery` for development reload and tarball installation.
+
+After `make setup`, run `link/webrtc/web/node_modules/.bin/playwright install --with-deps chromium firefox` on Linux to install the browsers and their system libraries. TCP uses OpenSSL and the locked rutis host. WebRTC starts its own authenticated loopback TURN server. It tests bidirectional RPC over direct ICE and forced relay, loss and recovery of the relay, and in-flight calls during credential rotation.
+
+On PRs, TCP and WebRTC changes select their respective suites. Changes to the shared Go TCP package, the host fixtures WebRTC imports, or common toolchain and CI configuration select both. Docs-only PRs skip the integration jobs. Every push to `main` runs both suites. [Integration workflow](.github/workflows/integration.yml)
 
 ## Status
 
