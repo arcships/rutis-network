@@ -18,33 +18,44 @@ async function pair(t) {
   const accepted = once(server, 'connection')
   const peer = createConnection(server.address().port, '127.0.0.1')
   const [socket] = await accepted
-  t.onTestFinished(() => { socket.destroy(); peer.destroy(); server.close() })
+  t.onTestFinished(() => {
+    socket.destroy()
+    peer.destroy()
+    server.close()
+  })
   return { socket, peer }
 }
 
 async function attach(socket, receive = () => {}) {
   const ends = []
   let far
-  const link = await openTcp(socket, { open(callbacks) {
-    far = callbacks
-    return { receive, end: why => { ends.push(why) } }
-  } })
+  const link = await openTcp(socket, {
+    open(callbacks) {
+      far = callbacks
+      return {
+        receive,
+        end: (why) => {
+          ends.push(why)
+        },
+      }
+    },
+  })
   return { ...link, ends, far }
 }
 
-test('split headers, coalesced and empty messages, ordered asynchronous receives', async t => {
+test('split headers, coalesced and empty messages, ordered asynchronous receives', async (t) => {
   const { socket, peer } = await pair(t)
   const received = []
   const first = Promise.withResolvers()
   const release = Promise.withResolvers()
-  const { done, ends } = await attach(socket, async bytes => {
+  const { done, ends } = await attach(socket, async (bytes) => {
     received.push(bytes.toString())
     if (received.length === 1) {
       first.resolve()
       await release.promise
     }
   })
-  const messages = ['first', '', 'last'].map(text => frame(Buffer.from(text)))
+  const messages = ['first', '', 'last'].map((text) => frame(Buffer.from(text)))
   peer.write(messages[0].subarray(0, 2))
   await setImmediate()
   peer.end(Buffer.concat([messages[0].subarray(2), ...messages.slice(1)]))
@@ -62,7 +73,7 @@ for (const [name, bytes, code] of [
   ['partial payload', Buffer.from([0, 0, 0, 9, 1]), 'truncated-frame'],
   ['oversized header', Buffer.from([1, 0, 0, 1]), 'frame-too-large'],
 ]) {
-  test(name + ' ends the connection without delivering a message', async t => {
+  test(name + ' ends the connection without delivering a message', async (t) => {
     const { socket, peer } = await pair(t)
     const { done, ends } = await attach(socket, () => assert.fail('unexpected payload'))
     peer.end(bytes)
@@ -71,21 +82,23 @@ for (const [name, bytes, code] of [
   })
 }
 
-test('16 MiB passes in both directions with the writer awaiting socket completion', async t => {
+test('16 MiB passes in both directions with the writer awaiting socket completion', async (t) => {
   const { socket, peer } = await pair(t)
   const payload = Buffer.alloc(maxMessage, 0x71)
   const incoming = Promise.withResolvers()
-  const { far, done } = await attach(socket, bytes => {
+  const { far, done } = await attach(socket, (bytes) => {
     assert.deepEqual(bytes, payload)
     incoming.resolve()
   })
   peer.pause()
   let sent = false
-  const send = far.send(payload).then(() => { sent = true })
+  const send = far.send(payload).then(() => {
+    sent = true
+  })
   await setImmediate()
   assert.equal(sent, false)
   const received = []
-  peer.on('data', bytes => received.push(bytes))
+  peer.on('data', (bytes) => received.push(bytes))
   peer.resume()
   await send
   peer.write(frame(payload))
@@ -97,7 +110,7 @@ test('16 MiB passes in both directions with the writer awaiting socket completio
   assert.deepEqual(Buffer.concat(received), frame(payload))
 })
 
-test('failed outgoing frame closes the socket and preserves its error', async t => {
+test('failed outgoing frame closes the socket and preserves its error', async (t) => {
   const { socket } = await pair(t)
   const { far, done, ends } = await attach(socket)
   await assert.rejects(far.send(Buffer.alloc(maxMessage + 1)), { code: 'frame-too-large' })
@@ -105,67 +118,90 @@ test('failed outgoing frame closes the socket and preserves its error', async t 
   assert.equal(ends.length, 1)
 })
 
-test('session close during open releases TCP without echoing end', async t => {
+test('session close during open releases TCP without echoing end', async (t) => {
   const { socket, peer } = await pair(t)
   const closed = once(peer, 'close')
-  const { done } = await openTcp(socket, { open(far) {
-    far.close({ kind: 'done' })
-    far.close({ kind: 'done' })
-    return { receive: assert.fail, end: assert.fail }
-  } })
+  const { done } = await openTcp(socket, {
+    open(far) {
+      far.close({ kind: 'done' })
+      far.close({ kind: 'done' })
+      return { receive: assert.fail, end: assert.fail }
+    },
+  })
   await done
   await closed
 })
 
-test('socket is released if mounting the session fails', async t => {
+test('socket is released if mounting the session fails', async (t) => {
   const { socket, peer } = await pair(t)
   const closed = once(peer, 'close')
-  await assert.rejects(openTcp(socket, { open() { throw new Error('mount failed') } }), /mount failed/)
+  await assert.rejects(
+    openTcp(socket, {
+      open() {
+        throw new Error('mount failed')
+      },
+    }),
+    /mount failed/,
+  )
   await closed
 })
 
-test('a local teardown unblocks a pending receive and ends the session once', async t => {
+test('a local teardown unblocks a pending receive and ends the session once', async (t) => {
   const { socket, peer } = await pair(t)
   const receiving = Promise.withResolvers()
   const release = Promise.withResolvers()
   let ends = 0
-  const { done } = await openTcp(socket, { open: () => ({
-    receive() { receiving.resolve(); return release.promise },
-    end() { ends++; release.resolve() },
-  }) })
+  const { done } = await openTcp(socket, {
+    open: () => ({
+      receive() {
+        receiving.resolve()
+        return release.promise
+      },
+      end() {
+        ends++
+        release.resolve()
+      },
+    }),
+  })
   peer.write(frame(Buffer.from('hello')))
   await receiving.promise
   socket.destroy()
-  await done.catch(error => assert.equal(error.code, 'ERR_STREAM_PREMATURE_CLOSE'))
+  await done.catch((error) => assert.equal(error.code, 'ERR_STREAM_PREMATURE_CLOSE'))
   assert.equal(ends, 1)
 })
 
-test('peer closing while open is pending still ends the returned session', async t => {
+test('peer closing while open is pending still ends the returned session', async (t) => {
   const { socket, peer } = await pair(t)
   const opening = Promise.withResolvers()
   const link = openTcp(socket, { open: () => opening.promise })
   peer.end()
   const ended = []
-  opening.resolve({ receive: assert.fail, end: why => ended.push(why) })
-  await (await link).done
+  opening.resolve({ receive: assert.fail, end: (why) => ended.push(why) })
+  await (
+    await link
+  ).done
   assert.deepEqual(ended, [{ kind: 'done' }])
 })
 
-test('truncated input keeps its diagnostic if session cleanup also fails', async t => {
+test('truncated input keeps its diagnostic if session cleanup also fails', async (t) => {
   const { socket, peer } = await pair(t)
-  const link = await openTcp(socket, { open: () => ({
-    receive: assert.fail,
-    end() { throw new Error('session already gone') },
-  }) })
+  const link = await openTcp(socket, {
+    open: () => ({
+      receive: assert.fail,
+      end() {
+        throw new Error('session already gone')
+      },
+    }),
+  })
   peer.end(Buffer.from([0, 0]))
   await assert.rejects(link.done, { code: 'truncated-frame' })
 })
 
-test('1,000 binary messages echo in order over the same TCP connection', async t => {
+test('1,000 binary messages echo in order over the same TCP connection', async (t) => {
   const { socket, peer } = await pair(t)
   let count = 0
   const complete = Promise.withResolvers()
-  const link = await attach(socket, async message => {
+  const link = await attach(socket, async (message) => {
     assert.equal(message.readUInt32BE(0), count++)
     await link.far.send(message)
     if (count === 1000) complete.resolve()
@@ -178,7 +214,7 @@ test('1,000 binary messages echo in order over the same TCP connection', async t
   }
   const wire = Buffer.concat(frames)
   const echoes = []
-  peer.on('data', chunk => echoes.push(chunk))
+  peer.on('data', (chunk) => echoes.push(chunk))
   const closed = once(peer, 'close')
   peer.write(wire)
   await Promise.race([complete.promise, link.done])
@@ -189,7 +225,7 @@ test('1,000 binary messages echo in order over the same TCP connection', async t
   assert.deepEqual(Buffer.concat(echoes), wire)
 })
 
-test('a peer reset releases the session with the socket error code', async t => {
+test('a peer reset releases the session with the socket error code', async (t) => {
   const { socket, peer } = await pair(t)
   const { done, ends } = await attach(socket)
   peer.resetAndDestroy()

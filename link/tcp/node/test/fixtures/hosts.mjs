@@ -25,13 +25,35 @@ export async function setup(t) {
   const cert = join(dir, 'cert.pem')
   const key = join(dir, 'key.pem')
   // SubjectAltName also lets frpc's Go TLS client verify the loopback relay.
-  await writeFile(join(dir, 'cert.cnf'), [
-    '[req]', 'distinguished_name = dn', 'x509_extensions = ext', 'prompt = no',
-    '[dn]', 'CN = localhost', '[ext]', 'basicConstraints = critical,CA:TRUE',
-    'subjectAltName = DNS:localhost,IP:127.0.0.1',
-  ].join('\n'))
-  await exec('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1',
-    '-config', join(dir, 'cert.cnf'), '-keyout', key, '-out', cert])
+  await writeFile(
+    join(dir, 'cert.cnf'),
+    [
+      '[req]',
+      'distinguished_name = dn',
+      'x509_extensions = ext',
+      'prompt = no',
+      '[dn]',
+      'CN = localhost',
+      '[ext]',
+      'basicConstraints = critical,CA:TRUE',
+      'subjectAltName = DNS:localhost,IP:127.0.0.1',
+    ].join('\n'),
+  )
+  await exec('openssl', [
+    'req',
+    '-x509',
+    '-newkey',
+    'rsa:2048',
+    '-nodes',
+    '-days',
+    '1',
+    '-config',
+    join(dir, 'cert.cnf'),
+    '-keyout',
+    key,
+    '-out',
+    cert,
+  ])
   const goDir = join(dir, 'go')
   await mkdir(goDir)
   await exec('go', ['build', '-o', join(goDir, 'link-tcp'), './cmd/link-tcp'], { cwd: join(project, '..') })
@@ -44,8 +66,12 @@ export function processFor(env, program, args, options = {}) {
   const exited = once(child, 'close')
   // Attach immediately; missing optional binaries must fail the test cleanly.
   exited.catch(() => {})
-  child.stdout.on('data', data => { output += data })
-  child.stderr.on('data', data => { output += data })
+  child.stdout.on('data', (data) => {
+    output += data
+  })
+  child.stderr.on('data', (data) => {
+    output += data
+  })
   env.stops.push(async () => {
     child.kill('SIGTERM')
     await exited.catch(() => {})
@@ -70,7 +96,8 @@ export async function startHost(env, id, rows, options = {}) {
   const directory = join(env.dir, id)
   await mkdir(directory)
   const path = join(directory, 'rutis.json')
-  const config = rows => JSON.stringify({ id, runtimes: { go: { dir: env.goDir }, node: { project } }, rows })
+  const config = (rows) =>
+    JSON.stringify({ id, runtimes: { go: { dir: env.goDir }, node: { project } }, rows })
   await writeFile(path, config(rows))
   const proc = processFor(env, process.execPath, [host, 'run', path], options)
   async function reload(next) {
@@ -79,7 +106,11 @@ export async function startHost(env, id, rows, options = {}) {
     proc.child.kill('SIGUSR1')
   }
   function rootCall(method, args = [], timeout = 30000) {
-    return exec(process.execPath, [host, 'call', '--config', path, method, ...args.map(x => JSON.stringify(x))], { timeout })
+    return exec(
+      process.execPath,
+      [host, 'call', '--config', path, method, ...args.map((x) => JSON.stringify(x))],
+      { timeout },
+    )
   }
   async function call(expected, argument = 37) {
     let last

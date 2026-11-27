@@ -8,8 +8,12 @@ export default definePlugin({
     ctx.effect(async () => {
       console.log('waiting for consumer cleanup')
       for (;;) {
-        try { await access(release); return }
-        catch (error) { if (error.code !== 'ENOENT') throw error }
+        try {
+          await access(release)
+          return
+        } catch (error) {
+          if (error.code !== 'ENOENT') throw error
+        }
         await delay(20)
       }
     })

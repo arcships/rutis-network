@@ -10,11 +10,11 @@ import { rootCertificates } from 'node:tls'
 import dial from '../../dial.ts'
 import { row, setup, startHost } from './fixtures/hosts.mjs'
 
-test('Go and TypeScript clients, mTLS admission, chunked echo, row unload and reconnection', async t => {
+test('Go and TypeScript clients, mTLS admission, chunked echo, row unload and reconnection', async (t) => {
   const env = await setup(t)
   const proof = randomUUID()
   const witness = row('beacon', 'test/fixtures/witness.mjs', { proof })
-  const listen = port => row('accept', 'go:link-tcp-listen', { ...env.identity, port })
+  const listen = (port) => row('accept', 'go:link-tcp-listen', { ...env.identity, port })
   const receiver = await startHost(env, 'harbor', [listen(0), witness])
   const listening = /link\/tcp listening 127\.0\.0\.1:(\d+)/
   const port = Number((await receiver.waitFor(listening))[1])
@@ -25,14 +25,23 @@ test('Go and TypeScript clients, mTLS admission, chunked echo, row unload and re
   const ctx = {
     signal: new AbortController().signal,
     effect() {},
-    use() { return { open() { opened++ } } },
+    use() {
+      return {
+        open() {
+          opened++
+        },
+      }
+    },
   }
-  await assert.rejects(dial.apply(ctx, { ...config, ca: wrongCa }),
-    error => ['DEPTH_ZERO_SELF_SIGNED_CERT', 'SELF_SIGNED_CERT_IN_CHAIN'].includes(error.code))
+  await assert.rejects(dial.apply(ctx, { ...config, ca: wrongCa }), (error) =>
+    ['DEPTH_ZERO_SELF_SIGNED_CERT', 'SELF_SIGNED_CERT_IN_CHAIN'].includes(error.code),
+  )
   assert.equal(opened, 0)
   const denied = await startHost(env, 'denied', [row('dial', 'go:link-tcp-dial', { ...config, ca: wrongCa })])
   await denied.waitFor(/certificate-rejected/)
-  const coast = await startHost(env, 'coast', [row('dial', 'go:link-tcp-dial', { ...config, reconnect: true })])
+  const coast = await startHost(env, 'coast', [
+    row('dial', 'go:link-tcp-dial', { ...config, reconnect: true }),
+  ])
   const island = await startHost(env, 'island', [
     row('dial', 'go:link-tcp-dial', config),
     row('probe', 'test/fixtures/large.mjs', {}),
@@ -69,10 +78,13 @@ test('Go and TypeScript clients, mTLS admission, chunked echo, row unload and re
   await coast.waitFor(/dial: (?:removed|unloaded|stopped)/, beforeUnload)
 })
 
-test('unloading during initial backoff cancels the next TCP connection', { timeout: 10000 }, async t => {
+test('unloading during initial backoff cancels the next TCP connection', { timeout: 10000 }, async (t) => {
   const env = await setup(t)
   let attempts = 0
-  const server = createServer(socket => { attempts++; socket.destroy() })
+  const server = createServer((socket) => {
+    attempts++
+    socket.destroy()
+  })
   server.listen(0, '127.0.0.1')
   await once(server, 'listening')
   t.after(() => server.close())

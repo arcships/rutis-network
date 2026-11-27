@@ -6,18 +6,23 @@ import { row } from './hosts.mjs'
 
 export function manager(env, id, service, isolate) {
   const socket = join(env.dir, id + '.sock')
-  const ui = { ...row(id + '-ui', 'test/fixtures/controller.mjs', { service, socket }),
-    inject: [service], isolate }
+  const ui = {
+    ...row(id + '-ui', 'test/fixtures/controller.mjs', { service, socket }),
+    inject: [service],
+    isolate,
+  }
   function invoke(method, ...args) {
     return new Promise((resolve, reject) => {
-      const req = request({ socketPath: socket, method: 'POST' }, async res => {
+      const req = request({ socketPath: socket, method: 'POST' }, async (res) => {
         try {
           const chunks = []
           for await (const chunk of res) chunks.push(chunk)
           const text = Buffer.concat(chunks).toString()
           if (res.statusCode !== 200) throw new Error(text)
           resolve(JSON.parse(text))
-        } catch (error) { reject(error) }
+        } catch (error) {
+          reject(error)
+        }
       })
       req.on('error', reject)
       req.end(JSON.stringify([method, ...args]))
