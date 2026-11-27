@@ -8,6 +8,8 @@
 
 具体选型见[网络栈调查](network-stacks.md)，按设备交付的 IP 接口、双向流、属性、短报文或单向观测来判断插件边界，包含 IoT、工业现场和专用网络。
 
+跨域信任、失联时的授权和路径恢复见[安全、稳定与可信研究](network-assurance.md)。
+
 ## 1. 已有的起点
 
 - 一条获准的可靠、有序、双向消息通道可以交给 `rutis/sessions.open(far)`。链接行负责准入、分帧和连接生命周期。rutis 从会话 Hello 获得对端自报的 ID，管理远端插件、服务作用域和在线事件。服务已经可以经中间宿主抵达第三个节点。同一作用域里的同名服务会发生注册冲突。[链接插件契约](../design/01-link-plugin-contract.md) · [rutis 节点指南](https://github.com/arcships/rutis/blob/v0.23.0/docs/guide/nodes.md)

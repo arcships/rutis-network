@@ -11,6 +11,8 @@ The plugins target rutis 0.23.0 (session protocol 5, plugin API 3). Upgrade both
 For networks that span several nodes or administrative domains, see [the research on discovery, network formation and service boundaries](docs/research/network-groups.en.md).
 For device integration, the [network stack survey](docs/research/network-stacks.en.md) identifies the interfaces that IoT, industrial and general-purpose protocols expose to a plugin. The [communication protocol survey](docs/research/communication-protocols.en.md) compares subscriptions, acknowledgments, offline delivery and replay, with MQTT as a worked example.
 
+[Security, reliability and trustworthiness](docs/research/network-assurance.en.md) follows a device-to-cloud path through admission, failure recovery and data provenance.
+
 ## Status
 
 The [Go SSH plugins](docs/design/03-link-ssh.en.md) dial rutis peers, accept sessions through a VPS, and reverse-forward streams to an existing TCP service.

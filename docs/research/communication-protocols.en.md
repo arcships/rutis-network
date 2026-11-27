@@ -67,6 +67,8 @@ Ordinary topics naturally expose publish and subscribe. To carry a peer session 
 
 ## 5. Acceptance scenarios with observable failures
 
+For withdrawal of publish permissions, retained sample freshness and gateway provenance, see [security, reliability and trustworthiness](network-assurance.en.md).
+
 These are proposed checks. Capture evidence independently at the publisher, broker, subscriber and application.
 
 1. **Offline subscriber.** Establish a QoS 1 subscription with a stable Client ID, disconnect, publish three numbered messages that remain valid, and reconnect before session expiry. Check session resumption and the actual numbers received. Contrast a fresh session with non-retained publications.

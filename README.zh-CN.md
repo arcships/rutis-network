@@ -11,6 +11,8 @@ rutis 自己只管会话这一侧：连接插件打开一条通道，交给服�
 从单条连接扩展到多个节点或多个自治域时，可参考[发现、组网与跨域互联的服务边界研究](docs/research/network-groups.md)。
 接入具体设备时，[网络栈调查](docs/research/network-stacks.md)列出物联网、工业和通用协议族在插件一侧实际提供的接口。比较 MQTT 等协议的订阅、确认、断线补收和重放，见[通信协议研究](docs/research/communication-protocols.md)。
 
+[安全、稳定与可信研究](docs/research/network-assurance.md)沿设备、网关到云应用的路径分析准入、故障恢复和数据来源。
+
 ## 状态
 
 [Go SSH 插件](docs/design/03-link-ssh.md) 支持通过 SSH 拨号、经 VPS 监听并接入 rutis 会话，以及反向转发到已有 TCP 服务。
