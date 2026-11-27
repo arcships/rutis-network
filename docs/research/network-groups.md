@@ -83,6 +83,20 @@
 
 建议新增两个可独立部署的普通 Go 插件。下文名称、发现接口和策略配置都是提案。现有 TCP 控制接口可以原样使用。[TCP 控制接口](../design/06-link-tcp-integration.md) · [插件组合契约 D11](../design/01-link-plugin-contract.md)
 
+以一台采集机连接车间控制器为例。虚线表示通告、策略和链路状态反馈。实线表示业务消息的往返路径，链接插件通过 mTLS 准入后，将通道交给 `rutis/sessions.open(far)`。
+
+```mermaid
+flowchart TB
+    advert["控制器公布局域网入口"] -. DNS-SD / mDNS .-> discovery["发现插件 · go:discover-mdns"]
+    discovery -. 候选地址、接口和有效期 .-> group["组网插件 · go:peer-group"]
+    policy["采集机的本地策略"] -. 目标、允许网段和预期身份 .-> group
+    group -. 配置目标、启动或停止 .-> link["链接插件 · go:link-tcp-dial"]
+    link -. 链路状态和最近错误 .-> group
+    app["采集机业务插件"] <-->|按服务名调用| session["本机 rutis 会话"]
+    session <-->|双向消息| link
+    link <-->|mTLS 连接| peer["控制器的 link 与 rutis 会话"]
+```
+
 | 组件 | 一行配置负责什么 | 谁来消费 |
 | --- | --- | --- |
 | `go:discover-mdns` | 在指定接口与 DNS 域内浏览 DNS-SD 服务，或公布本地配置的入口。提供具名的只读服务，如 `shop-discovery`。 | UI 可只展示候选。组网策略也可订阅同一份观察。 |

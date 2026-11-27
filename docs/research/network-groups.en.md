@@ -83,6 +83,20 @@ Consider one controller and ten collectors in a workshop. Each collector needs o
 
 Introduce two independently deployable Go plugins. Their names, discovery interface and policy configuration below are proposals. The existing TCP control interface already has the necessary operations. [TCP controls](../design/06-link-tcp-integration.en.md) · [Plugin composition contract D11](../design/01-link-plugin-contract.en.md)
 
+This example follows one collector connecting to the workshop controller. Dotted arrows carry advertisements, policy decisions and link status. Solid arrows trace application requests and replies. Once mTLS admission succeeds, the link passes the channel to `rutis/sessions.open(far)`.
+
+```mermaid
+flowchart TB
+    advert["Controller advertises its LAN ingress"] -. DNS-SD / mDNS .-> discovery["Discovery plugin · go:discover-mdns"]
+    discovery -. Candidate addresses, interface and expiry .-> group["Group policy plugin · go:peer-group"]
+    policy["Collector's local policy"] -. Target, allowed subnet and expected identity .-> group
+    group -. Configure target, start or stop .-> link["Link plugin · go:link-tcp-dial"]
+    link -. Link state and latest error .-> group
+    app["Collector application plugin"] <-->|Call by service name| session["Local rutis session"]
+    session <-->|Bidirectional messages| link
+    link <-->|mTLS connection| peer["Controller link and rutis session"]
+```
+
 | Component | Responsibility of one configured row | Consumer |
 | --- | --- | --- |
 | `go:discover-mdns` | Browse DNS-SD services on the specified interface and DNS domain, or advertise a locally configured ingress. Provide a named read-only service such as `shop-discovery`. | A UI can display candidates independently. A group policy can subscribe to the same observations. |
