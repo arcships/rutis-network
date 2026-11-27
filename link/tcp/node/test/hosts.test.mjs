@@ -7,7 +7,7 @@ import { createConnection, createServer } from 'node:net'
 import { setTimeout as delay } from 'node:timers/promises'
 import { join } from 'node:path'
 import { rootCertificates } from 'node:tls'
-import dial from '../dial.ts'
+import dial from '../../dial.ts'
 import { row, setup, startHost } from './fixtures/hosts.mjs'
 
 test('Go and TypeScript clients, mTLS admission, chunked echo, row unload and reconnection', async t => {
@@ -37,7 +37,7 @@ test('Go and TypeScript clients, mTLS admission, chunked echo, row unload and re
     row('dial', 'go:link-tcp-dial', config),
     row('probe', 'test/fixtures/large.mjs', {}),
   ])
-  const reference = await startHost(env, 'reference', [row('dial', 'dial.ts', config)])
+  const reference = await startHost(env, 'reference', [row('dial', '../dial.ts', config)])
   await Promise.all([coast.call(proof), island.call(proof), reference.call(proof)])
 
   // The witness is reachable. Run the large transfer once, including under

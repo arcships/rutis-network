@@ -1,6 +1,16 @@
 import { randomUUID } from 'node:crypto'
 import { setTimeout as wait } from 'node:timers/promises'
 
+import type { Description, IceServer } from '../shared/signaling.ts'
+
+interface PairingOptions {
+  pairId: string
+  members: readonly [string, string]
+  iceServers?: (member: string, expires: number, issued: number) => IceServer[] | Promise<IceServer[]>
+  lifetimeMs?: number
+  refreshAfterMs?: number
+}
+
 const denied = () => Object.assign(Error('pairing denied'), { name: 'PairingDenied' })
 
 // Call from an authenticated application route. member is the verified
@@ -11,7 +21,7 @@ export function createPairing({
   iceServers = () => [],
   lifetimeMs = 60000,
   refreshAfterMs,
-}) {
+}: PairingOptions) {
   if (
     typeof pairId !== 'string' ||
     !pairId.trim() ||
@@ -25,9 +35,10 @@ export function createPairing({
   )
     throw Error('invalid pairing')
   const [offerer, answerer] = members
-  let initial, active, renewal
-  const waiting = new Set()
-  function attempt(previous) {
+  type Round = ReturnType<typeof attempt>
+  let initial: Round | undefined, active: Round | undefined, renewal: Round | undefined
+  const waiting = new Set<string>()
+  function attempt(previous?: string | null) {
     const now = Date.now()
     return {
       id: randomUUID(),
@@ -35,10 +46,15 @@ export function createPairing({
       issued: now,
       expires: now + lifetimeMs,
       refreshAt: refreshAfterMs && new Date(now + refreshAfterMs).toISOString(),
-      descriptions: new Map(),
+      descriptions: new Map<Description['type'], string>(),
     }
   }
-  return async function handle(member, method, input, signal) {
+  return async function handle(
+    member: string,
+    method: string,
+    input: Record<string, unknown>,
+    signal?: AbortSignal,
+  ) {
     if ((member !== offerer && member !== answerer) || input?.pairId !== pairId) throw denied()
     const role = member === offerer ? 'offerer' : 'answerer'
     if (method === 'acquire') {
@@ -47,8 +63,10 @@ export function createPairing({
         if (!active?.refreshAt || input.renewOf !== active.id) throw Error('inactive session')
         // A repeated poll receives the same round. Only advance when both
         // members have finished the previous SDP exchange and requested more.
-        const replay = renewal && input.after === renewal.previous
-        const undelivered = replay && Date.now() >= renewal.expires && renewal.descriptions.size === 0
+        if (typeof input.after !== 'string') throw Error('invalid renewal predecessor')
+        const pending = renewal
+        const replay = pending !== undefined && input.after === pending.previous
+        const undelivered = replay && Date.now() >= pending.expires && pending.descriptions.size === 0
         if (!replay || undelivered) {
           const previous = renewal ?? active
           if (!undelivered && (input.after !== previous.id || previous.descriptions.size !== 2))
@@ -62,6 +80,7 @@ export function createPairing({
         initial = attempt()
       }
       const current = rotating ? renewal : initial
+      if (!current) throw Error('expired attempt')
       const servers = await iceServers(member, current.expires, current.issued)
       if (current !== (rotating ? renewal : initial) || Date.now() >= current.expires)
         throw Error('expired attempt')
@@ -70,7 +89,7 @@ export function createPairing({
         role,
         expiresAt: new Date(current.expires).toISOString(),
         ...(current.refreshAt && { refreshAt: current.refreshAt }),
-        ...(rotating && { renewOf: active.id }),
+        ...(rotating && { renewOf: active?.id }),
         iceServers: servers,
       }
     }
@@ -80,7 +99,7 @@ export function createPairing({
       (current === initial || current === renewal) &&
       input.attemptId === current.id &&
       Date.now() < current.expires
-    if (!valid()) throw Error('expired attempt')
+    if (!current || !valid()) throw Error('expired attempt')
     const own = role === 'offerer' ? 'offer' : 'answer'
     if (method === 'publish') {
       if (input.type !== own || typeof input.sdp !== 'string' || !input.sdp || input.sdp.length > 262144)
@@ -100,10 +119,11 @@ export function createPairing({
     }
     if (method !== 'receive' || input.type !== (own === 'offer' ? 'answer' : 'offer')) throw denied()
     const until = Date.now() + Math.min(1000, Math.max(0, Number(input.waitMs) || 0))
-    while (valid() && !current.descriptions.has(input.type) && Date.now() < until)
+    const type = input.type as Description['type']
+    while (valid() && !current.descriptions.has(type) && Date.now() < until)
       await wait(Math.min(40, until - Date.now()), undefined, { signal })
-    if (!valid()) throw Error('expired attempt')
-    const sdp = current.descriptions.get(input.type)
+    if (!current || !valid()) throw Error('expired attempt')
+    const sdp = current.descriptions.get(type)
     return sdp === undefined ? null : { type: input.type, sdp }
   }
 }

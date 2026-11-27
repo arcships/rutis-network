@@ -1,0 +1,37 @@
+{
+  "name": "@arcships/rutis-link-webrtc",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "npm run typecheck && tsc -p tsconfig.browser.json --emitDeclarationOnly && node scripts/build.mjs",
+    "pretest": "npm run build",
+    "test": "node --test test/*.test.mjs",
+    "prepack": "npm run build",
+    "dev": "node --watch ../example/server.mjs --dev",
+    "typecheck": "tsc -p tsconfig.browser.json --noEmit && tsc -p tsconfig.node.json",
+    "test:delivery": "node --test test/delivery.mjs"
+  },
+  "devDependencies": {
+    "@arcships/rutis": "0.23.0",
+    "@arcships/rutis-host": "0.23.0",
+    "esbuild": "0.28.1",
+    "playwright": "1.62.1",
+    "@arcships/rutis-runtime": "0.23.0",
+    "buffer": "6.0.3",
+    "@types/node": "^22.0.0",
+    "typescript": "6.0.3"
+  },
+  "version": "0.0.0",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/browser/index.d.mts",
+      "import": "./dist/link-webrtc.mjs"
+    }
+  }
+}

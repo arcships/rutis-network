@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { attachChannel } from '../browser/channel.mjs'
-import { createPairing } from '../pairing.mjs'
-import { createWebRtcLink } from '../browser/link.mjs'
+import { attachChannel } from '../src/browser/channel.ts'
+import { createPairing } from '../src/node/pairing.ts'
+import { createWebRtcLink } from '../src/browser/link.ts'
 
 test('one bounded message each way, slow consumer, close and invalid records', async () => {
   const lifeA = new AbortController(),

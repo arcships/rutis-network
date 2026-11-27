@@ -7,9 +7,9 @@ import { connect as tlsConnect } from 'node:tls'
 import { readFile, writeFile } from 'node:fs/promises'
 import { userInfo } from 'node:os'
 import { join } from 'node:path'
-import { exec, row, setup, startHost } from '../../tcp/test/fixtures/hosts.mjs'
-import { manager } from '../../tcp/test/fixtures/manager.mjs'
-import { availablePort, sshServer } from '../../tcp/test/fixtures/sshd.mjs'
+import { exec, row, setup, startHost } from '../../tcp/node/test/fixtures/hosts.mjs'
+import { manager } from '../../tcp/node/test/fixtures/manager.mjs'
+import { availablePort, sshServer } from '../../tcp/node/test/fixtures/sshd.mjs'
 
 async function bind(env, server) {
   server.listen(0, '127.0.0.1')

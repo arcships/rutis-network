@@ -17,12 +17,12 @@ Implemented for rutis 0.23.0, session protocol 5. A Web endpoint runs inside a b
 
 ## Run the example
 
-Use Go 1.26 and Node.js 22 or later on the build machine. Run the following commands from the repository root. They produce the browser module at `dist/link-webrtc.mjs` and one Go executable containing both the transport and the HTTP signaling provider.
+Use Go 1.26 and Node.js 22.18 or later on the build machine. Run the following commands from the repository root. They produce the browser module at `dist/link-webrtc.mjs` and one Go executable containing both the transport and the HTTP signaling provider.
 
 ```sh
 cd link/webrtc
-npm ci
-npm run build
+npm ci --prefix web
+npm run build --prefix web
 mkdir -p plugins/go
 go build -o plugins/go/link-webrtc ./cmd/link-webrtc
 go build -o dist/turn-example ./example/turn
@@ -44,9 +44,15 @@ These commands start an authenticated loopback TURN server and the pairing page.
 
 **Use your own TURN server.** Replace the loopback service above. Set `TURN_URL` (e.g. `turn:turn.example.org:3478?transport=udp`) and `TURN_SECRET` before starting the example. The TURN server must accept shared-secret credentials and expose its listener and relay port range to both endpoints. With coturn, enable `use-auth-secret` and set `static-auth-secret` to the signaling server’s `TURN_SECRET`. The signaling server issues a credential per member. Its lifetime defaults to one hour and can be set with `TURN_TTL_SECONDS`. Both endpoints request fresh credentials halfway through that lifetime. The shared secret stays on the server. Select **Require TURN** on both ends. A working path shows `connected · relay`. Policy `all` also permits direct ICE paths, with optional `STUN_URL` for address discovery. [coturn authentication and ports](https://github.com/coturn/coturn/blob/master/examples/etc/turnserver.conf)
 
+## Browser development and packaging
+
+With the same pairing credentials and optional TURN settings as the example, run `npm run dev --prefix web` from `link/webrtc`. It starts the example and same-origin signaling. Saving browser TS rebuilds the ESM and refreshes open pages. A failed build prints its error and keeps serving the last good bundle. Saving the Node pairing module restarts the example server. Reconnect on the refreshed page to open a new session.
+
+Run `npm pack` in `link/webrtc/web` to build and package the browser ESM and generated declarations. Install the resulting tarball in your application and import `createWebRtcLink`, `createPageEndpoint` and `httpSignaling` from `@arcships/rutis-link-webrtc`. Plain HTML can import the built `dist/link-webrtc.mjs` directly. The example signaling and TURN servers are separate deployment components. With Chromium installed, `npm run test:delivery` verifies live reload, recovery after a failed build, strict type checking in an external consumer and RPC through its installed package.
+
 ## Integrate a native host and a page
 
-Save this as `link/webrtc/rutis.json`. Run `npx --no-install rutis-host run rutis.json` from that directory with member A’s token in the host environment. The page uses member B’s token. Mount business plugins in separate rows so their services can reload on the existing connection. Use the deployed HTTPS signaling URL for remote peers.
+Save this as `link/webrtc/rutis.json`. Run `web/node_modules/.bin/rutis-host run rutis.json` from that directory with member A’s token in the host environment. The page uses member B’s token. Mount business plugins in separate rows so their services can reload on the existing connection. Use the deployed HTTPS signaling URL for remote peers.
 
 ```json
 {
@@ -159,14 +165,14 @@ Transport closure ends the local session once. Session closure closes the channe
 
 ## Browser endpoint and verification
 
-The page endpoint reuses the session and codec modules from the pinned `@arcships/rutis-runtime@0.23.0` with a build-time browser platform binding. Pages explicitly export asynchronous services with `provide`. They support method calls, callbacks, binary values and service withdrawal. Requalify these modules and their protocol when upgrading rutis. The native and browser transports deliver the same wire records. [Page endpoint](../../link/webrtc/browser/endpoint.mjs) · [Browser build](../../link/webrtc/browser/build.mjs)
+The page endpoint reuses the session and codec modules from the pinned `@arcships/rutis-runtime@0.23.0` with a build-time browser platform binding. Pages explicitly export asynchronous services with `provide`. They support method calls, callbacks, binary values and service withdrawal. Requalify these modules and their protocol when upgrading rutis. The native and browser transports deliver the same wire records. [Page endpoint](../../link/webrtc/web/src/browser/endpoint.ts) · [Browser build](../../link/webrtc/web/scripts/build.mjs)
 
 ```sh
 cd link/webrtc
-npm ci
-npx playwright install chromium firefox
-npm test
+npm ci --prefix web
+npm exec --prefix web -- playwright install chromium firefox
+npm test --prefix web
 go test -race ./...
 ```
 
-The integration tests run stock rutis-host 0.23, Chromium, Firefox and a real loopback STUN/TURN server. Each endpoint combination exercises direct and forced-relay paths, checks both selected routes and makes bidirectional RPCs. The relay tests stop the TURN process, wait for service withdrawal, restart TURN on the same port and call again. Short-lived credential tests hold a callback across expiry, verify a new selected relay allocation and complete both the pending RPC and a new call on the same session. Coverage also includes page refresh, business-plugin reload, callbacks, binary values spanning records, the 16 MiB message boundary and backpressure. Public NAT topologies and production TURN deployments require separate validation. [Integration tests](../../link/webrtc/test/hosts.test.mjs) · [Browser unit tests](../../link/webrtc/test/channel.test.mjs) · [Go boundary tests](../../link/webrtc/records_test.go)
+The integration tests run stock rutis-host 0.23, Chromium, Firefox and a real loopback STUN/TURN server. Each endpoint combination exercises direct and forced-relay paths, checks both selected routes and makes bidirectional RPCs. The relay tests stop the TURN process, wait for service withdrawal, restart TURN on the same port and call again. Short-lived credential tests hold a callback across expiry, verify a new selected relay allocation and complete both the pending RPC and a new call on the same session. Coverage also includes page refresh, business-plugin reload, callbacks, binary values spanning records, the 16 MiB message boundary and backpressure. Public NAT topologies and production TURN deployments require separate validation. [Integration tests](../../link/webrtc/web/test/hosts.test.mjs) · [Browser unit tests](../../link/webrtc/web/test/channel.test.mjs) · [Go boundary tests](../../link/webrtc/records_test.go)

@@ -1,23 +1,33 @@
-import { abortable, attachChannel, delay } from './channel.mjs'
+import type { Description, Grant } from '../shared/signaling.ts'
+import type { LinkOptions, LinkStatus, Settings, WebRtcLink } from './types.ts'
+import { abortable, attachChannel, delay } from './channel.ts'
 
 const fatal = new Set(['pairing-denied', 'incompatible-channel'])
 const codes = new Set([...fatal, 'channel-closed', 'turn-unavailable', 'invalid-grant', 'signaling-failed'])
-async function signalCall(provider, method, args, signal, retry = false) {
+async function signalCall<T>(call: () => Promise<T>, signal: AbortSignal, retry = false) {
   for (;;) {
     signal.throwIfAborted()
     try {
-      return await abortable(provider[method](args, signal), signal)
+      return await abortable(call(), signal)
     } catch (error) {
       signal.throwIfAborted()
-      if (error.name === 'PairingDenied' || error.code === 'pairing-denied') throw Error('pairing-denied')
+      if (
+        error &&
+        typeof error === 'object' &&
+        (('name' in error && error.name === 'PairingDenied') ||
+          ('code' in error && error.code === 'pairing-denied'))
+      )
+        throw Error('pairing-denied')
       if (!retry) throw Error('signaling-failed')
       await delay(250, signal)
     }
   }
 }
 
-async function selectedRoute(pc) {
-  let pair = pc.sctp?.transport?.iceTransport?.getSelectedCandidatePair?.()
+async function selectedRoute(pc: RTCPeerConnection): Promise<LinkStatus['route']> {
+  type Candidate = { candidateType?: string; type?: string | null }
+  let pair: { local?: Candidate; remote?: Candidate } | null | undefined =
+    pc.sctp?.transport?.iceTransport?.getSelectedCandidatePair?.()
   if (!pair) {
     const stats = await pc.getStats()
     const entries = [...stats.values()]
@@ -26,7 +36,7 @@ async function selectedRoute(pc) {
       (x) => x.type === 'candidate-pair' && x.nominated && x.state === 'succeeded',
     )
     const id =
-      stats.get(transport?.selectedCandidatePairId) ??
+      (transport && stats.get(transport.selectedCandidatePairId)) ??
       entries.find((x) => x.type === 'candidate-pair' && x.selected) ??
       (candidates.length === 1 && candidates[0])
     if (id) pair = { local: stats.get(id.localCandidateId), remote: stats.get(id.remoteCandidateId) }
@@ -38,8 +48,8 @@ async function selectedRoute(pc) {
 // During an ICE restart an answerer can otherwise run checks against the
 // new offer from its old TURN allocation before it has gathered the new one.
 // Install the offer's candidates once the fresh answer has been published.
-function deferOfferCandidates(desc) {
-  const candidates = []
+function deferOfferCandidates(desc: Description) {
+  const candidates: RTCIceCandidateInit[] = []
   let media = -1
   const lines = desc.sdp.split(/\r?\n/).filter((line) => {
     if (line.startsWith('m=')) media++
@@ -52,10 +62,10 @@ function deferOfferCandidates(desc) {
     }
     return true
   })
-  return { offer: { type: 'offer', sdp: lines.join('\r\n') }, candidates }
+  return { offer: { type: 'offer' as const, sdp: lines.join('\r\n') }, candidates }
 }
 
-function serversFor(grant, policy) {
+function serversFor(grant: Grant, policy: RTCIceTransportPolicy) {
   const { iceServers = [] } = grant
   if (!Array.isArray(iceServers)) throw Error('invalid-grant')
   if (policy === 'relay' && !iceServers.some((s) => [s.urls].flat().some((url) => /^turns?:/i.test(url))))
@@ -63,7 +73,13 @@ function serversFor(grant, policy) {
   return iceServers
 }
 
-async function connect({ signaling, sessions }, config, grant, parent, update) {
+async function connect(
+  { signaling, sessions }: Pick<LinkOptions, 'signaling' | 'sessions'>,
+  config: Settings,
+  grant: Grant,
+  parent: AbortSignal,
+  update: (patch: Partial<LinkStatus>) => void,
+) {
   const expiry = Date.parse(grant.expiresAt)
   const remaining = expiry - Date.now()
   if (!(remaining > 0)) throw Error('invalid-grant')
@@ -76,10 +92,12 @@ async function connect({ signaling, sessions }, config, grant, parent, update) {
   parent.addEventListener('abort', stop, { once: true })
   if (parent.aborted) stop()
   const { signal } = life
-  let wire, disconnected, statsTimer
-  const attached = Promise.withResolvers()
+  let wire: ReturnType<typeof attachChannel> | undefined,
+    disconnected: number | undefined,
+    statsTimer: number | undefined
+  const attached = Promise.withResolvers<ReturnType<typeof attachChannel>>()
   const timeout = setTimeout(() => life.abort(Error('invalid-grant')), Math.min(remaining, 2147483647))
-  function attach(dc) {
+  function attach(dc: RTCDataChannel) {
     if (
       wire ||
       dc.label !== 'rutis' ||
@@ -106,15 +124,13 @@ async function connect({ signaling, sessions }, config, grant, parent, update) {
       disconnected = undefined
     }
   }
-  async function exchange(g, signal, restart) {
+  async function exchange(g: Grant, signal: AbortSignal, restart: boolean) {
     const fields = { pairId: config.pairId, attemptId: g.attemptId }
-    let deferred = []
-    const receive = async (type) => {
+    let deferred: RTCIceCandidateInit[] = []
+    const receive = async (type: Description['type']) => {
       for (;;) {
         const desc = await signalCall(
-          signaling,
-          'receive',
-          { ...fields, type, waitMs: 1000 },
+          () => signaling.receive({ ...fields, type, waitMs: 1000 }, signal),
           signal,
           restart,
         )
@@ -132,21 +148,21 @@ async function connect({ signaling, sessions }, config, grant, parent, update) {
         await delay(50, signal)
       }
     }
-    const publish = async (desc) => {
+    const publish = async (desc: RTCSessionDescriptionInit) => {
       // On restart Chromium may still report the previous generation's
       // "complete" immediately after setLocalDescription has resolved.
-      const gathered = Promise.withResolvers()
-      let relayTimer
+      const gathered = Promise.withResolvers<void>()
+      let relayTimer: number | undefined
       const hasCandidates = () =>
         config.iceTransportPolicy === 'relay'
-          ? /^a=candidate:.* typ relay(?:\s|$)/im.test(pc.localDescription?.sdp)
-          : /^a=candidate:/im.test(pc.localDescription?.sdp)
+          ? /^a=candidate:.* typ relay(?:\s|$)/im.test(pc.localDescription?.sdp ?? '')
+          : /^a=candidate:/im.test(pc.localDescription?.sdp ?? '')
       const check = () => {
         if (pc.iceGatheringState === 'complete' && (!restart || hasCandidates())) gathered.resolve()
       }
       // Some interfaces can keep gathering after a usable relay is available.
       // The answerer must deliver its SDP before the offerer's ICE checks expire.
-      const candidate = (event) => {
+      const candidate = (event: RTCPeerConnectionIceEvent) => {
         if (event.candidate?.type === 'relay')
           relayTimer ??= setTimeout(
             () => {
@@ -168,10 +184,12 @@ async function connect({ signaling, sessions }, config, grant, parent, update) {
         pc.removeEventListener('icecandidate', candidate)
         pc.removeEventListener('icegatheringstatechange', check)
       }
-      const { type, sdp } = pc.localDescription
+      const local = pc.localDescription
+      if (!local || (local.type !== 'offer' && local.type !== 'answer')) throw Error('invalid-grant')
+      const { type, sdp } = local
       if (config.iceTransportPolicy === 'relay' && !/^a=candidate:.* typ relay(?:\s|$)/im.test(sdp))
         throw Error('turn-unavailable')
-      await signalCall(signaling, 'publish', { ...fields, type, sdp }, signal, restart)
+      await signalCall(() => signaling.publish({ ...fields, type, sdp }, signal), signal, restart)
     }
 
     if (g.role === 'offerer') {
@@ -194,18 +212,20 @@ async function connect({ signaling, sessions }, config, grant, parent, update) {
       while (!next) {
         try {
           next = await signalCall(
-            signaling,
-            'acquire',
-            {
-              pairId: config.pairId,
-              after: previous.attemptId,
-              renewOf: grant.attemptId,
-              waitMs: 1000,
-            },
+            () =>
+              signaling.acquire(
+                {
+                  pairId: config.pairId,
+                  after: previous.attemptId,
+                  renewOf: grant.attemptId,
+                  waitMs: 1000,
+                },
+                signal,
+              ),
             signal,
           )
         } catch (error) {
-          if (error.message !== 'signaling-failed') throw error
+          if (!(error instanceof Error) || error.message !== 'signaling-failed') throw error
         }
         // A signaling outage before ICE restart leaves the data channel usable.
         if (!next) {
@@ -222,7 +242,7 @@ async function connect({ signaling, sessions }, config, grant, parent, update) {
         next.renewOf !== grant.attemptId ||
         next.role !== grant.role ||
         !(remaining > 0) ||
-        !(Date.parse(next.refreshAt) > refreshAt)
+        !(Date.parse(next.refreshAt ?? '') > refreshAt)
       )
         throw Error('invalid-grant')
       pc.setConfiguration({
@@ -238,15 +258,15 @@ async function connect({ signaling, sessions }, config, grant, parent, update) {
     if (grant.role === 'offerer')
       attach(pc.createDataChannel('rutis', { protocol: 'rutis-link/1', ordered: true }))
     await exchange(grant, signal, false)
-    await abortable(attached.promise, signal)
-    await abortable(wire.opened, signal)
+    const channel = await abortable(attached.promise, signal)
+    await abortable(channel.opened, signal)
     if (Date.now() >= expiry) throw Error('invalid-grant')
     clearTimeout(timeout)
     const refresh = async () => {
-      const route = await selectedRoute(pc).catch(() => 'unknown')
+      const route = await selectedRoute(pc).catch(() => 'unknown' as const)
       if (!signal.aborted) update({ phase: 'connected', route, lastError: undefined })
     }
-    await wire.serve(sessions, pc.sctp.maxMessageSize, () => {
+    await channel.serve(sessions, pc.sctp?.maxMessageSize ?? 0, () => {
       update({ phase: 'connected', lastError: undefined })
       void renew().catch((error) => life.abort(error))
       void refresh()
@@ -262,7 +282,7 @@ async function connect({ signaling, sessions }, config, grant, parent, update) {
   }
 }
 
-function validate(config) {
+function validate(config: Settings) {
   if (
     typeof config.pairId !== 'string' ||
     !config.pairId.trim() ||
@@ -272,7 +292,7 @@ function validate(config) {
     throw Error('invalid WebRTC settings')
 }
 
-export function createWebRtcLink({ sessions, signaling, config: initial }) {
+export function createWebRtcLink({ sessions, signaling, config: initial }: LinkOptions): WebRtcLink {
   if (!sessions?.open || !signaling?.acquire || !signaling?.receive || !signaling?.publish)
     throw Error('sessions and signaling are required')
   if (
@@ -293,12 +313,12 @@ export function createWebRtcLink({ sessions, signaling, config: initial }) {
   validate(config)
   const instance = crypto.randomUUID()
   let revision = 0,
-    after = null,
-    changed = Promise.withResolvers()
-  let lifetime,
-    worker,
+    after: string | null = null,
+    changed = Promise.withResolvers<void>()
+  let lifetime: AbortController | undefined,
+    worker: Promise<void> | undefined,
     commands = Promise.resolve()
-  let state = {
+  let state: LinkStatus = {
     ...config,
     desired: 'stopped',
     phase: 'stopped',
@@ -306,18 +326,18 @@ export function createWebRtcLink({ sessions, signaling, config: initial }) {
     retryCount: 0,
     cursor: instance + '/0',
   }
-  const update = (patch) => {
-    if (Object.entries(patch).every(([key, value]) => state[key] === value)) return
+  const update = (patch: Partial<LinkStatus>) => {
+    if ((Object.keys(patch) as (keyof LinkStatus)[]).every((key) => state[key] === patch[key])) return
     state = { ...state, ...patch, cursor: instance + '/' + ++revision }
     changed.resolve()
-    changed = Promise.withResolvers()
+    changed = Promise.withResolvers<void>()
   }
-  const serialize = (action) => {
+  const serialize = (action: () => Promise<void>) => {
     const result = commands.then(action)
     commands = result.catch(() => {})
     return result
   }
-  async function run(signal) {
+  async function run(signal: AbortSignal) {
     let backoff = 500
     while (!signal.aborted) {
       const started = Date.now()
@@ -326,9 +346,7 @@ export function createWebRtcLink({ sessions, signaling, config: initial }) {
         let grant
         while (!grant) {
           grant = await signalCall(
-            signaling,
-            'acquire',
-            { pairId: config.pairId, after, waitMs: 1000 },
+            () => signaling.acquire({ pairId: config.pairId, after, waitMs: 1000 }, signal),
             signal,
           )
           if (!grant) await delay(50, signal)
@@ -345,7 +363,7 @@ export function createWebRtcLink({ sessions, signaling, config: initial }) {
         await connect({ signaling, sessions }, config, grant, signal, update)
       } catch (error) {
         if (signal.aborted) return
-        const code = codes.has(error.message) ? error.message : 'connection-failed'
+        const code = error instanceof Error && codes.has(error.message) ? error.message : 'connection-failed'
         if (fatal.has(code) || !config.reconnect) {
           update({ phase: 'failed', route: 'unknown', lastError: code })
           return
@@ -372,9 +390,9 @@ export function createWebRtcLink({ sessions, signaling, config: initial }) {
     update({ ...config, desired: 'running', retryCount: 0, lastError: undefined, retryAt: undefined })
     worker = run(lifetime.signal)
   }
-  const api = {
+  const api: WebRtcLink = {
     status: () => ({ ...state }),
-    async waitForChange(cursor, signal) {
+    async waitForChange(cursor: string, signal?: AbortSignal) {
       if (cursor === state.cursor) await (signal ? abortable(changed.promise, signal) : changed.promise)
       return api.status()
     },
@@ -397,7 +415,7 @@ export function createWebRtcLink({ sessions, signaling, config: initial }) {
           retryAt: undefined,
         })
       }),
-    configure: (patch) =>
+    configure: (patch: Partial<Settings>) =>
       serialize(async () => {
         if (
           !patch ||
@@ -416,7 +434,8 @@ export function createWebRtcLink({ sessions, signaling, config: initial }) {
         config = next
         update(config)
         if (state.desired !== 'running') return
-        if (replace || (state.phase === 'failed' && next.reconnect && !fatal.has(state.lastError))) launch()
+        if (replace || (state.phase === 'failed' && next.reconnect && !fatal.has(state.lastError ?? '')))
+          launch()
         else if (state.phase === 'retrying' && !next.reconnect) {
           await join()
           update({ phase: 'failed', retryAt: undefined })
