@@ -71,6 +71,54 @@ func TestCursorReloadAndCancellation(t *testing.T) {
 	}
 }
 
+func TestExpiryAdvancesCursorWhileDiscoveryIsSilent(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		now := time.Now()
+		candidate := func(id, instance string, ttl time.Duration) mdns.Candidate {
+			return mdns.Candidate{
+				Description: &mdns.Description{ID: id, Kind: "custom", Version: 1},
+				Instance:    instance, ExpiresAt: now.Add(ttl).Format(time.RFC3339Nano),
+			}
+		}
+		source := mdns.Snapshot{Cursor: "lan/1", Candidates: []mdns.Candidate{
+			candidate("b", "b", time.Minute),
+			candidate("c", "c1", time.Minute),
+			candidate("c", "c2", 2*time.Minute),
+		}}
+		g := newGroup(ctx, discovery{
+			Snapshot: func(context.Context) (mdns.Snapshot, error) { return source, nil },
+			WaitForChange: func(context.Context, string) (mdns.Snapshot, error) {
+				<-ctx.Done() // The upstream sends no updates during either lease transition.
+				return mdns.Snapshot{}, ctx.Err()
+			},
+		}, "a", []Neighbor{{"b", "a"}, {"c", "a"}})
+		go g.run(ctx)
+		synctest.Wait()
+		first, err := g.Snapshot()
+		if err != nil || len(first.Candidates) != 1 || first.Candidates[0].Instance != "b" {
+			t.Fatal(first, err)
+		}
+		time.Sleep(time.Minute)
+		second, err := g.Snapshot()
+		if err != nil || second.Cursor == first.Cursor || len(second.Candidates) != 1 || second.Candidates[0].Instance != "c2" {
+			t.Fatalf("expiry must remove b and reveal c2 at a new cursor: %+v, %v", second, err)
+		}
+		observed, err := g.WaitForChange(ctx, first.Cursor)
+		if err != nil || observed.Cursor != second.Cursor || len(observed.Candidates) != 1 || observed.Candidates[0].Instance != "c2" {
+			t.Fatal(observed, err)
+		}
+		// With no other reader, a subscriber must also wake on c2's expiry.
+		wait, stop := context.WithTimeout(ctx, 2*time.Minute)
+		defer stop()
+		last, err := g.WaitForChange(wait, second.Cursor)
+		if err != nil || last.Cursor == second.Cursor || len(last.Candidates) != 0 || !time.Now().Equal(now.Add(2*time.Minute)) {
+			t.Fatal(last, err, time.Now())
+		}
+	})
+}
+
 func TestExpirySourceFailureAndRecovery(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
@@ -124,6 +172,38 @@ func TestExpirySourceFailureAndRecovery(t *testing.T) {
 		recovered, err := g.Snapshot()
 		if err != nil || len(recovered.Candidates) != 1 || restarts != 2 {
 			t.Fatal(recovered, err, restarts)
+		}
+	})
+}
+
+func TestOldDeadlineAfterRenewalAndSourceLoss(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		g := newGroup(t.Context(), discovery{}, "a", []Neighbor{{"b", "a"}})
+		now := time.Now()
+		announce := func(ttl time.Duration) {
+			g.update(mdns.Snapshot{Candidates: []mdns.Candidate{{
+				Description: &mdns.Description{ID: "b", Kind: "custom", Version: 1},
+				ExpiresAt:   now.Add(ttl).Format(time.RFC3339Nano),
+			}}}, nil)
+		}
+		announce(time.Minute)
+		announce(2 * time.Minute)
+		renewed, err := g.Snapshot()
+		if err != nil || len(renewed.Candidates) != 1 {
+			t.Fatal(renewed, err)
+		}
+		time.Sleep(time.Minute)
+		synctest.Wait()
+		retained, err := g.Snapshot()
+		if err != nil || retained.Cursor != renewed.Cursor || len(retained.Candidates) != 1 {
+			t.Fatal(retained, err)
+		}
+		lost := errors.New("discovery unavailable")
+		g.update(mdns.Snapshot{}, lost)
+		time.Sleep(time.Minute)
+		synctest.Wait()
+		if _, err := g.Snapshot(); !errors.Is(err, lost) {
+			t.Fatalf("old lease cleared source failure: %v", err)
 		}
 	})
 }

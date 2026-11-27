@@ -229,14 +229,14 @@ flowchart TB
 
 ### How discovery, group policy and links fit together
 
-Topology is a policy input to `go:peer-group`. It matches **candidate endpoints with a source and expiry** to **the neighbors this host should maintain**, then hands the dial target to a dedicated link row. A LAN can use DNS-SD/mDNS, a fixed point-to-point link can read configuration and an overlay can use its directory. The same topology can use different discovery sources.
+Topology is a policy input to `go:peer-group`. It matches **candidate endpoints with a source and expiry** to **the neighbors this host should maintain**, then passes the selected outbound offers to a protocol adapter. A LAN can use DNS-SD/mDNS, a fixed point-to-point link can read configuration and an overlay can use its directory. The same topology can use different discovery sources.
 
 ```mermaid
 flowchart TB
     discovery["Discovery source · e.g. go:discover-mdns"] -. Candidate endpoints, scope and expiry .-> group["Group policy · go:peer-group"]
     topology["Topology and permitted members"] -. Desired neighbors and dial owner .-> group
-    group -. Configure target, start or stop .-> link["Dedicated local link row"]
-    link -. Link state and errors .-> group
+    group -. Live outbound offers .-> adapter["TCP offer adapter · go:tcp-offer-dial"]
+    adapter -. Configure target, start or stop .-> link["Dedicated local link row"]
     app["Application plugin"] <-->|Call by service name| session
     session["Local rutis session"] <-->|Bidirectional messages| link
     link <-->|Admitted transport channel| peer["Peer link and rutis session"]
@@ -247,8 +247,9 @@ Dotted arrows show discovery, policy and control feedback. Solid arrows trace me
 | Component | Responsibility of one configured row | Consumer |
 | --- | --- | --- |
 | `go:discover-mdns` | Browse DNS-SD services on the specified interface and DNS domain, or advertise a locally configured ingress. Provide a named read-only service such as `lan-discovery`. | A UI can display candidates independently. A group policy can subscribe to the same observations. |
-| `go:peer-group` | Declare the intended peers, allowed discovery source and dedicated dialing service. Continuously compare the intent with observed link state and initiate or stop connections as needed. | A management UI can inspect the selection reason, transport state and latest error for each target. Application plugins still use rutis service names. |
-| Existing link row | Dial the address, authenticate the expected peer, handle retries and own the session lifecycle. The deployment supplies credentials to this row. | A group row operates only the explicitly injected local control services it exclusively owns. |
+| `go:peer-group` | Select neighbors and dial owners from the roster and topology. | A UI can read the plan with `neighbors()`. Protocol adapters subscribe to the group's outbound offers. |
+| `go:tcp-offer-dial` | Match the target offer to the locally configured IP ranges and TLS name. | Configure, start or stop the dedicated TCP dialer. |
+| Existing link row | Dial the address, authenticate the expected peer, handle retries and own the session lifecycle. The deployment supplies credentials to this row. | The adapter uses the injected dial control. A UI can query this control for transport state and errors. |
 
 ### Candidates, targets and link state
 
@@ -256,7 +257,7 @@ A **candidate endpoint** answers “where did I observe this ingress?” The dis
 
 A **connection target** answers “who is this host allowed to connect to, and which side dials?” Give it a stable local name, candidate matching rules, permitted address ranges, an expected transport identity and a dedicated link control service. Discovery instance names and TXT labels are selection hints. Obtain the expected TLS name from local configuration. Keep the CA and private key in the TCP row. Matching names, addresses or labels are insufficient to merge endpoints across networks into one member. An application that requires authoritative membership can supply its roster as a policy input. A LAN advertisement cannot grant membership.
 
-**Connection state** has three independently observable parts per target. The discovery record can be current, the link can pass local admission and attach, and an application service can become callable. The group row can expose the first two, the chosen address and the last error via `status()` and `waitForChange(cursor)`. Service registration or a successful call supplies evidence for the third. Go's `sessions.open` does not return the rutis ID from the handshake. Advertisements and certificates cannot supply that ID. [TCP status fields](../design/06-link-tcp-integration.en.md)
+**Connection state** has three independently observable parts per target. The discovery record can be current, the link can pass local admission and attach, and an application service can become callable. Read the group's `snapshot()` for live outbound offers and the TCP dialer's `status()` for its endpoint, connection state and last error. Service registration or a successful call supplies evidence for the third. Go's `sessions.open` does not return the rutis ID from the handshake. Advertisements and certificates cannot supply that ID. [TCP status fields](../design/06-link-tcp-integration.en.md)
 
 ### Mapping a topology edge to configuration
 
@@ -290,13 +291,15 @@ The original design sketch described an edge with an explicit target. The config
 
 B advertises instance `node-b` and a reachable TCP ingress such as `192.168.20.8:7443` on the designated interface. B verifies A's certificate using mTLS. The existing Go TCP listener binds only to IPv4 loopback, so a cross-host trial needs an ingress that forwards the TCP stream to B's loopback listener. Advertise when the ingress is ready and withdraw when it stops. [Existing listener and forwarding options](../guide/link-plugins.en.md) · [TCP listener restriction](../design/06-link-tcp.en.md)
 
-A validates the source and the resolved IP against its permitted range, then calls `configure({host, port, servername})` and `start()` on `b-link`. Pass the checked IP as `host` and the locally configured name as `servername`. Serialize decisions per target using the latest discovery and link snapshots. Repeated announcements only refresh the expiry. With multiple addresses, keep a healthy path and select a still-valid address after disconnect. The TCP row backs off on transient failures. The group row avoids parallel attempts for the same target. After a service reload, read both snapshots before taking action. Start with one preconfigured dial row per target and validate ordinary cross-host service calls. [Existing TCP configuration and retry behavior](../design/06-link-tcp-integration.en.md)
+On A, the group selects B's offer from its configured discovery source. The TCP adapter checks the offered IP against its permitted ranges, then calls `configure({host, port, servername})` and `start()` on `b-link`. Pass the checked IP as `host` and the locally configured name as `servername`. Each adapter follows the latest group snapshot and controls one dedicated dialer. Renewing the same endpoint refreshes its lease and preserves the connection. The TCP row owns retries after transient transport failures. [Existing TCP configuration and retry behavior](../design/06-link-tcp-integration.en.md)
 
 | Event | Default behavior and acceptance criterion |
 | --- | --- |
 | Another interface announces the same name, or the resolved IP is outside the permitted range | Dial only candidates on the configured interface and in the permitted range. A valid address with the wrong certificate still fails TCP admission. |
-| The advertisement disappears while an established link is healthy | Remove the record and disable automatic retries for the target. The established connection can continue. Stop a pending dial or backoff. After a later disconnect, wait for a fresh record. Verify expiry and connectivity independently. [TCP retry control](../design/06-link-tcp-integration.en.md) |
-| The address changes, the interface briefly goes down or the publisher restarts | Keep a healthy connection and update candidates for the next dial. Stop attempts on the old address before selecting another after disconnect. Resolve duplicate or out-of-order notifications against the latest snapshot. |
+| The advertisement disappears while an established link is healthy | On withdrawal or lease expiry, stop the dedicated dialer. This closes its active connection and cancels pending attempts and retries. Dial again when a unique, permitted offer returns. [TCP retry control](../design/06-link-tcp-integration.en.md) |
+| The address changes, the interface briefly goes down or the publisher restarts | A permitted change of IP or port reconfigures the dialer and connects to the new endpoint. Loss of the offer or an error from discovery stops the dialer until a valid offer returns. |
 | Local policy revokes the target or the group row unloads | Immediately stop owned dials and retries, close active links and cancel observations. Other groups and manually configured links continue operating. |
+
+A future policy could preserve a healthy session after its advertisement expires and require a fresh offer for the next dial. The current TCP adapter closes the session on expiry. [Three-host ring test](../../group/peer/test/ring.test.mjs)
 
 A host can participate in several groups, each with explicit sources, targets and control services. The same discovery interface could later read a static directory. The target model can describe a set of configured neighbors. Define one dial owner per edge before introducing a bounded mesh. Existing Tailscale tag discovery retains its authoritative network map and revocation rules. Across domains, a directory introduces endpoints, a relay forwards along a selected path, a router selects a next hop and a protocol gateway terminates the native protocol and exports a service. Deploy those roles as needed. The LAN group plugin only has to maintain this host's selected edges. [Tailscale tag discovery](../design/04-link-tailscale.en.md) · [libp2p direct and relay paths](../design/09-p2p-plugins.en.md)

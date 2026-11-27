@@ -63,5 +63,5 @@ The integration test starts three distinct hosts, calls a remote RPC over every 
 
 ```sh
 npm ci --prefix link/tcp/node
-MDNS_TEST_INTERFACE=lo0 node --test group/peer/test/ring.test.mjs
+MDNS_TEST_INTERFACE=lo0 make integration-peer-group
 ```

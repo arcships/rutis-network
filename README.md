@@ -54,12 +54,12 @@ From the repository root, use Git, Make, Go with toolchain selection enabled, an
 | `make fmt-check` | List files that need formatting and exit with an error if any do. Leaves source files untouched. |
 | `make test` | Run Go short tests in each module and Vitest unit tests in each TypeScript package. |
 | `make check` | Check formatting, run Go vet and strict TypeScript checks, then run the fast tests. |
-| `make integration` | Run the TCP host and WebRTC browser/TURN integration suites. Select one with `make integration-tcp` or `make integration-webrtc`. |
+| `make integration` | Run the TCP host and WebRTC browser/TURN integration suites. Set `MDNS_TEST_INTERFACE` to include the three-host mTLS ring, or run it separately with `MDNS_TEST_INTERFACE=lo0 make integration-peer-group` on macOS. |
 
 The root commands and Linux PR jobs use Go 1.27.4 from [.go-version](.go-version), including its gofmt. To use that toolchain for standalone commands in the same shell, run `export GOTOOLCHAIN="go$(cat .go-version)"` from the repository root. Each module's `go.mod` declares its minimum Go version for consumers. Checks for modules that depend on the TCP bridge use the checked-out bridge in a temporary Go workspace. For a single job, run e.g. `make go-check GO_MODULES=link/ssh` or `make typecheck ts-test TS_PACKAGES=link/webrtc/web`. Both packages provide `npm run test:delivery` for development reload and tarball installation.
 
 After `make setup`, run `link/webrtc/web/node_modules/.bin/playwright install --with-deps chromium firefox` on Linux to install the browsers and their system libraries. TCP uses OpenSSL and the locked rutis host. WebRTC starts its own authenticated loopback TURN server. It tests bidirectional RPC over direct ICE and forced relay, loss and recovery of the relay, and in-flight calls during credential rotation.
 
-On PRs, TCP and WebRTC changes select their respective suites. Changes to the shared Go TCP package, the host fixtures WebRTC imports, or common toolchain and CI configuration select both. Docs-only PRs skip the integration jobs. Every push to `main` runs both suites. [Integration workflow](.github/workflows/integration.yml)
+On PRs, TCP and WebRTC changes select their respective suites. Changes to the Go TCP bridge or host fixtures used by WebRTC also select WebRTC. Peer-group, mDNS and TCP changes select the ring on macOS loopback. Changes to shared CI or toolchain configuration and pushes to `main` run all three suites. Docs-only PRs skip integration. [Integration workflow](.github/workflows/integration.yml)
 
 </details>

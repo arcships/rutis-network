@@ -26,6 +26,9 @@ type group struct {
 	epoch     string
 	mu        sync.Mutex
 	revision  uint64
+	observed  mdns.Snapshot
+	expiry    time.Time
+	timer     *time.Timer
 	state     mdns.Snapshot
 	sourceErr error
 	changed   chan struct{}
@@ -78,9 +81,32 @@ func (g *group) project(s mdns.Snapshot, now time.Time) ([]mdns.Candidate, time.
 	return result, expires
 }
 
-func (g *group) replace(next []mdns.Candidate, err error) {
+func (g *group) update(observed mdns.Snapshot, err error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	g.observed = observed
+	g.publishLocked(err)
+}
+
+// Keep the full observation so expiry can also reveal a previously ambiguous offer.
+func (g *group) publishLocked(err error) {
+	next, expiry := g.project(g.observed, time.Now())
+	if g.timer != nil {
+		g.timer.Stop()
+		g.timer = nil
+	}
+	g.expiry = expiry
+	if !expiry.IsZero() {
+		g.timer = time.AfterFunc(time.Until(expiry), func() {
+			g.mu.Lock()
+			defer g.mu.Unlock()
+			// A stopped timer's callback may already be waiting for the lock.
+			// Always use the current observation and preserve a later source error.
+			if !g.expiry.IsZero() {
+				g.publishLocked(nil)
+			}
+		})
+	}
 	if g.sourceErr == nil && err == nil && reflect.DeepEqual(g.state.Candidates, next) {
 		return
 	}
@@ -91,8 +117,13 @@ func (g *group) replace(next []mdns.Candidate, err error) {
 	g.changed = make(chan struct{})
 }
 
+func (g *group) expireLocked() {
+	if !g.expiry.IsZero() && !time.Now().Before(g.expiry) {
+		g.publishLocked(nil)
+	}
+}
+
 // One subscriber follows the discovery service on behalf of all adapters.
-// Re-evaluate leases on their deadline even if discovery is silent.
 func (g *group) run(ctx context.Context) error {
 	for ctx.Err() == nil {
 		state, err := g.source.Snapshot(ctx)
@@ -101,36 +132,23 @@ func (g *group) run(ctx context.Context) error {
 				err = errors.New("discovery returned an empty cursor")
 				break
 			}
-			next, expiry := g.project(state, time.Now())
-			g.replace(next, nil)
-			wait := ctx
-			var cancel context.CancelFunc
-			if !expiry.IsZero() {
-				wait, cancel = context.WithDeadline(ctx, expiry)
-			}
-			update, waitErr := g.source.WaitForChange(wait, state.Cursor)
-			expired := wait.Err() == context.DeadlineExceeded
-			if cancel != nil {
-				cancel()
-			}
-			if waitErr != nil && expired && ctx.Err() == nil {
-				continue
-			}
-			err = waitErr
-			if err == nil && update.Cursor == state.Cursor {
+			g.update(state, nil)
+			cursor := state.Cursor
+			state, err = g.source.WaitForChange(ctx, cursor)
+			if err == nil && state.Cursor == cursor {
 				err = errors.New("discovery returned an unchanged cursor")
 			}
-			state = update
 		}
 		if ctx.Err() != nil {
 			break
 		}
-		g.replace(nil, err)
+		g.update(mdns.Snapshot{}, err)
 		select {
 		case <-ctx.Done():
 		case <-time.After(time.Second):
 		}
 	}
+	g.update(mdns.Snapshot{}, ctx.Err())
 	return ctx.Err()
 }
 
@@ -143,25 +161,22 @@ func (g *group) Snapshot() (mdns.Snapshot, error) {
 	if g.sourceErr != nil {
 		return mdns.Snapshot{}, g.sourceErr
 	}
+	g.expireLocked()
 	s := g.state
-	s.Candidates = make([]mdns.Candidate, 0, len(g.state.Candidates))
-	now := time.Now()
-	for _, c := range g.state.Candidates {
-		expiry, _ := time.Parse(time.RFC3339Nano, c.ExpiresAt)
-		if !expiry.After(now) {
-			continue
-		}
+	s.Candidates = slices.Clone(s.Candidates)
+	for i := range s.Candidates {
+		c := &s.Candidates[i]
 		d := *c.Description
 		d.Params = slices.Clone(d.Params)
 		c.Description = &d
 		c.Addresses = slices.Clone(c.Addresses)
-		s.Candidates = append(s.Candidates, c)
 	}
 	return s, nil
 }
 
 func (g *group) WaitForChange(ctx context.Context, cursor string) (mdns.Snapshot, error) {
 	g.mu.Lock()
+	g.expireLocked()
 	current, changed := g.state.Cursor, g.changed
 	g.mu.Unlock()
 	if cursor == current {
