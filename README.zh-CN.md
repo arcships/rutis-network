@@ -24,6 +24,7 @@ rutis-network 是 [rutis](https://github.com/arcships/rutis) 的连接插件集�
 
 | 你的环境 | 可以怎样接入 |
 | --- | --- |
+| 两个宿主通过 WSS 入口互连 | 安装独立 Go 拨号插件和监听插件。[WebSocket](link/websocket/README.zh-CN.md) |
 | 节点已经在同一个 Tailscale 网络里 | 按标签自动发现一组节点，或按名称连接指定节点。[Tailscale](docs/design/04-link-tailscale.md) |
 | 已有 SSH 入口，或两端都能登录同一台 VPS | 沿用 SSH 入口，或通过 VPS 反向接入。[SSH](docs/design/03-link-ssh.md) |
 | 一部分程序运行在浏览器里 | 让网页与原生宿主或另一个网页双向调用服务。[WebRTC](docs/design/08-link-webrtc.md) |
@@ -40,7 +41,7 @@ rutis-network 是 [rutis](https://github.com/arcships/rutis) 的连接插件集�
 
 第一次接触 rutis，可以先在本机启动两个宿主，让一个进程调用另一个进程提供的服务。已经有 Tailscale 网络，可以直接试节点自动加入和退出。要接入其他环境，可以按连接插件契约实现自己的适配器。[本机双宿主示例](docs/design/06-link-tcp-integration.md#开发运行和打包加载) · [节点自动发现](docs/design/04-link-tailscale.md#按标签自动发现) · [连接插件契约](docs/design/01-link-plugin-contract.md)
 
-当前插件面向 **rutis 0.23.0**，使用会话协议 5、插件 API 3。两端宿主和语言运行时需要使用匹配版本。Linux/amd64 用户可以直接安装预编译的 TCP 插件。[安装 TCP 发布包](docs/guide/link-plugins.md#安装-go-插件)
+当前插件面向 **rutis 0.23.0**，使用会话协议 5、插件 API 3。两端宿主和语言运行时需要使用匹配版本。各个 Go 插件独立发布。在 Releases 中找到要用的插件，按宿主的操作系统和 CPU 架构选择安装包。[下载发布包](https://github.com/arcships/rutis-network/releases) · [安装 Go 插件](docs/guide/link-plugins.md#安装-go-插件)
 
 参与仓库开发时，在根目录运行 `make setup` 安装开发依赖，再运行 `make check` 完成格式检查、静态检查和快速测试。
 
@@ -55,12 +56,12 @@ rutis-network 是 [rutis](https://github.com/arcships/rutis) 的连接插件集�
 | `make fmt-check` | 列出需要格式化的文件，有差异时以非零状态退出，源文件保持原样。 |
 | `make test` | 逐模块运行 Go 短测试，逐 TypeScript 工程运行 Vitest 单测。 |
 | `make check` | 依次执行格式检查、Go vet、严格 TypeScript 类型检查和快速测试。 |
-| `make integration` | 运行 TCP、gRPC 真实宿主和 WebRTC 浏览器、TURN 集成测试。设置 `MDNS_TEST_INTERFACE` 会一起运行三宿主 mTLS 环网。在 macOS 上可用 `MDNS_TEST_INTERFACE=lo0 make integration-peer-group` 单独运行环网。 |
+| `make integration` | 运行 TCP、WebSocket、gRPC 真实宿主和 WebRTC 浏览器、TURN 集成测试。设置 `MDNS_TEST_INTERFACE` 会一起运行三宿主 mTLS 环网。在 macOS 上可用 `MDNS_TEST_INTERFACE=lo0 make integration-peer-group` 单独运行环网。 |
 
 根命令和 Linux PR 任务都使用 [.go-version](.go-version) 指定的 Go 1.27.4，包括该版本的 gofmt。在仓库根运行 `export GOTOOLCHAIN="go$(cat .go-version)"`，可让当前终端中单独执行的 Go 命令也使用相同版本。各模块的 `go.mod` 声明面向使用者的最低 Go 版本。依赖 TCP bridge 的模块通过临时 Go 工作区使用当前检出的源码。可用 `make go-check GO_MODULES=link/ssh` 或 `make typecheck ts-test TS_PACKAGES=link/webrtc/web` 单独复现一项任务。两个包均可用 `npm run test:delivery` 验证开发重载和打包安装。
 
 在 Linux 上执行 `make setup` 后，运行 `link/webrtc/web/node_modules/.bin/playwright install --with-deps chromium firefox` 安装浏览器和系统依赖。TCP 使用 OpenSSL 和锁文件指定的 rutis 宿主。WebRTC 测试会启动带认证的回环 TURN 服务器，验证 ICE 直连与强制中继下的双向 RPC、中继断开后的恢复，以及凭据轮换期间的在途调用。
 
-PR 改动 TCP 或 WebRTC 时运行对应套件。改动共享的 Go TCP 包或 WebRTC 引用的宿主夹具时也运行 WebRTC 套件。改动 gRPC、其 TCP 依赖或宿主 npm 包时运行 gRPC 套件。改动组网、mDNS 或 TCP 时，在 macOS 回环接口运行三宿主环网。公共工具链或 CI 配置变更，以及推送到 `main` 时，运行全部套件。纯文档 PR 跳过集成任务。[集成测试工作流](.github/workflows/integration.yml)
+PR 改动 TCP 或 WebRTC 时运行对应套件。改动共享的 Go TCP 包或 WebRTC 引用的宿主夹具时也运行 WebRTC 套件。改动 gRPC、其 TCP 依赖或宿主 npm 包时运行 gRPC 套件。改动组网、mDNS 或 TCP 时，在 macOS 回环接口运行三宿主环网。改动 WebSocket 或 TCP 时运行 WSS 套件。公共工具链或 CI 配置变更，以及推送到 `main` 时，运行全部套件。纯文档 PR 跳过集成任务。[集成测试工作流](.github/workflows/integration.yml)
 
 </details>

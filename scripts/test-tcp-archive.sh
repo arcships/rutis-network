@@ -5,7 +5,7 @@ version=${2:?missing version}
 repo=$(cd "$(dirname "$0")/.." && pwd -P)
 cd "$assets"
 archive="link-tcp-${version}-linux-amd64.tar.gz"
-sha256sum "$archive" | diff - SHA256SUMS
+awk -v archive="$archive" '$2 == archive' SHA256SUMS | sha256sum -c -
 install_dir=$(mktemp -d)
 trap 'rm -rf "$install_dir"' EXIT
 tar -xzf "$archive" -C "$install_dir"
