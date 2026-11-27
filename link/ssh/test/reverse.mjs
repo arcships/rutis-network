@@ -166,6 +166,8 @@ test('a single host runs both static reverse roles with independent lifetimes', 
   const wire = row('accept', 'go:link-ssh-listen', { ...options, profiles: { key: linkKey }, listenAddress })
   const office = await startHost(env, 'office', [wire, row('beacon', 'test/fixtures/witness.mjs', { proof: 'mounted' })])
   const [, directAddress] = await office.waitFor(listening)
+  // The listener binds during apply, before the host finishes installing its file rows.
+  await Promise.all([office.waitFor(/accept: running/), office.waitFor(/beacon: running/)])
   const logOffset = office.output().length
   const forward = row('forward', 'go:link-ssh-tunnel', { ...options, profiles: { key: gateway.profile },
     listenAddress, localTarget: '127.0.0.1:' + port })
