@@ -39,7 +39,7 @@ rutis-network 是 [rutis](https://github.com/arcships/rutis) 的连接插件集�
 
 第一次接触 rutis，可以先在本机启动两个宿主，让一个进程调用另一个进程提供的服务。已经有 Tailscale 网络，可以直接试节点自动加入和退出。要接入其他环境，可以按连接插件契约实现自己的适配器。[本机双宿主示例](docs/design/06-link-tcp-integration.md#开发运行和打包加载) · [节点自动发现](docs/design/04-link-tailscale.md#按标签自动发现) · [连接插件契约](docs/design/01-link-plugin-contract.md)
 
-当前插件面向 **rutis 0.23.0**，使用会话协议 5、插件 API 3。两端宿主和语言运行时需要使用匹配版本。Linux/amd64 用户可以直接安装预编译的 TCP 插件。[安装 TCP 发布包](docs/guide/link-plugins.md#安装-go-插件)
+当前插件面向 **rutis 0.23.0**，使用会话协议 5、插件 API 3。两端宿主和语言运行时需要使用匹配版本。各个 Go 插件独立发布。在 Releases 中找到要用的插件，按宿主的操作系统和 CPU 架构选择安装包。[下载发布包](https://github.com/arcships/rutis-network/releases) · [安装 Go 插件](docs/guide/link-plugins.md#安装-go-插件)
 
 参与仓库开发时，在根目录运行 `make setup` 安装开发依赖，再运行 `make check` 完成格式检查、静态检查和快速测试。
 

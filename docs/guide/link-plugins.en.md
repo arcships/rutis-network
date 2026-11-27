@@ -31,13 +31,15 @@ Pages can call rutis services on another page or a native host in both direction
 
 ## Install the Go plugins
 
-TCP v0.1.0 provides a prebuilt archive for Linux/amd64. Verify and extract it in a new directory using the commands below. The example targets rutis-host 0.23.0, session protocol 5 and plugin API 3. [TCP v0.1.0 release](https://github.com/arcships/rutis-network/releases/tag/link%2Ftcp%2Fv0.1.0)
+Each Go plugin has its own release tag. The v0.1.0 releases provide Linux/amd64 binaries. Starting with the next release of each plugin, choose a `.tar.gz` for Linux or macOS (`amd64` or `arm64`), or a `.zip` for Windows (`amd64`). macOS archives use `darwin` in the filename. The Windows mDNS plugin supports browsing. DNS-SD publishing and interface-bound description HTTP require macOS or Linux. [Plugin releases](https://github.com/arcships/rutis-network/releases)
+
+Download the archive for your host and the matching release’s `SHA256SUMS`. For example, to install TCP v0.1.0 on Linux/amd64, run the commands below in a new directory.
 
 ```sh
 mkdir tcp-v0.1.0 && cd tcp-v0.1.0
 gh release download link/tcp/v0.1.0 --repo arcships/rutis-network \
   --pattern 'link-tcp-v0.1.0-linux-amd64.tar.gz' --pattern SHA256SUMS
-sha256sum -c SHA256SUMS
+sha256sum --ignore-missing -c SHA256SUMS
 tar -xzf link-tcp-v0.1.0-linux-amd64.tar.gz
 ```
 
@@ -52,7 +54,7 @@ GOWORK=off GOBIN="$PWD/plugins/go" go install github.com/arcships/rutis-network/
 
 To build from a checkout, run `go -C link/tcp build -o ../../plugins/go/link-tcp ./cmd/link-tcp` from the repository root.
 
-Maintainers push a submodule tag (such as `link/tcp/v0.1.0`) on a tested `main` commit. PRs rehearse consumer installation with a temporary tag. Public tags run the same installation and RPC tests, publish the archive and checksum, then download the public release and call remote echo through two stock hosts. [Release workflow](../../.github/workflows/release-tcp.yml)
+To release a plugin, push its next module tag (for example, `link/tcp/v0.1.1`) on a tested commit from `main`. Only that tag triggers packaging. The Ubuntu runner cross-compiles the tagged plugin for all five targets and publishes the archives and a single `SHA256SUMS` file together. TCP archives include a sample `rutis.json`. WebRTC archives include the browser module and type declarations under `browser/`. [Release workflow](../../.github/workflows/release.yml)
 
 Configure the dialing host with the listener’s port, its trusted CA and a client identity. The default is one connection attempt.
 
