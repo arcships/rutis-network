@@ -25,7 +25,7 @@ export function createPairing({
   )
     throw Error('invalid pairing')
   const [offerer, answerer] = members
-  let initial, renewal
+  let initial, active, renewal
   const waiting = new Set()
   function attempt(previous) {
     const now = Date.now()
@@ -44,23 +44,22 @@ export function createPairing({
     if (method === 'acquire') {
       const rotating = input.renewOf !== undefined
       if (rotating) {
-        if (!initial?.refreshAt || input.renewOf !== initial.id || initial.descriptions.size !== 2)
-          throw Error('inactive session')
+        if (!active?.refreshAt || input.renewOf !== active.id) throw Error('inactive session')
         // A repeated poll receives the same round. Only advance when both
         // members have finished the previous SDP exchange and requested more.
-        if (!renewal || input.after !== renewal.previous) {
-          const previous = renewal ?? initial
-          if (input.after !== previous.id || previous.descriptions.size !== 2)
+        const replay = renewal && input.after === renewal.previous
+        const undelivered = replay && Date.now() >= renewal.expires && renewal.descriptions.size === 0
+        if (!replay || undelivered) {
+          const previous = renewal ?? active
+          if (!undelivered && (input.after !== previous.id || previous.descriptions.size !== 2))
             throw Error('invalid renewal predecessor')
           waiting.add(member)
           if (waiting.size !== 2) return null
-          renewal = attempt(previous.id)
+          renewal = attempt(input.after)
           waiting.clear()
         }
       } else if (!initial || Date.now() >= initial.expires || input.after === initial.id) {
         initial = attempt()
-        renewal = undefined
-        waiting.clear()
       }
       const current = rotating ? renewal : initial
       const servers = await iceServers(member, current.expires, current.issued)
@@ -71,7 +70,7 @@ export function createPairing({
         role,
         expiresAt: new Date(current.expires).toISOString(),
         ...(current.refreshAt && { refreshAt: current.refreshAt }),
-        ...(rotating && { renewOf: initial.id }),
+        ...(rotating && { renewOf: active.id }),
         iceServers: servers,
       }
     }
@@ -90,6 +89,13 @@ export function createPairing({
       if (existing !== undefined && existing !== input.sdp)
         throw Error('attempt already has a different description')
       current.descriptions.set(own, input.sdp)
+      // An extra tab can start a fresh negotiation while a pair is still
+      // connected. Transfer renewal ownership only after both peers publish.
+      if (current === initial && current !== active && current.descriptions.size === 2) {
+        active = current
+        renewal = undefined
+        waiting.clear()
+      }
       return null
     }
     if (method !== 'receive' || input.type !== (own === 'offer' ? 'answer' : 'offer')) throw denied()

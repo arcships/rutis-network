@@ -239,6 +239,54 @@ test('a TURN renewal is bound to both members and the completed previous negotia
   const third = await acquire('a', again)
   assert.notEqual(third.attemptId, next.attemptId)
   await assert.rejects(acquire('b', fields))
-  await acquire('a', { after: root.attemptId })
+  const replacement = await acquire('a', { after: root.attemptId })
+  await assert.rejects(signal('a', 'receive', { pairId, attemptId: root.attemptId, type: 'answer' }))
+  assert.equal((await acquire('a', again)).attemptId, third.attemptId)
+  await publish('a', replacement.attemptId)
+  await publish('b', replacement.attemptId)
   await assert.rejects(acquire('a', again))
+})
+
+test('an expired, undelivered TURN renewal can be acquired again by both peers', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: 10000 })
+  const pairId = 'pair'
+  const handle = createPairing({ pairId, members: ['a', 'b'], lifetimeMs: 1000, refreshAfterMs: 500 })
+  const root = await handle('a', 'acquire', { pairId })
+  const attemptId = root.attemptId
+  await handle('a', 'publish', { pairId, attemptId, type: 'offer', sdp: 'offer' })
+  await handle('b', 'publish', { pairId, attemptId, type: 'answer', sdp: 'answer' })
+  const input = { pairId, renewOf: attemptId, after: attemptId }
+  assert.equal(await handle('a', 'acquire', input), null)
+  const lost = await handle('b', 'acquire', input)
+  t.mock.timers.tick(1001)
+  assert.equal(await handle('b', 'acquire', input), null)
+  assert.equal(await handle('b', 'acquire', input), null)
+  const fresh = await handle('a', 'acquire', input)
+  assert.notEqual(fresh.attemptId, lost.attemptId)
+  assert.equal(fresh.renewOf, attemptId)
+  assert.equal((await handle('b', 'acquire', input)).attemptId, fresh.attemptId)
+  await assert.rejects(
+    handle('a', 'publish', { pairId, attemptId: lost.attemptId, type: 'offer', sdp: 'stale' }),
+  )
+})
+
+test('a waiting browser tab leaves the established session able to renew TURN', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: 10000 })
+  const pairId = 'device-and-page'
+  const handle = createPairing({ pairId, members: ['a', 'b'], lifetimeMs: 1000, refreshAfterMs: 2500 })
+  const root = await handle('a', 'acquire', { pairId })
+  const publish = (member, attemptId, type) =>
+    handle(member, 'publish', { pairId, attemptId, type, sdp: type })
+  await publish('a', root.attemptId, 'offer')
+  await publish('b', root.attemptId, 'answer')
+  t.mock.timers.tick(2500)
+  const next = await handle('a', 'acquire', { pairId, after: null })
+  await publish('a', next.attemptId, 'offer')
+  const renew = { pairId, renewOf: root.attemptId, after: root.attemptId }
+  assert.equal(await handle('b', 'acquire', renew), null)
+  const rotation = await handle('a', 'acquire', renew)
+  assert.equal(rotation.renewOf, root.attemptId)
+  await publish('b', next.attemptId, 'answer')
+  await assert.rejects(handle('a', 'acquire', renew))
+  await assert.rejects(publish('a', rotation.attemptId, 'offer'))
 })
