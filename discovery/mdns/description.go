@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/netip"
 	"regexp"
 	"strconv"
 	"strings"
@@ -37,6 +38,8 @@ type SourceSnapshot struct {
 type envelope struct {
 	id, kind, rev string
 	version       int
+	sequence      uint64
+	listenIP      netip.Addr
 	inline        string
 }
 
@@ -66,7 +69,10 @@ type encodedOffer struct {
 	txt, body []byte
 }
 
-func encodeOffer(d Description) (encodedOffer, error) {
+func encodeOffer(d Description, sequence uint64, listenIP netip.Addr) (encodedOffer, error) {
+	if sequence == 0 {
+		return encodedOffer{}, errors.New("offer sequence must be positive")
+	}
 	if !object(d.Params) {
 		return encodedOffer{}, fmt.Errorf("offer %q requires a JSON object of at most %d bytes", d.ID, maxParams)
 	}
@@ -75,12 +81,16 @@ func encodeOffer(d Description) (encodedOffer, error) {
 		return encodedOffer{}, err
 	}
 	data := buf.Bytes()
-	e := envelope{id: d.ID, kind: d.Kind, version: d.Version, rev: digest(data)}
+	e := envelope{id: d.ID, kind: d.Kind, version: d.Version, rev: digest(data), sequence: sequence, listenIP: listenIP}
 	if !e.valid() {
 		return encodedOffer{}, errors.New("invalid offer id, kind or version")
 	}
 	var txt []byte
-	for _, s := range []string{"txtvers=1", "id=" + e.id, "kind=" + e.kind, "v=" + strconv.Itoa(e.version), "rev=" + e.rev} {
+	fields := []string{"txtvers=1", "id=" + e.id, "kind=" + e.kind, "v=" + strconv.Itoa(e.version), "rev=" + e.rev, "seq=" + strconv.FormatUint(sequence, 10)}
+	if listenIP.IsValid() {
+		fields = append(fields, "ip="+listenIP.String())
+	}
+	for _, s := range fields {
 		txt = append(txt, byte(len(s)))
 		txt = append(txt, s...)
 	}
@@ -116,6 +126,19 @@ func parseEnvelope(txt string) (*envelope, bool) {
 	e := envelope{id: fields["id"], kind: fields["kind"], version: v, rev: fields["rev"], inline: fields["p"]}
 	if err != nil || fields["txtvers"] != "1" || !e.valid() {
 		return nil, false
+	}
+	if seq, ok := fields["seq"]; ok {
+		e.sequence, err = strconv.ParseUint(seq, 10, 64)
+		if err != nil || e.sequence == 0 {
+			return nil, false
+		}
+	}
+	if ip, ok := fields["ip"]; ok {
+		e.listenIP, err = netip.ParseAddr(ip)
+		if err != nil || e.listenIP.Zone() != "" || e.listenIP.IsUnspecified() || e.listenIP.IsMulticast() {
+			return nil, false
+		}
+		e.listenIP = e.listenIP.Unmap()
 	}
 	if _, ok := fields["p"]; ok && e.inline == "" {
 		return nil, false

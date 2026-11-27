@@ -1,122 +1,91 @@
 package mdns
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
-	"net/http"
 	"net/netip"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/arcships/rutis/go/rutis"
 )
 
 type offerSource struct {
-	Snapshot      func(context.Context) (SourceSnapshot, error)
-	WaitForChange func(context.Context, string) (SourceSnapshot, error)
+	Snapshot      func(context.Context) (any, error)
+	WaitForChange func(context.Context, string) (any, error)
 }
 
-type catalogue struct {
-	mu     sync.RWMutex
-	bodies map[string][]byte
-}
+const maxOffers = 128
 
-func (c *catalogue) set(path string, body []byte) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if body == nil {
-		delete(c.bodies, path)
-	} else {
-		c.bodies[path] = body
-	}
-}
-func (c *catalogue) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		w.Header().Set("Allow", "GET")
-		http.Error(w, "method", http.StatusMethodNotAllowed)
-		return
-	}
-	c.mu.RLock()
-	body := c.bodies[r.URL.EscapedPath()]
-	c.mu.RUnlock()
-	if body == nil {
-		http.NotFound(w, r)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-store")
-	_, _ = w.Write(body)
-}
-
-func offerListener(ctx context.Context, iface *net.Interface, listenIP string) (net.Listener, error) {
-	addrs, err := iface.Addrs()
-	if err != nil {
-		return nil, err
-	}
-	var chosen netip.Addr
-	for _, a := range addrs {
-		p, err := netip.ParsePrefix(a.String())
-		if err != nil {
-			continue
+// Decode items separately so a mistyped field in one plugin's offer cannot
+// turn the entire source reply into a failed RPC. A malformed duplicate still
+// names its ID, which must be suppressed along with the other duplicate.
+func decodeSnapshot(raw any) (SourceSnapshot, error) {
+	if state, ok := raw.(SourceSnapshot); ok {
+		if state.Cursor == "" || len(state.Offers) > maxOffers {
+			return SourceSnapshot{}, errors.New("invalid source cursor or offer count")
 		}
-		ip := p.Addr().Unmap()
-		if ip.IsUnspecified() || ip.IsMulticast() {
-			continue
-		}
-		if listenIP != "" && listenIP != ip.String() {
-			continue
-		}
-		if !chosen.IsValid() || ip.Is4() {
-			chosen = ip
-		}
+		return state, nil
 	}
-	if !chosen.IsValid() {
-		return nil, fmt.Errorf("no matching unicast listenIP on %s", iface.Name)
+	record, _ := raw.(map[string]any)
+	cursor, _ := record["cursor"].(string)
+	items, ok := record["offers"].([]any)
+	if cursor == "" || !ok {
+		return SourceSnapshot{}, errors.New("source requires a cursor and an offers array")
 	}
-	network := "tcp4"
-	if chosen.Is6() {
-		network = "tcp6"
-		if chosen.IsLinkLocalUnicast() {
-			chosen = chosen.WithZone(iface.Name)
+	if len(items) > maxOffers {
+		return SourceSnapshot{}, fmt.Errorf("source exceeds %d offers", maxOffers)
+	}
+	state := SourceSnapshot{Cursor: cursor, Offers: make([]Description, 0, len(items))}
+	for _, item := range items {
+		var d Description
+		data, err := json.Marshal(item)
+		if err != nil || json.Unmarshal(data, &d) != nil {
+			fields, _ := item.(map[string]any)
+			id, _ := fields["id"].(string)
+			d = Description{ID: id}
 		}
+		state.Offers = append(state.Offers, d)
 	}
-	lc := net.ListenConfig{Control: interfaceControl(iface)}
-	return lc.Listen(ctx, network, netip.AddrPortFrom(chosen, 0).String())
+	return state, nil
 }
 
 func readSource(ctx context.Context, s offerSource, updates chan<- []Description) {
 	for ctx.Err() == nil {
-		state, err := s.Snapshot(ctx)
-		for err == nil && ctx.Err() == nil {
-			if state.Cursor == "" {
-				err = errors.New("source returned empty cursor")
-				break
+		raw, callErr := s.Snapshot(ctx)
+		var cursor string
+		for callErr == nil && ctx.Err() == nil {
+			state, err := decodeSnapshot(raw)
+			if err == nil && state.Cursor == cursor {
+				err = errors.New("source returned unchanged cursor")
+			}
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "mDNS rejected source snapshot:", err)
+				break // Keep the last accepted snapshot and re-read the source.
 			}
 			select {
 			case updates <- state.Offers:
 			case <-ctx.Done():
 				return
 			}
-			prev := state.Cursor
-			state, err = s.WaitForChange(ctx, prev)
-			if err == nil && prev == state.Cursor {
-				err = errors.New("source returned unchanged cursor")
-			}
+			cursor = state.Cursor
+			raw, callErr = s.WaitForChange(ctx, cursor)
 		}
 		if ctx.Err() != nil {
 			return
 		}
-		fmt.Fprintln(os.Stderr, "mDNS offer source:", err)
-		select {
-		case updates <- nil:
-		case <-ctx.Done():
-			return
+		if callErr != nil {
+			fmt.Fprintln(os.Stderr, "mDNS offer source:", callErr)
+			select {
+			case updates <- nil:
+			case <-ctx.Done():
+				return
+			}
 		}
 		select {
 		case <-time.After(2 * time.Second):
@@ -135,24 +104,30 @@ type activeOffer struct {
 
 func publishSource(row *rutis.Ctx, cfg *offerConfig, iface *net.Interface) error {
 	var source offerSource
-	if err := row.Use(cfg.Source, &source); err != nil {
+	// A native source can pass its JSON bytes directly. Other runtimes
+	// provide rutis records, whose individual offers are decoded independently.
+	var native interface {
+		Snapshot(context.Context) (SourceSnapshot, error)
+		WaitForChange(context.Context, string) (SourceSnapshot, error)
+	}
+	if err := row.Use(cfg.Source, &native); err == nil {
+		source.Snapshot = func(ctx context.Context) (any, error) { return native.Snapshot(ctx) }
+		source.WaitForChange = func(ctx context.Context, cursor string) (any, error) { return native.WaitForChange(ctx, cursor) }
+	} else if err := row.Use(cfg.Source, &source); err != nil {
 		return err
 	}
-	l, err := offerListener(row, iface, cfg.ListenIP)
+	listeners, err := offerListeners(row, iface, cfg.listenAddr)
 	if err != nil {
 		return err
 	}
 	c := &catalogue{bodies: map[string][]byte{}}
-	server := &http.Server{Handler: c, ReadHeaderTimeout: 3 * time.Second, WriteTimeout: 5 * time.Second, IdleTimeout: 5 * time.Second, MaxHeaderBytes: 4096}
 	row.Go(func(ctx context.Context) error {
 		ctx, cancel := context.WithCancel(ctx)
-		var workers sync.WaitGroup
 		updates := make(chan []Description)
-		serverErr := make(chan error, 1)
-		workers.Go(func() { serverErr <- server.Serve(l) })
-		workers.Go(func() { readSource(ctx, source, updates) })
-		defer func() { cancel(); server.Close(); workers.Wait() }()
-		return c.publish(ctx, updates, serverErr, iface.Index, l.Addr().(*net.TCPAddr).Port)
+		done := make(chan struct{})
+		go func() { defer close(done); readSource(ctx, source, updates) }()
+		defer func() { cancel(); <-done }()
+		return c.serve(ctx, listeners, updates, iface.Index, cfg.listenAddr)
 	})
 	return nil
 }
@@ -198,7 +173,28 @@ func maintainOffer(ctx context.Context, first encodedOffer, updates <-chan encod
 	}
 }
 
-func (c *catalogue) publish(ctx context.Context, updates <-chan []Description, serverErr <-chan error, index, port int) error {
+func snapshotOffers(items []Description, sequence uint64, pin netip.Addr) map[string]encodedOffer {
+	desired := map[string]encodedOffer{}
+	seen := map[string]bool{}
+	for _, d := range items {
+		if seen[d.ID] {
+			delete(desired, d.ID)
+			fmt.Fprintf(os.Stderr, "duplicate mDNS offer ID %q\n", d.ID)
+			continue
+		}
+		seen[d.ID] = true
+		e, err := encodeOffer(d, sequence, pin)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "invalid mDNS offer:", err)
+			continue
+		}
+		desired[d.ID] = e
+	}
+	return desired
+}
+
+func (c *catalogue) publish(ctx context.Context, updates <-chan []Description, serverErr <-chan error, index, port int, pin netip.Addr) error {
+	var sequence uint64
 	active := map[string]*activeOffer{}
 	suffix := rand.Text()[:10]
 	stop := func(id string, a *activeOffer) {
@@ -224,20 +220,8 @@ func (c *catalogue) publish(ctx context.Context, updates <-chan []Description, s
 			return err
 		case items = <-updates:
 		}
-		desired := map[string]encodedOffer{}
-		if len(items) > 128 {
-			fmt.Fprintln(os.Stderr, "mDNS source exceeds 128 offers")
-		} else {
-			for _, d := range items {
-				e, err := encodeOffer(d)
-				if _, dup := desired[d.ID]; err != nil || dup {
-					fmt.Fprintln(os.Stderr, "invalid or duplicate offer in mDNS source snapshot")
-					clear(desired)
-					break
-				}
-				desired[d.ID] = e
-			}
-		}
+		sequence++
+		desired := snapshotOffers(items, sequence, pin)
 		for id, a := range active {
 			if _, ok := desired[id]; !ok {
 				stop(id, a)
@@ -245,7 +229,7 @@ func (c *catalogue) publish(ctx context.Context, updates <-chan []Description, s
 		}
 		for id, e := range desired {
 			a := active[id]
-			if a != nil && bytes.Equal(a.encoded.txt, e.txt) {
+			if a != nil && a.encoded.rev == e.rev && a.encoded.kind == e.kind && a.encoded.version == e.version {
 				continue
 			}
 			c.set(e.path(), e.body)

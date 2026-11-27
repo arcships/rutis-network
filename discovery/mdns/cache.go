@@ -16,6 +16,7 @@ import (
 type Candidate struct {
 	Description *Description `json:"description,omitempty"`
 	wire        *envelope
+	srvTarget   string
 	Source      string   `json:"source"`
 	Interface   string   `json:"interface"`
 	Domain      string   `json:"domain"`
@@ -129,6 +130,10 @@ func (c *cache) key(rr dns.RR) (key, string, bool) {
 
 const maxRecords = 4096
 
+func (c *cache) livePTR(instance string, now time.Time) bool {
+	return c.records[key{name: c.fqdn, kind: dns.TypePTR, value: instance}].expires.After(now)
+}
+
 func (c *cache) ingest(msg *dns.Msg, now time.Time) {
 	if !msg.Response || msg.Opcode != dns.OpcodeQuery || msg.Rcode != dns.RcodeSuccess {
 		return
@@ -190,6 +195,13 @@ func (c *cache) ingest(msg *dns.Msg, now time.Time) {
 			var wire *envelope
 			if k.kind == dns.TypeTXT {
 				wire, _ = parseEnvelope(txtData)
+				// A live sequenced registration may refresh the same announcement
+				// or advance it. Legacy and reordered packets cannot roll it back.
+				if old.wire != nil && old.wire.sequence > 0 && (old.expires.After(now) || c.livePTR(k.name, now)) {
+					if wire == nil || wire.sequence < old.wire.sequence || wire.sequence == old.wire.sequence && *wire != *old.wire {
+						continue
+					}
+				}
 			}
 			c.records[k] = lease{txtData: txtData, wire: wire, instance: display, seen: now, expires: now.Add(life), refresh: now.Add(life - life/5), rr: rr}
 			if h.Class&0x8000 != 0 && k.kind != dns.TypePTR {
@@ -257,6 +269,11 @@ func (c *cache) view(now time.Time) ([]Candidate, map[dns.Question]bool) {
 	ask(c.fqdn, dns.TypePTR, false)
 	for k, v := range c.records {
 		if !v.expires.After(now) {
+			// Keep the sequence floor, without exposing the expired TXT, for
+			// as long as the PTR still identifies this registration.
+			if k.kind == dns.TypeTXT && v.wire != nil && v.wire.sequence > 0 && c.livePTR(k.name, now) {
+				continue
+			}
 			delete(c.records, k)
 			continue
 		}
@@ -302,6 +319,12 @@ func (c *cache) view(now time.Time) ([]Candidate, map[dns.Question]bool) {
 		var hasA, hasAAAA bool
 		for _, a := range addresses {
 			v := c.records[a]
+			if txt.wire != nil && txt.wire.listenIP.IsValid() {
+				ip, _ := netip.ParseAddr(a.value) // canonical address from cache.key
+				if ip.WithZone("").Unmap() != txt.wire.listenIP {
+					continue
+				}
+			}
 			hasA = hasA || a.kind == dns.TypeA
 			hasAAAA = hasAAAA || a.kind == dns.TypeAAAA
 			ips = append(ips, a.value)
@@ -310,18 +333,22 @@ func (c *cache) view(now time.Time) ([]Candidate, map[dns.Question]bool) {
 				ask(a.name, a.kind, true)
 			}
 		}
-		if !hasA {
+		if !hasA && (txt.wire == nil || !txt.wire.listenIP.Is6()) {
 			ask(srv.value, dns.TypeA, false)
 		}
-		if !hasAAAA {
+		if !hasAAAA && (txt.wire == nil || !txt.wire.listenIP.Is4()) {
 			ask(srv.value, dns.TypeAAAA, false)
 		}
 		if len(ips) == 0 {
 			continue
 		}
 		sort.Strings(ips)
+		var target string
+		if txt.wire != nil {
+			target = srv.value
+		}
 		_, transport, _ := strings.Cut(c.cfg.Browse, "._")
-		out = append(out, Candidate{wire: txt.wire, Source: c.source, Interface: c.cfg.Interface, Domain: c.cfg.Domain, ServiceType: c.cfg.Browse,
+		out = append(out, Candidate{wire: txt.wire, srvTarget: target, Source: c.source, Interface: c.cfg.Interface, Domain: c.cfg.Domain, ServiceType: c.cfg.Browse,
 			Instance: ptr.instance, Transport: transport, Addresses: ips, Port: srv.port, ExpiresAt: until.UTC().Format(time.RFC3339Nano)})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Instance < out[j].Instance })

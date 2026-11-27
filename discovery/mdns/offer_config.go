@@ -12,6 +12,7 @@ type offerConfig struct {
 	ListenIP   string           `json:"listenIP"`
 	Accept     map[string][]int `json:"accept"`
 	AllowCIDRs []string         `json:"allowCIDRs"`
+	listenAddr netip.Addr
 	allowed    []netip.Prefix
 }
 
@@ -39,8 +40,15 @@ func (c *config) validateOffers() error {
 	if o.Source != "" && (!validName(o.Source) || o.Source == c.Service) {
 		return errors.New("invalid or conflicting offer source service")
 	}
-	if o.ListenIP != "" && o.Source == "" {
-		return errors.New("listenIP requires an offer source")
+	if o.ListenIP != "" {
+		if o.Source == "" {
+			return errors.New("listenIP requires an offer source")
+		}
+		ip, err := netip.ParseAddr(o.ListenIP)
+		if err != nil || ip.Zone() != "" || ip.IsMulticast() || ip.IsUnspecified() {
+			return errors.New("listenIP must be a unicast IP literal without a zone")
+		}
+		o.listenAddr = ip.Unmap()
 	}
 	if len(o.Accept) > 0 {
 		if !validName(c.Service) {

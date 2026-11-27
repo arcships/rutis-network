@@ -131,9 +131,14 @@ test(
       /alert handshake failure|certificate required|certificate rejected|alert bad certificate/i,
     )
     // Keep the listener alive and remove only the source. Discovery withdraws and the managed dialer disconnects.
-    await dialer.rootCall('rutis/loader.remove', ['remote-witness'])
     await listener.rootCall('rutis/loader.remove', ['describe-tcp'])
     await observe(false)
     await dialControl.until((s) => s.desired === 'stopped' && s.phase === 'stopped')
+    const source = listening[0].config.find((entry) => entry.id === 'describe-tcp')
+    await listener.rootCall('rutis/loader.create', [source, listening[0].id])
+    await observe(true)
+    await dialControl.until((s) => s.phase === 'connected')
+    await dialer.call(proof)
+    await dialer.rootCall('rutis/loader.remove', ['remote-witness'])
   },
 )
