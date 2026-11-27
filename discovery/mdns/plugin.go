@@ -2,7 +2,6 @@ package mdns
 
 import (
 	"context"
-
 	"errors"
 	"fmt"
 	"net"
@@ -16,14 +15,21 @@ import (
 )
 
 type config struct {
-	Service   string  `json:"service"`
-	Interface string  `json:"interface"`
-	Domain    string  `json:"domain"`
-	Browse    string  `json:"browse"`
-	Publish   *advert `json:"publish"`
+	Service   string       `json:"service"`
+	Interface string       `json:"interface"`
+	Domain    string       `json:"domain"`
+	Browse    string       `json:"browse"`
+	Offers    *offerConfig `json:"offers"`
+	Publish   *advert      `json:"publish"`
+}
+
+type publication struct {
+	run    func(context.Context) error
+	update func([]byte) error
 }
 
 type advert struct {
+	txt      []byte
 	Type     string `json:"type"`
 	Instance string `json:"instance"`
 	Port     int    `json:"port"`
@@ -45,6 +51,9 @@ func (c *config) validate() error {
 	if c.Interface == "" {
 		return errors.New("interface is required")
 	}
+	if c.Offers != nil {
+		return c.validateOffers()
+	}
 	if c.Browse == "" && c.Publish == nil {
 		return errors.New("set browse or publish")
 	}
@@ -52,7 +61,7 @@ func (c *config) validate() error {
 		if !validType(c.Browse) {
 			return errors.New("browse must be a DNS-SD service type such as _rutis._tcp")
 		}
-		if c.Service == "" || strings.TrimSpace(c.Service) != c.Service || strings.ContainsAny(c.Service, "#\x00\r\n") || strings.HasPrefix(c.Service, "rutis/") {
+		if !validName(c.Service) {
 			return errors.New("browse requires a valid local service name")
 		}
 	} else if c.Service != "" {
@@ -73,9 +82,9 @@ func schema() map[string]any {
 	text := map[string]any{"type": "string", "minLength": 1}
 	return map[string]any{
 		"type": "object", "additionalProperties": false, "required": []string{"interface"},
-		"anyOf": []any{map[string]any{"required": []string{"browse", "service"}}, map[string]any{"required": []string{"publish"}}},
+		"anyOf": []any{map[string]any{"required": []string{"browse", "service"}}, map[string]any{"required": []string{"publish"}}, map[string]any{"required": []string{"offers"}}},
 		"properties": map[string]any{
-			"interface": text, "service": text, "domain": text, "browse": text,
+			"offers": offerSchema(), "interface": text, "service": text, "domain": text, "browse": text,
 			"publish": map[string]any{
 				"type": "object", "additionalProperties": false, "required": []string{"type", "instance", "port"},
 				"properties": map[string]any{"type": text, "instance": text, "port": map[string]any{"type": "integer", "minimum": 1, "maximum": 65535}},
@@ -112,12 +121,17 @@ func apply(row *rutis.Ctx, cfg config) error {
 	if iface.Flags&(net.FlagUp|net.FlagMulticast) != net.FlagUp|net.FlagMulticast {
 		return fmt.Errorf("interface %s must be up and support multicast", cfg.Interface)
 	}
+	if cfg.Offers != nil && cfg.Offers.Source != "" {
+		if err := publishSource(row, cfg.Offers, iface); err != nil {
+			return err
+		}
+	}
 	if cfg.Publish != nil {
 		run, err := startPublisher(row, *cfg.Publish, iface.Index)
 		if err != nil {
 			return err
 		}
-		row.Go(run)
+		row.Go(run.run)
 	}
 	if cfg.Browse != "" {
 		source, err := sourceRow(row)

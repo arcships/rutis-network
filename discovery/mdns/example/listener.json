@@ -1,0 +1,57 @@
+{
+  "id": "listener",
+  "runtimes": {
+    "go": {
+      "dir": "./plugins/go"
+    }
+  },
+  "rows": [
+    {
+      "id": "local-management",
+      "group": true,
+      "isolate": {
+        "tcp-listener": "management",
+        "tcp-offers": "management"
+      },
+      "config": [
+        {
+          "id": "wire",
+          "name": "go:link-tcp-listen",
+          "config": {
+            "ca": "/etc/rutis/ca.pem",
+            "cert": "/etc/rutis/listener.pem",
+            "key": "/etc/rutis/listener.key",
+            "controlService": "tcp-listener",
+            "port": 0
+          }
+        },
+        {
+          "id": "describe-tcp",
+          "name": "go:tcp-offer-source",
+          "inject": [
+            "tcp-listener"
+          ],
+          "config": {
+            "listener": "tcp-listener",
+            "service": "tcp-offers",
+            "id": "office",
+            "serverName": "office.example"
+          }
+        },
+        {
+          "id": "publish",
+          "name": "go:discover-mdns",
+          "inject": [
+            "tcp-offers"
+          ],
+          "config": {
+            "interface": "lo0",
+            "offers": {
+              "source": "tcp-offers"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

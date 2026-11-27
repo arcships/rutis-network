@@ -30,7 +30,7 @@ The root commands and Linux PR jobs use Go 1.27.4 from [.go-version](.go-version
 
 ## Status
 
-The Go DNS-SD/mDNS plugin discovers and advertises local ingress endpoints on a selected interface. A consuming plugin can read the current candidates and wait for changes. [Configuration and Go API](discovery/mdns/README.md)
+The Go DNS-SD/mDNS plugin advertises ordinary endpoints and versioned public connection descriptions. The TCP example discovers a ready listener and connects using local mTLS credentials. [Configuration and Go API](discovery/mdns/README.md)
 
 Browsers can connect to each other or to a native rutis host over a WebRTC DataChannel, directly or via authenticated TURN. [WebRTC setup and example](docs/design/08-link-webrtc.en.md)
 

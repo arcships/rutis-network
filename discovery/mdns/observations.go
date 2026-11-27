@@ -61,6 +61,11 @@ func (o *observations) Snapshot() (Snapshot, error) {
 	s := o.state
 	s.Candidates = slices.Clone(s.Candidates)
 	for i := range s.Candidates {
+		if d := s.Candidates[i].Description; d != nil {
+			copyD := *d
+			copyD.Params = slices.Clone(d.Params)
+			s.Candidates[i].Description = &copyD
+		}
 		s.Candidates[i].Addresses = slices.Clone(s.Candidates[i].Addresses)
 	}
 	return s, nil

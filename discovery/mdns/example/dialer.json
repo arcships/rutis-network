@@ -1,0 +1,63 @@
+{
+  "id": "dialer",
+  "runtimes": {
+    "go": {
+      "dir": "./plugins/go"
+    }
+  },
+  "rows": [
+    {
+      "id": "local-management",
+      "group": true,
+      "isolate": {
+        "tcp-dialer": "management",
+        "lan-offers": "management"
+      },
+      "config": [
+        {
+          "id": "wire",
+          "name": "go:link-tcp-dial",
+          "config": {
+            "ca": "/etc/rutis/ca.pem",
+            "cert": "/etc/rutis/dialer.pem",
+            "key": "/etc/rutis/dialer.key",
+            "controlService": "tcp-dialer",
+            "autoStart": false
+          }
+        },
+        {
+          "id": "browse",
+          "name": "go:discover-mdns",
+          "config": {
+            "interface": "lo0",
+            "service": "lan-offers",
+            "offers": {
+              "accept": {
+                "rutis.tcp": [
+                  1
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "select-tcp",
+          "name": "go:tcp-offer-dial",
+          "inject": [
+            "lan-offers",
+            "tcp-dialer"
+          ],
+          "config": {
+            "dialer": "tcp-dialer",
+            "discovery": "lan-offers",
+            "id": "office",
+            "serverName": "office.example",
+            "allowCIDRs": [
+              "127.0.0.1/32"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

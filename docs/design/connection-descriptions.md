@@ -2,7 +2,7 @@
 
 [English](connection-descriptions.en.md) · [现有 Go mDNS 插件](../../discovery/mdns/README.zh-CN.md)
 
-**设计提案。** 把发现的对象定义为一份**公开连接说明**。发布方的链接器或适配器写出对端拨号所需的公开参数，接收方同协议的适配器读懂这些参数。mDNS 插件只传递带类型和版本的说明。PR #24 当前实现的是普通 DNS-SD 入口发现，下面是通用连接说明的设计。
+Go mDNS 插件现已支持发布和发现带类型、版本的公开连接说明。发布端适配器从已就绪的入口生成参数，接收端适配器读取参数并配置本机链接器。首个已实现的映射是使用双向 TLS 的 TCP 链接。[两端运行配置](../../discovery/mdns/README.zh-CN.md)
 
 ## 一份说明表达什么
 
@@ -33,7 +33,7 @@ flowchart LR
 
 ## 用 main 上的七种链接器检验
 
-下表是拟议的公开字段映射。链接指向核对过的实现。发布方显式选择允许公开的字段；接收方只从自己支持的字段生成目标配置。
+TCP v1 的公开字段映射已经实现，其余六项为对应链接器的设计映射。发布方显式选择允许公开的字段；接收方只从自己支持的字段生成目标配置。
 
 | 说明类型 | 可公开的拨号信息 | 接收方自己提供或验证 |
 | --- | --- | --- |
@@ -49,7 +49,7 @@ flowchart LR
 
 ## 入口要求证书时
 
-证书要求由协议适配器解释。拟议的 `rutis.tcp` 和 `rutis.grpc` v1 对应现有双向 TLS（mTLS）链接器，识别类型和版本即可知道客户端需要出示证书。将来某种协议若支持多种认证方式，可在它自己的 `params` 中声明所需方式。mDNS 沿用同一个公告格式。[TCP 实现](../../link/tcp/adapter.go) · [gRPC 实现](../../link/grpc/client.go)
+证书要求由协议适配器解释。`rutis.tcp` v1 和拟议的 `rutis.grpc` v1 对应现有双向 TLS（mTLS）链接器，识别类型和版本即可知道客户端需要出示证书。将来某种协议若支持多种认证方式，可在它自己的 `params` 中声明所需方式。mDNS 沿用同一个公告格式。[TCP 实现](../../link/tcp/adapter.go) · [gRPC 实现](../../link/grpc/client.go)
 
 例如，一条 `rutis.grpc` v1 公告可以给出地址 `192.0.2.8:7443` 和名称提示 `serverName=office.example`。接收方先用本地策略确认它期望连接的确实是 `office.example`，再选择本机为该服务配置的 CA、客户端证书和私钥。若缺少客户端证书，可以显示“已发现，缺少客户端证书”并跳过拨号。握手时双方出示证书链并验证对方，私钥始终留在持有方。[TLS 服务身份校验](https://www.rfc-editor.org/rfc/rfc9525.html#section-6.1.1) · [TLS 证书交换](https://www.rfc-editor.org/rfc/rfc8446.html#section-4.4.2)
 
@@ -57,7 +57,7 @@ flowchart LR
 
 ## 怎样放进 DNS-SD
 
-通用模式建议每份说明占一个 `_rutis-link._tcp.local.` 实例。同一发布接口上的实例可共享一个只读 HTTP 说明服务。SRV 指向这个真实服务的主机和端口，例如 `edge-b.local.:8765`。SSH 示例里的跳板和内层目标都在说明中。只有启用通用模式才需提供这个 HTTP 入口，已有的原生 DNS-SD 服务继续使用自身真实入口。
+通用模式每份说明占一个 `_rutis-link._tcp.local.` 实例。同一发布接口上的实例可共享一个只读 HTTP 说明服务。SRV 指向这个真实服务的主机和端口，例如 `edge-b.local.:8765`。SSH 示例里的跳板和内层目标都在说明中。只有启用通用模式才需提供这个 HTTP 入口，已有的原生 DNS-SD 服务继续使用自身真实入口。
 
 - TXT 的公共字段为 `txtvers=1`、`id`、`kind`、`v`（参数格式版本）和 `rev`。`rev` 是实际传递的 UTF-8 JSON 参数字节的 SHA-256 十六进制摘要。短参数直接以一项 `p=<JSON>` 随公告发布。
 - v1 的内联规则是每项至多 255 字节，含每项长度字节的整份 TXT 至多 400 字节。超出就省略 `p`。浏览者从同一网卡解析出的 SRV 地址读取固定路径 `/v1/offers/{id}/{rev}`，得到同一份参数字节。因此新增链接器和较长的中继路径都使用相同的传输规则。[DNS-SD TXT 格式与大小](https://www.rfc-editor.org/rfc/rfc6763.html#section-6.2)
@@ -71,4 +71,4 @@ flowchart LR
 
 ## 已核对的传输行为
 
-用 macOS Bonjour 在回环网卡上做了独立的协议试验。上面的 SSH 双地址参数（68 字节）和一个带嵌套对象的未知类型均可通过 TXT 原样读回。393 字节的 WebRTC 测试参数改从 SRV 指向的临时 HTTP 端口读取，也通过了摘要校验。试验覆盖描述的传递。Go 插件的通用模式、各链接器的字段映射和真实拨号仍是待实现、待验收的部分。
+Go 测试用一个自定义类型验证 TXT 与 HTTP 之间的切换、更新、到期、摘要校验和撤回。端到端测试在 macOS 回环网卡启动两个 rutis host，公布实际分配的 TCP 端口，通过发现建立 mTLS 会话，再通过会话挂载并调用远端插件。缺少客户端证书时握手失败。卸载说明来源后，接收端停止专属拨号器。[传输测试](../../discovery/mdns/offer_test.go) · [双 host 测试](../../discovery/mdns/test/hosts.test.mjs)

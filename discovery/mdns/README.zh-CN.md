@@ -4,13 +4,54 @@
 
 `go:discover-mdns` 可以在指定网卡上浏览服务实例，也可以公布本机已有的入口。浏览行提供具名的只读 rutis 服务，组网策略可据此选择邻居、把拨号目标交给 link 插件。准入和会话建立由 link 负责。[组网设计](../../docs/research/network-groups.md)
 
-## 公布的对象
+## 用发现结果建立 mTLS 连接
+
+发布端在监听器就绪后公布实际绑定的端口。拨号端只配置要找的说明 ID、允许的目的地址和预期证书名。两份完整的 rutis-host 配置可以直接作为起点。[发布端配置](example/listener.json) · [拨号端配置](example/dialer.json)
+
+```mermaid
+flowchart LR
+  listen["TCP 监听器"] -->|"status / waitForChange"| source["tcp-offer-source"]
+  source -->|"公开说明集合"| pub["discover-mdns 发布"]
+  pub -->|"DNS-SD（较长参数经 HTTP）"| browse["discover-mdns 浏览"]
+  browse -->|"description"| select["tcp-offer-dial"]
+  select -->|"configure / start"| dial["TCP 拨号器"]
+  dial -->|"mTLS 会话"| listen
+```
+
+| 配置到哪里 | 配什么 |
+| --- | --- |
+| 两端各自的 TCP 行 | 本机的 `ca`、`cert`、`key` 和独立的 `controlService`。监听端用 `port: 0` 分配端口，拨号端用 `autoStart: false` 等待发现。 |
+| 发布端的 `go:tcp-offer-source` | `listener` 指向 TCP 控制服务，`service` 命名说明来源。配置稳定的 `id`，可附 `serverName` 提示。 |
+| 发布端的 `go:discover-mdns` | `interface` 选择网卡，`offers.source` 和行的 `inject` 指向上述来源。监听停止、说明被删除或来源卸载都会撤回公告。 |
+| 拨号端的 `go:discover-mdns` | `offers.accept: {"rutis.tcp":[1]}` 选择理解的参数格式，`service` 命名本地发现服务。按需设置 `offers.allowCIDRs`，仅从这些地址读取较长说明。 |
+| 拨号端的 `go:tcp-offer-dial` | 注入上述发现服务和独占的拨号控制服务。配置 `id`、本地预期的 `serverName` 及拨号目标的 `allowCIDRs`。存在唯一匹配且目标、证书名提示均通过策略时启动拨号。说明消失、过期或发生歧义时停止该拨号器。 |
+
+例如，浏览结果中的 `description` 为 `{"id":"office","kind":"rutis.tcp","version":1,"params":{"host":"127.0.0.1","port":51827,"serverName":"office.example"}}`。TCP 使用 `params.port` 拨号，候选外层的 `port` 属于提供说明的 HTTP 服务。示例只接受 IP 字面量，回环目标只在回环网卡上接受。CA、证书和私钥由两端从本机配置读取。
+
+从仓库根目录构建两个 Go 插件，将可执行文件放入两端清单的 Go 运行时目录。示例使用 macOS 的 `lo0`，可在同一台机器上启动两个 rutis host，分别运行一份清单。将证书路径换为本机路径，服务端证书应含预期的 DNS 名。在两个独立的项目目录分别执行 `rutis-host run listener.json` 和 `rutis-host run dialer.json`。当前 TCP 监听器绑定回环地址。跨机器使用转发时，应由拥有转发入口的插件在就绪后公布对端可达的地址和端口。
+
+```sh
+mkdir -p plugins/go
+(cd discovery/mdns && go build -o ../../plugins/go/discover-mdns ./cmd/discover-mdns)
+(cd link/tcp && go build -o ../../plugins/go/link-tcp ./cmd/link-tcp)
+```
+
+集成其他协议时，实现本地说明来源的 `snapshot()` 和 `waitForChange(cursor)`。两者均返回 `{"cursor":"…","offers":[…]}`，空数组表示撤回全部说明。一行订阅一个来源，每份快照最多 128 条，单条 `params` 为不超过 64 KiB 的公开 JSON 对象。新的协议只需提供两端的字段映射。mDNS 保留类型、版本及参数，浏览和 HTTP 外取都按观察到的网卡执行。接收方校验参数摘要，链接器根据本地信任配置验证对端身份。[通用连接说明设计](../../docs/design/connection-descriptions.md)
+
+从仓库根目录运行下面的端到端测试。它临时签发两张不同的证书，启动两端，验证发现、远程 RPC、无客户端证书时拒绝握手，以及来源卸载后的撤回。
+
+```sh
+npm ci --prefix link/tcp/node
+MDNS_TEST_INTERFACE=lo0 node --test discovery/mdns/test/hosts.test.mjs
+```
+
+## 普通 DNS-SD 入口
 
 **一条公告描述一个 DNS-SD 服务实例，也就是其他节点在这条局域网上可以尝试连接的一个入口。** 例如，“名叫 `office` 的实例提供 `_rutis._tcp` 服务，目标是 `edge-b.local.` 的 TCP 端口 `7443`。”服务类型描述客户端连上后应使用的协议，实例名让客户端区分同一类型的多个入口。直接监听和透明 TCP 转发都可以提供这个入口。只要对外提供相同协议和地址，两种部署就可以发布相同内容。
 
 ```mermaid
 flowchart LR
-    config["发布行配置的端口（现有）"] --> ad["服务实例 office<br/>_rutis._tcp · edge-b.local.:7443"]
+    config["发布行配置的入口端口"] --> ad["服务实例 office<br/>_rutis._tcp · edge-b.local.:7443"]
     ad -->|"在指定网卡上公布"| peer["局域网中的浏览者<br/>解析地址和端口"]
 ```
 
@@ -19,9 +60,8 @@ flowchart LR
 | 哪些实例提供这个服务？ | PTR 将 `_rutis._tcp.local.` 指向 `office._rutis._tcp.local.`。 |
 | 选中这个实例后连到哪里？ | SRV 给出 `edge-b.local.` 和端口 `7443`。A、AAAA 给出该主机的 IPv4、IPv6 地址。 |
 
-现有发布行配置服务类型、实例名、端口和发布网卡。系统 Bonjour 或 Avahi 提供本机的目标主机名及地址。DNS-SD 还支持用 TXT 记录附带服务属性，当前插件传入的属性集为空。浏览者在本机补上接收网卡、浏览行 ID 和根据记录 TTL 算出的过期时间，再交付候选快照。对端身份由建连时的准入流程验证。[DNS-SD 实例解析](https://www.rfc-editor.org/rfc/rfc6763.html#section-5)
+现有发布行配置服务类型、实例名、端口和发布网卡。系统 Bonjour 或 Avahi 提供本机的目标主机名及地址。DNS-SD 还支持用 TXT 记录附带服务属性，普通入口发布的属性集为空。浏览者在本机补上接收网卡、浏览行 ID 和根据记录 TTL 算出的过期时间，再交付候选快照。对端身份由建连时的准入流程验证。[DNS-SD 实例解析](https://www.rfc-editor.org/rfc/rfc6763.html#section-5)
 
-跨链接器的公开连接说明采用带类型和版本的协议参数。SSH 的两个地址、libp2p 的中继路径和 WebRTC 的信令信息各有自己的结构，见[通用连接说明设计提案](../../docs/design/connection-descriptions.md)。当前的入口发布行随加载登记、随卸载撤回。
 
 ## 在同一局域网运行两行配置
 
@@ -128,7 +168,7 @@ return nil
 ```sh
 go test -race ./...
 go vet ./...
-MDNS_TEST_INTERFACE=lo0 go test -race -count=1 -run TestLiveRows ./...
+MDNS_TEST_INTERFACE=lo0 go test -race -count=1 -run TestLive ./...
 ```
 
 实网测试分别加载浏览行和发布行，等到候选解析成功后卸载发布行，验证候选随之消失。独立的单元测试覆盖分包解析、各记录单独过期、缓存刷新与撤回、IPv6 网卡作用域和游标等待取消。[mDNS](https://www.rfc-editor.org/rfc/rfc6762) · [DNS-SD](https://www.rfc-editor.org/rfc/rfc6763)

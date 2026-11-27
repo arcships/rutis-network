@@ -66,6 +66,8 @@ Managed dialers connect and retry by default. Changing a live endpoint closes th
 
 On the accepting host, use the same runtime configuration and a row named `go:link-tcp-listen`. Supply the server certificate and key and a CA dedicated to admitted clients. The listener binds to IPv4 loopback. The dialer accepts a DNS name, IPv4 address or IPv6 address in `host`. Port zero lets the listener choose and report a free port as `link/tcp listening 127.0.0.1:<port>`. Each verified client gets a separate session. Unloading the row closes the listener, pending TLS handshakes and admitted sockets. [Go adapters](../../link/tcp/adapter.go) · [Go bridge](../../link/tcp/bridge.go)
 
+To discover the port automatically, use `go:tcp-offer-source` to observe the listener control and `go:tcp-offer-dial` to select a matching `rutis.tcp` v1 offer and configure a dedicated local dialer. Each TCP row holds its own CA, certificate and key. The receiving adapter supplies the locally expected server identity. [mDNS configuration and two-host example](../../discovery/mdns/README.md)
+
 Run the checks below from the repository root. Integration tests use Node ≥22.18, npm, OpenSSL and a Unix host with control-socket support. They build the Go binary, start real rutis hosts and call a remote service through both the Go dialer and the single-dial TypeScript reference. The Rust example uses Cargo. [TypeScript reference](../../link/tcp/dial.ts) · [Host tests](../../link/tcp/node/test/hosts.test.mjs)
 
 ```sh

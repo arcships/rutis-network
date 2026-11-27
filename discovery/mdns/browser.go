@@ -72,12 +72,13 @@ func listen(iface *net.Interface, network, group string) (*socket, error) {
 }
 
 type browser struct {
+	iface   *net.Interface
 	index   int
 	sockets []*socket
 }
 
 func openBrowser(iface *net.Interface) (*browser, error) {
-	b := &browser{index: iface.Index}
+	b := &browser{iface: iface, index: iface.Index}
 	var errs []error
 	for _, g := range []struct{ network, addr string }{{"udp4", "224.0.0.251"}, {"udp6", "ff02::fb"}} {
 		s, err := listen(iface, g.network, g.addr)
@@ -144,6 +145,10 @@ type attempt struct {
 
 func (b *browser) run(parent context.Context, c *cache, svc *observations) error {
 	ctx, cancel := context.WithCancel(parent)
+	var resolver *offerResolver
+	if c.cfg.Offers != nil {
+		resolver = newResolver(b.iface, c.cfg.Offers.allowed)
+	}
 	var wg sync.WaitGroup
 	ch := make(chan packet, 16)
 	for _, s := range b.sockets {
@@ -156,6 +161,9 @@ func (b *browser) run(parent context.Context, c *cache, svc *observations) error
 			s.conn.Close()
 		}
 		wg.Wait()
+		if resolver != nil {
+			resolver.workers.Wait()
+		}
 	}()
 	// Wake even on a silent LAN so stale observations disappear.
 	tick := time.NewTicker(250 * time.Millisecond)
@@ -164,6 +172,9 @@ func (b *browser) run(parent context.Context, c *cache, svc *observations) error
 	for {
 		now := time.Now()
 		list, questions := c.view(now)
+		if resolver != nil {
+			list = resolver.resolve(ctx, list, now)
+		}
 		svc.update(list)
 		for q := range tried {
 			if _, ok := questions[q]; !ok {

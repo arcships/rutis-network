@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"sync"
 	"time"
+	"unsafe"
 
 	"github.com/ebitengine/purego"
 	"golang.org/x/sys/unix"
@@ -18,7 +19,8 @@ import (
 // Use the system DNS-SD client ABI so the responder that owns the host's
 // .local name also probes, advertises and withdraws the service records.
 type client struct {
-	register func(*uintptr, uint32, uint32, string, string, string, uintptr, uint16, uint16, uintptr, uintptr, uintptr) int32
+	register func(*uintptr, uint32, uint32, string, string, string, uintptr, uint16, uint16, *byte, uintptr, uintptr) int32
+	update   func(uintptr, uintptr, uint32, uint16, *byte, uint32) int32
 	fd       func(uintptr) int32
 	process  func(uintptr) int32
 	free     func(uintptr)
@@ -44,7 +46,7 @@ var loadClient = sync.OnceValues(func() (*client, error) {
 	}
 	api := &client{}
 	for name, target := range map[string]any{
-		"DNSServiceRegister": &api.register, "DNSServiceRefSockFD": &api.fd,
+		"DNSServiceRegister": &api.register, "DNSServiceUpdateRecord": &api.update, "DNSServiceRefSockFD": &api.fd,
 		"DNSServiceProcessResult": &api.process, "DNSServiceRefDeallocate": &api.free,
 	} {
 		sym, err := purego.Dlsym(lib, name)
@@ -74,14 +76,14 @@ var loadClient = sync.OnceValues(func() (*client, error) {
 
 // startPublisher waits for the daemon to confirm the configured instance.
 // The returned row task owns the reference until cancellation or daemon loss.
-func startPublisher(ctx context.Context, p advert, index int) (func(context.Context) error, error) {
+func startPublisher(ctx context.Context, p advert, index int) (*publication, error) {
 	api, err := loadClient()
 	if err != nil {
 		return nil, err
 	}
 	var ref uintptr
 	port := binary.NativeEndian.Uint16([]byte{byte(p.Port >> 8), byte(p.Port)})
-	code := api.register(&ref, 0, uint32(index), p.Instance, p.Type, "local.", 0, port, 0, 0, api.callback, 0)
+	code := api.register(&ref, 0, uint32(index), p.Instance, p.Type, "local.", 0, port, uint16(len(p.txt)), unsafe.SliceData(p.txt), api.callback, 0)
 	if code != 0 {
 		return nil, fmt.Errorf("DNSServiceRegister on interface %d: %d", index, code)
 	}
@@ -122,13 +124,30 @@ func startPublisher(ctx context.Context, p advert, index int) (func(context.Cont
 			return nil, err
 		}
 	}
-	return func(ctx context.Context) error {
-		defer closeRef()
+	var mu sync.Mutex // Serialize all operations on this native DNSServiceRef.
+	pub := &publication{}
+	pub.update = func(txt []byte) error {
+		mu.Lock()
+		defer mu.Unlock()
+		if ref == 0 {
+			return errors.New("registration has ended")
+		}
+		if code := api.update(ref, 0, 0, uint16(len(txt)), unsafe.SliceData(txt), 0); code != 0 {
+			return fmt.Errorf("DNSServiceUpdateRecord: %d", code)
+		}
+		return nil
+	}
+	pub.run = func(ctx context.Context) error {
+		defer func() { mu.Lock(); defer mu.Unlock(); closeRef(); ref = 0 }()
 		for ctx.Err() == nil {
-			if err := poll(); err != nil {
+			mu.Lock()
+			err := poll()
+			mu.Unlock()
+			if err != nil {
 				return err
 			}
 		}
 		return ctx.Err()
-	}, nil
+	}
+	return pub, nil
 }

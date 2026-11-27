@@ -30,7 +30,7 @@ rutis 自己只管会话这一侧：连接插件打开一条通道，交给服�
 
 ## 状态
 
-Go DNS-SD/mDNS 插件可在指定网卡上发现和公布局域网入口。消费插件可读取当前候选并等待变化。[配置与 Go 接口](discovery/mdns/README.zh-CN.md)
+Go DNS-SD/mDNS 插件可以发布普通入口，也可以发布和发现带版本的公开连接说明。TCP 示例会发现已就绪的监听器，并使用本机凭据建立 mTLS 会话。[配置与 Go 接口](discovery/mdns/README.zh-CN.md)
 
 浏览器之间、浏览器与原生 rutis 宿主之间可通过 WebRTC DataChannel 双向调用服务，支持直连和经过认证的 TURN 中继。[WebRTC 配置与示例](docs/design/08-link-webrtc.md)
 

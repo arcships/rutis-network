@@ -7,6 +7,6 @@ import (
 	"errors"
 )
 
-func startPublisher(context.Context, advert, int) (func(context.Context) error, error) {
+func startPublisher(context.Context, advert, int) (*publication, error) {
 	return nil, errors.New("DNS-SD publishing requires macOS or Linux on amd64 or arm64")
 }

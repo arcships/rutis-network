@@ -66,6 +66,8 @@ go -C link/tcp build -o ../../plugins/go/link-tcp ./cmd/link-tcp
 
 监听宿主采用相同的运行时配置，行名使用 `go:link-tcp-listen`。配置服务端证书、私钥和专用于获准客户端的 CA。监听端绑定 IPv4 回环，拨号端可用 `host` 指向 DNS、IPv4 或 IPv6 地址。监听端口填 0 时由系统选择，启动后输出 `link/tcp listening 127.0.0.1:<port>`。每个通过准入的客户端独立挂载会话。卸载行会关闭监听器、进行中的 TLS 握手和已接入的连接。[Go 适配器](../../link/tcp/adapter.go) · [Go bridge](../../link/tcp/bridge.go)
 
+需要自动发现端口时，发布端的 `go:tcp-offer-source` 订阅监听控制服务，接收端的 `go:tcp-offer-dial` 从发现服务选择一个匹配的 `rutis.tcp` v1 入口，配置本机的专属拨号器。CA、证书和私钥放在各自的 TCP 行中，预期服务端身份由接收端配置。[mDNS 配置与双端示例](../../discovery/mdns/README.zh-CN.md)
+
 在仓库根目录运行以下检查。集成测试使用 Node ≥22.18、npm、OpenSSL 和支持控制 socket 的 Unix 宿主。测试编译 Go 二进制，启动真实 rutis 宿主，通过 Go 拨号插件和单次拨号的 TypeScript 参考实现调用远端服务。Rust 示例使用 Cargo。[TypeScript 参考实现](../../link/tcp/dial.ts) · [宿主测试](../../link/tcp/node/test/hosts.test.mjs)
 
 ```sh

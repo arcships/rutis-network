@@ -2,6 +2,7 @@ package mdns
 
 import (
 	"net/netip"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -13,6 +14,8 @@ import (
 
 // Candidate describes a resolved DNS-SD instance as observed on one interface.
 type Candidate struct {
+	Description *Description `json:"description,omitempty"`
+	wire        *envelope
 	Source      string   `json:"source"`
 	Interface   string   `json:"interface"`
 	Domain      string   `json:"domain"`
@@ -32,6 +35,8 @@ type key struct {
 }
 
 type lease struct {
+	txtData                string
+	wire                   *envelope
 	instance               string
 	seen, expires, refresh time.Time
 	rr                     dns.RR
@@ -78,6 +83,18 @@ func (c *cache) key(rr dns.RR) (key, string, bool) {
 		k.value = dns.CanonicalName(r.Ptr)
 		display, ok := c.instance(r.Ptr)
 		return k, display, ok
+	case *dns.TXT:
+		if _, ok := c.instance(h.Name); !ok || c.cfg.Offers == nil {
+			return k, "", false
+		}
+		// Pack the RDATA to recover original bytes from DNS presentation escapes.
+		copyRR := *r
+		copyRR.Hdr.Name = "."
+		var buf [11 + maxTXT]byte
+		n, err := dns.PackRR(&copyRR, buf[:], 0, nil, false)
+		if err == nil {
+			k.value = string(buf[11:n])
+		}
 	case *dns.SRV:
 		if _, ok := c.instance(r.Hdr.Name); !ok {
 			return k, "", false
@@ -152,9 +169,15 @@ func (c *cache) ingest(msg *dns.Msg, now time.Time) {
 				continue
 			}
 			h := rr.Header()
+			// A TXT RR is unique for each service instance. Use one slot even if
+			// the cache is full, but only apply a goodbye to the same RDATA.
+			var txtData string
+			if k.kind == dns.TypeTXT {
+				txtData, k.value = k.value, ""
+			}
 			old, known := c.records[k]
 			if h.Ttl == 0 {
-				if known && old.expires.After(grace) {
+				if known && old.txtData == txtData && old.expires.After(grace) {
 					old.expires = grace
 					c.records[k] = old
 				}
@@ -164,7 +187,11 @@ func (c *cache) ingest(msg *dns.Msg, now time.Time) {
 				continue
 			}
 			life := time.Duration(h.Ttl) * time.Second
-			c.records[k] = lease{instance: display, seen: now, expires: now.Add(life), refresh: now.Add(life - life/5), rr: rr}
+			var wire *envelope
+			if k.kind == dns.TypeTXT {
+				wire, _ = parseEnvelope(txtData)
+			}
+			c.records[k] = lease{txtData: txtData, wire: wire, instance: display, seen: now, expires: now.Add(life), refresh: now.Add(life - life/5), rr: rr}
 			if h.Class&0x8000 != 0 && k.kind != dns.TypePTR {
 				flushed[rrset{k.name, k.kind}] = true
 			}
@@ -219,6 +246,7 @@ func earlier(a, b time.Time) time.Time {
 // Build a consistent view from separately leased PTR, SRV and A/AAAA data.
 func (c *cache) view(now time.Time) ([]Candidate, map[dns.Question]bool) {
 	ptrs := map[string]lease{}
+	txts := map[string]lease{}
 	srvs := map[string]key{}
 	addrs := map[string][]key{}
 	questions := map[dns.Question]bool{}
@@ -233,6 +261,8 @@ func (c *cache) view(now time.Time) ([]Candidate, map[dns.Question]bool) {
 			continue
 		}
 		switch k.kind {
+		case dns.TypeTXT:
+			txts[k.name] = v
 		case dns.TypePTR:
 			ptrs[k.value] = v
 			if !v.refresh.After(now) {
@@ -249,6 +279,10 @@ func (c *cache) view(now time.Time) ([]Candidate, map[dns.Question]bool) {
 	}
 	out := []Candidate{}
 	for instance, ptr := range ptrs {
+		txt := txts[instance]
+		if c.cfg.Offers != nil && !txt.refresh.After(now) {
+			ask(instance, dns.TypeTXT, !txt.seen.IsZero())
+		}
 		srv, ok := srvs[instance]
 		if !ok || !c.records[srv].refresh.After(now) {
 			ask(instance, dns.TypeSRV, ok)
@@ -258,6 +292,12 @@ func (c *cache) view(now time.Time) ([]Candidate, map[dns.Question]bool) {
 		}
 		addresses := addrs[srv.value]
 		until := earlier(ptr.expires, c.records[srv].expires)
+		if c.cfg.Offers != nil {
+			if txt.wire == nil || !slices.Contains(c.cfg.Offers.Accept[txt.wire.kind], txt.wire.version) {
+				continue
+			}
+			until = earlier(until, txt.expires)
+		}
 		ips := make([]string, 0, len(addresses))
 		var hasA, hasAAAA bool
 		for _, a := range addresses {
@@ -281,7 +321,7 @@ func (c *cache) view(now time.Time) ([]Candidate, map[dns.Question]bool) {
 		}
 		sort.Strings(ips)
 		_, transport, _ := strings.Cut(c.cfg.Browse, "._")
-		out = append(out, Candidate{Source: c.source, Interface: c.cfg.Interface, Domain: c.cfg.Domain, ServiceType: c.cfg.Browse,
+		out = append(out, Candidate{wire: txt.wire, Source: c.source, Interface: c.cfg.Interface, Domain: c.cfg.Domain, ServiceType: c.cfg.Browse,
 			Instance: ptr.instance, Transport: transport, Addresses: ips, Port: srv.port, ExpiresAt: until.UTC().Format(time.RFC3339Nano)})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Instance < out[j].Instance })

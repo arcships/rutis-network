@@ -2,7 +2,7 @@
 
 [中文](connection-descriptions.md) · [Current Go mDNS plugin](../../discovery/mdns/README.md)
 
-**Design proposal.** Discover a **public connection description**. A connector or adapter on the publishing side supplies the public parameters a peer needs to dial. An adapter for the same protocol on the receiving side interprets them. The mDNS plugin transports descriptions with a type and version. PR #24 currently implements ordinary DNS-SD endpoint discovery. This document specifies the proposed extension.
+The Go mDNS plugin publishes and discovers versioned public connection descriptions. A connector or adapter supplies the parameters a peer needs to dial, and a local adapter on the receiving side interprets them. The first working mapping is the mutual TLS TCP link. [Runnable configuration](../../discovery/mdns/README.md)
 
 ## What a description represents
 
@@ -33,7 +33,7 @@ flowchart LR
 
 ## Coverage of the seven connectors on main
 
-These are proposed mappings to the linked implementations. Publishers select public fields explicitly. Receivers construct a dial target from fields their adapter understands.
+TCP v1 is implemented. The other six rows describe proposed mappings to the linked connectors. Publishers select public fields explicitly. Receivers construct a dial target from fields their adapter understands.
 
 | Description kind | Public dial information | Supplied or verified by the recipient |
 | --- | --- | --- |
@@ -49,7 +49,7 @@ The LAN of publication determines **who can discover the description**. The dial
 
 ## Endpoints that require certificates
 
-The protocol adapter interprets certificate requirements. The proposed `rutis.tcp` and `rutis.grpc` v1 kinds map to the existing mutual TLS (mTLS) connectors. Their kind and version already tell the recipient to present a client certificate. A protocol supporting several authentication modes can declare the required mode in its own `params`. The mDNS envelope stays the same. [TCP implementation](../../link/tcp/adapter.go) · [gRPC implementation](../../link/grpc/client.go)
+The protocol adapter interprets certificate requirements. The `rutis.tcp` and proposed `rutis.grpc` v1 kinds map to the existing mutual TLS (mTLS) connectors. Their kind and version already tell the recipient to present a client certificate. A protocol supporting several authentication modes can declare the required mode in its own `params`. The mDNS envelope stays the same. [TCP implementation](../../link/tcp/adapter.go) · [gRPC implementation](../../link/grpc/client.go)
 
 For example, a `rutis.grpc` v1 description can advertise `192.0.2.8:7443` with the hint `serverName=office.example`. The recipient first confirms that local policy expects `office.example`, then selects the CA, client certificate and private key configured locally for that service. A client missing a certificate can show “discovered, client certificate required” and skip dialing. During the handshake each side presents its certificate chain and verifies the other side. Private keys stay with their holders. [TLS service identity verification](https://www.rfc-editor.org/rfc/rfc9525.html#section-6.1.1) · [TLS certificate exchange](https://www.rfc-editor.org/rfc/rfc8446.html#section-4.4.2)
 
@@ -57,10 +57,10 @@ Provision trust roots and obtain client certificates through trusted deployment 
 
 ## DNS-SD representation
 
-In the proposed generic mode each description has one `_rutis-link._tcp.local.` instance. Instances on the same publishing interface can share a read-only HTTP description service. SRV points to that real service, for example `edge-b.local.:8765`. Both SSH destinations in the example belong to the description. The generic mode requires this HTTP endpoint. Existing native DNS-SD services continue to advertise their own endpoints.
+In generic mode each description has one `_rutis-link._tcp.local.` instance. Instances on the same publishing interface can share a read-only HTTP description service. SRV points to that real service, for example `edge-b.local.:8765`. Both SSH destinations in the example belong to the description. The generic mode requires this HTTP endpoint. Existing native DNS-SD services continue to advertise their own endpoints.
 
 - Common TXT fields are `txtvers=1`, `id`, `kind`, `v` (parameter schema version) and `rev`. The revision is the hexadecimal SHA-256 digest of the exact UTF-8 JSON parameter bytes being transported. Short parameters travel in a single TXT item `p=<JSON>`.
-- The proposed v1 inline budget allows 255 bytes per item and 400 bytes for the whole TXT including length bytes. If either limit would be exceeded, omit `p`. The browser retrieves the same bytes at the fixed path `/v1/offers/{id}/{rev}` on the SRV endpoint resolved on that interface. New connector kinds and long relay paths use the same transport rules. [DNS-SD TXT format and sizing](https://www.rfc-editor.org/rfc/rfc6763.html#section-6.2)
+- The v1 inline budget allows 255 bytes per item and 400 bytes for the whole TXT including length bytes. If either limit would be exceeded, omit `p`. The browser retrieves the same bytes at the fixed path `/v1/offers/{id}/{rev}` on the SRV endpoint resolved on that interface. New connector kinds and long relay paths use the same transport rules. [DNS-SD TXT format and sizing](https://www.rfc-editor.org/rfc/rfc6763.html#section-6.2)
 - Match a locally supported kind and version before fetching. Use a short alphanumeric, hyphen or underscore identifier for `id`, unique on its HTTP endpoint. Reject a common header that exceeds the budget even with `p` omitted. Restrict retrieval to the observed interface and locally permitted resolved address, disable redirects, bound the response size and send no credentials. Verify the digest in both modes. Bound the lifetime by the earliest expiry of the PTR, SRV, TXT and address records used. Discard stale results after a TXT revision change, record expiry or withdrawal. The digest identifies a revision. The connector verifies the peer's identity.
 
 ## Local lifecycle
@@ -71,4 +71,4 @@ The publisher compares snapshots by source and `id`. It registers new entries, u
 
 ## Transport checks
 
-An independent macOS Bonjour experiment used a loopback interface. The two-address SSH example above (68 parameter bytes) and an unfamiliar kind with a nested object both round-tripped inline in TXT. A 393-byte WebRTC test payload round-tripped through the temporary HTTP endpoint resolved from SRV and passed digest verification. These checks exercised description transport. Generic mode in the Go plugin, per-connector mappings and actual dials remain to be implemented and verified.
+The Go tests verify a custom kind switching between inline TXT and HTTP across revisions, expiry, digest checks and withdrawal. An end-to-end test starts two rutis hosts on macOS loopback, publishes a TCP listener with an allocated port, mounts a remote plugin over the discovered mTLS session and calls its service. It also checks that a client without a certificate is rejected and removing the source stops the managed dialer. [Transport tests](../../discovery/mdns/offer_test.go) · [Two-host test](../../discovery/mdns/test/hosts.test.mjs)
