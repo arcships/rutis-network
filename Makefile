@@ -8,7 +8,7 @@ TS_PROJECT_FILES := $(wildcard $(shell git ls-files '*/package-lock.json' '*/tsd
 TS_PACKAGES := $(sort $(patsubst %/,%,$(dir $(TS_PROJECT_FILES))))
 
 .PHONY: setup fmt fmt-check check test go-check go-vet go-test ts-setup typecheck ts-test list-go list-ts
-.PHONY: integration integration-tcp integration-webrtc integration-peer-group
+.PHONY: integration integration-tcp integration-webrtc integration-peer-group integration-websocket
 
 setup: ts-setup
 	npm ci
@@ -31,7 +31,11 @@ go-vet:
 go-test:
 	@set -e; for mod in $(GO_MODULES); do sh scripts/in-go-module.sh "$$mod" go test -mod=readonly -short ./...; done
 
-integration: integration-tcp integration-webrtc $(if $(MDNS_TEST_INTERFACE),integration-peer-group)
+integration: integration-tcp integration-webrtc integration-websocket $(if $(MDNS_TEST_INTERFACE),integration-peer-group)
+
+integration-websocket:
+	sh scripts/in-go-module.sh link/websocket go build -mod=readonly -o /dev/null ./cmd/link-websocket
+	sh scripts/in-go-module.sh link/websocket node --test --test-reporter=../../scripts/integration-reporter.mjs test/hosts.test.mjs
 
 integration-peer-group:
 	@test -n "$$MDNS_TEST_INTERFACE" || { echo "Set MDNS_TEST_INTERFACE to the multicast interface for the ring test" >&2; exit 1; }

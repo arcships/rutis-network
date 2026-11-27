@@ -60,7 +60,7 @@ link plugin (any language)
 | Cloud link | gRPC bidi stream, cloud relay | messages | `open(far)` per stream |
 | Mobile device | ADB `forward`/`reverse`, usbmuxd/`iproxy` | local TCP | frame; `open(far)` |
 
-WebSocket is already in the core (`websocket::dial` / `websocket::listen`, used by `rutis-host/listen`); do not add `link/websocket`. The first reference adapter is localhost TCP (#6), and plain HTTP request/response is not a link — HTTP only carries a WebSocket upgrade or gRPC.
+The independent Go WSS link lives in `link/websocket`. The host WebSocket implementation provides an interoperability reference for its tests. The first reference adapter is localhost TCP (#6), and plain HTTP request/response is not a link — HTTP only carries a WebSocket upgrade or gRPC.
 
 Any language works. Pick the cheapest implementation that fits the target language:
 
@@ -180,7 +180,7 @@ Write a short section in **this repository's** `docs/guide/link-plugins.md` (and
 - ❌ Registering a cleanup from a cleanup, or waiting for another cleanup (0.20 unload order).
 - ❌ A cross-link `links` manager, global `connect` service, cross-link registry or central credential store; composition is row + session + service name.
 - ❌ Presenting a bridge-side queue as a bound on the session's outbound queue; non-Rust `open(far)` cannot set `outbound_limit`.
-- ❌ Treating WebSocket as a new link plugin or plain HTTP as a link.
+- ❌ Treating plain HTTP request/response as a link.
 
 ## References
 

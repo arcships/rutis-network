@@ -1,0 +1,12 @@
+{
+  "id": "a",
+  "runtimes": { "go": { "dir": "./plugins/go" } },
+  "rows": [{
+    "id": "to-b", "name": "go:link-websocket-dial",
+    "config": {
+      "address": "wss://b.example:7443/rutis",
+      "ca": "/etc/rutis/group-ca.pem",
+      "tokenFile": "/etc/rutis/a-b.token"
+    }
+  }]
+}

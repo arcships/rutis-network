@@ -24,6 +24,7 @@ The operator maintains one admission rule. The application decides which service
 
 | Your environment | How to connect |
 | --- | --- |
+| Two hosts connect over a WSS endpoint | Install the standalone Go dial and listen plugins. [WebSocket](link/websocket/README.md) |
 | Nodes already share a tailnet | Discover workers by tag or connect to one node by name. [Tailscale](docs/design/04-link-tailscale.en.md) |
 | You have SSH access, or both ends can log in to the same VPS | Use the existing SSH endpoint or set up a reverse connection through the VPS. [SSH](docs/design/03-link-ssh.en.md) |
 | Part of the application runs in a browser | Make calls in both directions between a page and a native host or another page. [WebRTC](docs/design/08-link-webrtc.en.md) |
@@ -54,12 +55,12 @@ From the repository root, use Git, Make, Go with toolchain selection enabled, an
 | `make fmt-check` | List files that need formatting and exit with an error if any do. Leaves source files untouched. |
 | `make test` | Run Go short tests in each module and Vitest unit tests in each TypeScript package. |
 | `make check` | Check formatting, run Go vet and strict TypeScript checks, then run the fast tests. |
-| `make integration` | Run the TCP host and WebRTC browser/TURN integration suites. Set `MDNS_TEST_INTERFACE` to include the three-host mTLS ring, or run it separately with `MDNS_TEST_INTERFACE=lo0 make integration-peer-group` on macOS. |
+| `make integration` | Run the TCP, WebSocket and WebRTC integration suites. Set `MDNS_TEST_INTERFACE` to include the three-host mTLS ring, or run it separately with `MDNS_TEST_INTERFACE=lo0 make integration-peer-group` on macOS. |
 
 The root commands and Linux PR jobs use Go 1.27.4 from [.go-version](.go-version), including its gofmt. To use that toolchain for standalone commands in the same shell, run `export GOTOOLCHAIN="go$(cat .go-version)"` from the repository root. Each module's `go.mod` declares its minimum Go version for consumers. Checks for modules that depend on the TCP bridge use the checked-out bridge in a temporary Go workspace. For a single job, run e.g. `make go-check GO_MODULES=link/ssh` or `make typecheck ts-test TS_PACKAGES=link/webrtc/web`. Both packages provide `npm run test:delivery` for development reload and tarball installation.
 
 After `make setup`, run `link/webrtc/web/node_modules/.bin/playwright install --with-deps chromium firefox` on Linux to install the browsers and their system libraries. TCP uses OpenSSL and the locked rutis host. WebRTC starts its own authenticated loopback TURN server. It tests bidirectional RPC over direct ICE and forced relay, loss and recovery of the relay, and in-flight calls during credential rotation.
 
-On PRs, TCP and WebRTC changes select their respective suites. Changes to the Go TCP bridge or host fixtures used by WebRTC also select WebRTC. Peer-group, mDNS and TCP changes select the ring on macOS loopback. Changes to shared CI or toolchain configuration and pushes to `main` run all three suites. Docs-only PRs skip integration. [Integration workflow](.github/workflows/integration.yml)
+On PRs, TCP and WebRTC changes select their respective suites. Changes to the Go TCP bridge or host fixtures used by WebRTC also select WebRTC. Peer-group, mDNS and TCP changes select the ring on macOS loopback. WebSocket or TCP changes select the WSS suite. Changes to shared CI or toolchain configuration and pushes to `main` run all four suites. Docs-only PRs skip integration. [Integration workflow](.github/workflows/integration.yml)
 
 </details>

@@ -12,7 +12,7 @@ Baseline: rutis 0.23.0 (session protocol 5, `rutis.json` format 1, plugin API 3)
 - [ ] Reconnect/backoff lives in the link plugin, not in the session.
 - [ ] A listen side opens one session per connection. Same-id replacement is implemented in Rust with `Session::handshake` + `Greeted::id()`; non-Rust is **unsupported** (0.23.0 `open(far)` has no id, and `session_key(row)` is first-wins).
 - [ ] No cross-link `links` manager, global `connect` service, cross-link registry or central credential store; composition is row + session + service name.
-- [ ] WebSocket is the core's `websocket::dial` / `listen`, not a new link plugin; plain HTTP is not a link; localhost TCP is the first reference adapter.
+- [ ] For WebSocket, test independent `link/websocket` endpoints against each other and check wire interoperability with the host reference transport.
 
 ## Framing
 
