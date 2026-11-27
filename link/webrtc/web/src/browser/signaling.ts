@@ -1,4 +1,4 @@
-import type { Signaling } from '../shared/signaling.ts'
+import type { Acquire, Attempt, Description, Grant, Signaling } from '../shared/signaling.ts'
 
 // Application-supplied fetch can carry an authenticated same-origin session.
 // A provider mounts acquire, publish and receive below the supplied URL.
@@ -8,7 +8,7 @@ export function httpSignaling(
     headers = {},
     fetch: request = globalThis.fetch,
   }: { headers?: Record<string, string>; fetch?: typeof fetch } = {},
-): Signaling {
+) {
   const root = new URL(base, globalThis.location?.href)
   if (root.username || root.password || root.search || root.hash) throw Error('invalid signaling URL')
   if (
@@ -17,7 +17,11 @@ export function httpSignaling(
   )
     throw Error('signaling requires HTTPS or loopback')
   if (!root.pathname.endsWith('/')) root.pathname += '/'
-  async function call(method: keyof Signaling, input: object, signal: AbortSignal) {
+  async function call<T>(
+    method: keyof Signaling,
+    input: object,
+    signal?: AbortSignal,
+  ): Promise<T | undefined> {
     const timeout = AbortSignal.timeout(5000)
     const deadline = signal ? AbortSignal.any([signal, timeout]) : timeout
     const response = await request(new URL(method, root), {
@@ -31,11 +35,12 @@ export function httpSignaling(
     if (response.status === 401 || response.status === 403)
       throw Object.assign(Error('pairing denied'), { name: 'PairingDenied' })
     if (!response.ok) throw Error('signaling failed')
-    return response.status === 204 ? undefined : response.json()
+    return response.status === 204 ? undefined : (response.json() as Promise<T>)
   }
   return {
-    acquire: (input, signal) => call('acquire', input, signal),
-    receive: (input, signal) => call('receive', input, signal),
-    publish: (input, signal) => call('publish', input, signal),
-  }
+    acquire: (input: Acquire, signal?: AbortSignal) => call<Grant | null>('acquire', input, signal),
+    receive: (input: Attempt & { type: Description['type']; waitMs: number }, signal?: AbortSignal) =>
+      call<Description | null>('receive', input, signal),
+    publish: (input: Attempt & Description, signal?: AbortSignal) => call<unknown>('publish', input, signal),
+  } satisfies Signaling
 }

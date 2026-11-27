@@ -1,7 +1,7 @@
 import type { Signaling } from '../shared/signaling.ts'
 
 type MaybeAsync<T> = T | Promise<T>
-type Close = { kind: 'done' | 'replaced' } | { kind: 'rejected'; reason: string }
+export type Close = { kind: 'done' | 'replaced' } | { kind: 'rejected'; reason: string }
 
 export interface Far {
   send(data: Uint8Array): MaybeAsync<void>

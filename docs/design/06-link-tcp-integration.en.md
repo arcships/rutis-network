@@ -125,7 +125,9 @@ To move these plugins reliably to another host, await `rutis/loader.remove("wire
 
 ## Develop and load the TCP plugins
 
-From `link/tcp/node`, run `npm ci`, then `npm run dev:setup` once. Setup uses Go and OpenSSL to build a named loopback peer, create a seven-day local mTLS identity and write the two development configurations. Set `PORT` during setup to change the peer’s default port of 17443. Start the peer with `npm run dev:peer` and keep it running. In a second terminal, also in `link/tcp/node`, choose the target you are editing.
+From `link/tcp/node`, run `npm ci`, then `npm run dev:setup`. Setup uses Go and OpenSSL to build a named loopback peer, create a seven-day local mTLS certificate and write the two development configurations. Set `PORT` on first setup to change the peer’s default port of 17443. Rerun setup to restore missing configurations and renew a certificate that has expired or will expire within one day. Setup preserves existing configurations and the private key. After renewal, restart the peer and development host to load the certificate.
+
+Start the peer with `npm run dev:peer` and keep it running. In a second terminal, also in `link/tcp/node`, choose the target you are editing.
 
 | Target | Start | Call after the initial connection or a source edit |
 | --- | --- | --- |

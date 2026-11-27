@@ -1,5 +1,5 @@
 export { createWebRtcLink } from './link.ts'
 export { createPageEndpoint } from './endpoint.ts'
 export { httpSignaling } from './signaling.ts'
-export type { Far, Near, Sessions, LinkConfig, LinkStatus, LinkOptions, WebRtcLink } from './types.ts'
+export type { Close, Far, Near, Sessions, LinkConfig, LinkStatus, LinkOptions, WebRtcLink } from './types.ts'
 export type { Signaling, Grant, IceServer, Description } from '../shared/signaling.ts'

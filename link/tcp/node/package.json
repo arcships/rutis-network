@@ -24,7 +24,12 @@
   },
   "version": "0.0.0",
   "files": [
-    "dist"
+    "dist/index.js",
+    "dist/index.d.ts",
+    "dist/dial.js",
+    "dist/dial.d.ts",
+    "dist/bridge.js",
+    "dist/bridge.d.ts"
   ],
   "dependencies": {
     "@arcships/rutis": "0.23.0"

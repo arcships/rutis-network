@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { once } from 'node:events'
 import { basename, join } from 'node:path'
-import { cp, mkdir, readFile, symlink, writeFile } from 'node:fs/promises'
+import { cp, mkdir, readFile, symlink, unlink, writeFile } from 'node:fs/promises'
 import { setTimeout as delay } from 'node:timers/promises'
 import { availablePort } from './fixtures/sshd.mjs'
 import { exec, processFor, project, row, setup, startHost } from './fixtures/hosts.mjs'
@@ -28,19 +28,65 @@ async function expectCall(config, method, expected, logs) {
 
 test('Go and Node source reload and installation of the packed TCP plugin', async (t) => {
   const env = await setup(t)
-  const tcp = join(env.dir, 'tcp')
+  const link = join(env.dir, 'link')
+  const tcp = join(link, 'tcp')
   const node = join(tcp, 'node')
+  // A consumer's module mode must not change how the legacy source entries load.
+  await writeFile(join(env.dir, 'package.json'), '{"type":"commonjs"}')
+  await mkdir(link)
+  await cp(join(project, '../../package.json'), join(link, 'package.json'))
   await cp(join(project, '..'), tcp, {
     recursive: true,
     filter: (path) =>
       !['node_modules', '.rutis', 'dist', 'plugin.mjs', 'rutis.dev.json'].includes(basename(path)),
   })
   await symlink(join(project, 'node_modules'), join(node, 'node_modules'), 'dir')
+  await exec(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      "import { openTcp } from './bridge.ts'; import dial from './dial.ts'; if (!openTcp || !dial.apply) throw Error('missing TCP export')",
+    ],
+    { cwd: tcp },
+  )
   const port = await availablePort()
   await exec('npm', ['run', 'dev:setup'], { cwd: node, env: { ...process.env, PORT: String(port) } })
-  const primary = processFor(env, process.execPath, [host, 'run', join(tcp, '.rutis/peer.json')])
+  const goConfig = join(tcp, 'rutis.dev.json')
+  const nodeConfig = join(node, 'dev/rutis.dev.json')
+  const custom = JSON.stringify(JSON.parse(await readFile(goConfig)), null, 4) + '\n'
+  await writeFile(goConfig, custom)
+  const { config } = JSON.parse(custom).rows[0]
+  const key = await readFile(config.key)
+  const setupAgain = () => exec('npm', ['run', 'dev:setup'], { cwd: node })
+  const cert = await readFile(config.cert, 'utf8')
+  const peerConfig = join(tcp, '.rutis/peer.json')
+  await unlink(peerConfig)
+  await setupAgain()
+  assert.equal(JSON.parse(await readFile(peerConfig)).rows[0].config.port, port)
+  assert.equal(await readFile(config.cert, 'utf8'), cert)
+  // Simulate the last day of the certificate and an incomplete local setup.
+  await exec('openssl', [
+    'req',
+    '-x509',
+    '-key',
+    config.key,
+    '-days',
+    '1',
+    '-subj',
+    '/CN=localhost',
+    '-out',
+    config.cert,
+  ])
+  const expiring = await readFile(config.cert, 'utf8')
+  await unlink(nodeConfig)
+  await setupAgain()
+  assert.notEqual(await readFile(config.cert, 'utf8'), expiring)
+  assert.ok(key.equals(await readFile(config.key)), 'setup must preserve the local private key')
+  assert.equal(await readFile(goConfig, 'utf8'), custom)
+  assert.deepEqual(JSON.parse(await readFile(nodeConfig)).rows[0].config, config)
+  const primary = processFor(env, process.execPath, [host, 'run', peerConfig])
   await primary.waitFor(/listening 127\.0\.0\.1/)
-  const { config } = JSON.parse(await readFile(join(tcp, 'rutis.dev.json'))).rows[0]
   const peer = await startHost(env, 'pack-peer', [
     row('listen', 'go:link-tcp-listen', { ...config, port: 0 }),
     row('witness', 'test/fixtures/witness.mjs', { proof: 'packed' }),

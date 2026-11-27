@@ -26,7 +26,13 @@
     "node": ">=22.18"
   },
   "files": [
-    "dist"
+    "dist/link-webrtc.mjs",
+    "dist/browser/index.d.mts",
+    "dist/browser/endpoint.d.ts",
+    "dist/browser/link.d.ts",
+    "dist/browser/signaling.d.ts",
+    "dist/browser/types.d.ts",
+    "dist/shared/signaling.d.ts"
   ],
   "exports": {
     ".": {

@@ -130,7 +130,18 @@ test('live browser RPC after a source edit and RPC from an installed tarball', a
   const entry = join(consumer, 'app.ts')
   await writeFile(
     entry,
-    "export { createWebRtcLink, createPageEndpoint, httpSignaling } from '@arcships/rutis-link-webrtc'\n",
+    `import { createWebRtcLink, createPageEndpoint, httpSignaling } from '@arcships/rutis-link-webrtc'
+export { createWebRtcLink, createPageEndpoint, httpSignaling }
+export function consumer(pairId: string) {
+  const page = createPageEndpoint('page')
+  const signaling = httpSignaling('/signal')
+  const link = createWebRtcLink({ config: { pairId, autoStart: false }, sessions: page.sessions, signaling })
+  const poll = () => signaling.acquire({ pairId, after: null, waitMs: 100 })
+  const near = page.sessions.open({ send() {}, close() {} })
+  near.end({ kind: 'done' })
+  return { link, poll }
+}
+`,
   )
   await exec(
     join(project, 'node_modules/.bin/tsc'),

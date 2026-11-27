@@ -1,4 +1,4 @@
-import type { Far } from './types.ts'
+import type { Close, Far } from './types.ts'
 import { Session, RECORD, ENDPOINT_ID } from 'rutis-session-v5'
 import { decode } from 'rutis-codec-v5'
 import { bindInvocation } from './scope.ts'
@@ -276,7 +276,7 @@ export function createPageEndpoint(
         session.receive(decode(decoder.decode(bytes)))
         if (session.fault) throw session.fault
       },
-      end() {
+      end(_why?: Close) {
         end(Error('session closed'))
       },
     }
