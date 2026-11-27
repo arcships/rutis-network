@@ -8,6 +8,8 @@ rutis itself knows only the session side: a connection plugin opens a channel an
 
 The plugins target rutis 0.23.0 (session protocol 5, plugin API 3). Upgrade both hosts and their language runtimes together. 0.19.3 renamed the service to `rutis/sessions`; 0.20 changed unload order and gave a session its own writer thread; 0.21 made received functions asynchronous and changed error texts.
 
+For networks that span several nodes or administrative domains, see [the research on discovery, network formation and service boundaries](docs/research/network-groups.en.md).
+
 ## Status
 
 The [Go SSH plugins](docs/design/03-link-ssh.en.md) dial rutis peers, accept sessions through a VPS, and reverse-forward streams to an existing TCP service.
