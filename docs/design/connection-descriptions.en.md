@@ -47,6 +47,14 @@ These are proposed mappings to the linked implementations. Publishers select pub
 
 The LAN of publication determines **who can discover the description**. The dial path can traverse a bastion, a tailnet, a relay or the public internet. Advertised identities and names are hints. The recipient matches allowed kinds, versions, paths and expected identities before choosing credentials. Private keys, tokens, configuration file paths and injected service names stay with their respective hosts.
 
+## Endpoints that require certificates
+
+The protocol adapter interprets certificate requirements. The proposed `rutis.tcp` and `rutis.grpc` v1 kinds map to the existing mutual TLS (mTLS) connectors. Their kind and version already tell the recipient to present a client certificate. A protocol supporting several authentication modes can declare the required mode in its own `params`. The mDNS envelope stays the same. [TCP implementation](../../link/tcp/adapter.go) · [gRPC implementation](../../link/grpc/client.go)
+
+For example, a `rutis.grpc` v1 description can advertise `192.0.2.8:7443` with the hint `serverName=office.example`. The recipient first confirms that local policy expects `office.example`, then selects the CA, client certificate and private key configured locally for that service. A client missing a certificate can show “discovered, client certificate required” and skip dialing. During the handshake each side presents its certificate chain and verifies the other side. Private keys stay with their holders. [TLS service identity verification](https://www.rfc-editor.org/rfc/rfc9525.html#section-6.1.1) · [TLS certificate exchange](https://www.rfc-editor.org/rfc/rfc8446.html#section-4.4.2)
+
+Provision trust roots and obtain client certificates through trusted deployment configuration or an authenticated enrollment flow. A public CA or fingerprint in an advertisement can serve only as a hint to match an existing trust record. If an advertisement omits authentication fields, the adapter still enforces the certificate checks required by the protocol and local policy.
+
 ## DNS-SD representation
 
 In the proposed generic mode each description has one `_rutis-link._tcp.local.` instance. Instances on the same publishing interface can share a read-only HTTP description service. SRV points to that real service, for example `edge-b.local.:8765`. Both SSH destinations in the example belong to the description. The generic mode requires this HTTP endpoint. Existing native DNS-SD services continue to advertise their own endpoints.
