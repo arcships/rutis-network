@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { request } from 'node:http'
+import { manager } from './fixtures/manager.mjs'
 import { createServer } from 'node:net'
 import { once } from 'node:events'
 import { join } from 'node:path'
@@ -11,35 +11,10 @@ import { exec, project, row, setup, startHost } from './fixtures/hosts.mjs'
 function instance(env, id, mode, config = {}) {
   const service = id + '-control'
   const isolate = { [service]: 'management' }
-  const socket = join(env.dir, id + '.sock')
   const transport = { ...row(id + '-wire', 'go:link-tcp-' + mode, {
     ...env.identity, controlService: service, ...config,
   }), isolate }
-  const ui = { ...row(id + '-ui', 'test/fixtures/controller.mjs', { service, socket }),
-    inject: [service], isolate }
-  function invoke(method, ...args) {
-    return new Promise((resolve, reject) => {
-      const req = request({ socketPath: socket, method: 'POST' }, async res => {
-        try {
-          const chunks = []
-          for await (const chunk of res) chunks.push(chunk)
-          const text = Buffer.concat(chunks).toString()
-          if (res.statusCode !== 200) throw new Error(text)
-          resolve(JSON.parse(text))
-        } catch (error) { reject(error) }
-      })
-      req.on('error', reject)
-      req.end(JSON.stringify([method, ...args]))
-    })
-  }
-  async function until(check) {
-    for (let i = 0; i < 150; i++) {
-      const s = await invoke('status')
-      if (check(s)) return s
-      await delay(25)
-    }
-    assert.fail('unexpected ' + id + ' state: ' + JSON.stringify(await invoke('status')))
-  }
+  const { invoke, until, ui } = manager(env, id, service, isolate)
   return { invoke, until, service, rows: [transport, ui] }
 }
 

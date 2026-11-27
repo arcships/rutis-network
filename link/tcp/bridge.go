@@ -96,12 +96,12 @@ func receiveFrames(ctx context.Context, conn net.Conn, near Near) error {
 // Open takes ownership of conn after admission. Pass the row's lifetime context.
 // The returned channel reports the result after transport shutdown and the end notification.
 func Open(parent context.Context, conn net.Conn, sessions Sessions) (<-chan error, error) {
-	return openStream(parent, parent, conn, sessions)
+	return OpenManaged(parent, parent, conn, sessions)
 }
 
-// Stopping a managed transport leaves its row alive. End the old session using
-// that row's context even after cancellation has interrupted the transport.
-func openStream(parent, row context.Context, conn net.Conn, sessions Sessions) (<-chan error, error) {
+// OpenManaged takes ownership of conn. Cancel parent to interrupt transport I/O.
+// The row context stays alive so the bridge can notify the host that the old session ended.
+func OpenManaged(parent, row context.Context, conn net.Conn, sessions Sessions) (<-chan error, error) {
 	ctx, cancel := context.WithCancelCause(parent)
 	closeConn := sync.OnceFunc(func() { conn.Close() })
 	stopClose := context.AfterFunc(ctx, closeConn)

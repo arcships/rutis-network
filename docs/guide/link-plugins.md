@@ -17,6 +17,10 @@
 
 `go:link-tailscale` 通过本机 tailnet 按标签发现 worker，为每台建立独立连接，也支持指定单个节点。两种配置都可使用系统 tailscaled 或独立 tsnet 节点。管理插件通过 `rutis/loader` 创建、重载和移除连接行。[配置双端与管理连接](../design/04-link-tailscale.md)
 
+## Go SSH 插件
+
+`go:link-ssh-dial` 通过 SSH 连接目标 listener。使用 VPS 中继时，接收端的 `go:link-ssh-listen` 申请远端回环端口并直接接入 rutis 会话，`go:link-ssh-tunnel` 则将入站流转发给现有 TCP 服务。两端都拨入 VPS 原有的 SSH 端口。每个行实例独立提供配置、启停、状态和重连控制。[两端配置、控制接口与测试](../design/03-link-ssh.md)
+
 ## Go 版 libp2p
 
 `go:link-libp2p` 使用 QUIC 直连或指定的 Circuit Relay v2，将一个通过 Peer ID 校验的对端挂为会话。需要 Go 1.26 和 rutis-host 0.23.0。[构建、配置和管理接口](../design/09-p2p-plugins.md)
