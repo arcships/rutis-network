@@ -9,6 +9,7 @@ import (
 
 	"github.com/arcships/rutis-network/link/grpc/wire"
 	"github.com/arcships/rutis-network/link/tcp"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -26,12 +27,34 @@ type messageStream interface {
 }
 
 var errSessionClosed = errors.New("session closed")
+var errAwaitTrailers = errors.New("client send ended before final gRPC status")
+
+func receiveSession(ctx context.Context, stream messageStream, near tcp.Near) error {
+	for ctx.Err() == nil || context.Cause(ctx) == errAwaitTrailers {
+		frame, err := stream.Recv()
+		if err != nil {
+			return err
+		}
+		if ctx.Err() != nil {
+			// Delivery has stopped. Only this reader may drain to the trailers.
+			continue
+		}
+		if len(frame.Payload) > MaxPayload {
+			return status.Error(codes.ResourceExhausted, "frame-too-large")
+		}
+		if err := near.Receive(ctx, frame.Payload); err != nil && context.Cause(ctx) != errAwaitTrailers {
+			return err
+		}
+	}
+	return context.Cause(ctx)
+}
 
 // Each gRPC message already contains one complete rutis message. A server-side
 // Recv may stay blocked until the RPC handler returns, so receive in a worker.
 func serveSession(run, row context.Context, stream messageStream, sessions tcp.Sessions, interrupt func(error)) error {
 	ctx, cancel := context.WithCancelCause(run)
 	defer cancel(nil)
+	_, clientStream := stream.(grpc.ClientStream)
 	var writer sync.Mutex
 	far := tcp.Far{
 		Send: func(data []byte) error {
@@ -50,7 +73,11 @@ func serveSession(run, row context.Context, stream messageStream, sessions tcp.S
 			}
 			defer writer.Unlock()
 			err := stream.Send(&wire.Frame{Payload: data})
-			if err != nil {
+			if clientStream && errors.Is(err, io.EOF) {
+				// grpc-go reports remote failures from Recv. Wake a blocked
+				// near.Receive without canceling the underlying client RPC.
+				cancel(errAwaitTrailers)
+			} else if err != nil {
 				cancel(err)
 			}
 			return err
@@ -64,28 +91,21 @@ func serveSession(run, row context.Context, stream messageStream, sessions tcp.S
 	if err != nil {
 		return err
 	}
+	received := make(chan error, 1)
 	go func() {
-		for ctx.Err() == nil {
-			frame, err := stream.Recv()
-			if err != nil {
-				cancel(err)
-				return
-			}
-			if len(frame.Payload) > MaxPayload {
-				cancel(status.Error(codes.ResourceExhausted, "frame-too-large"))
-				return
-			}
-			if err := ctx.Err(); err != nil {
-				return
-			}
-			if err := near.Receive(ctx, frame.Payload); err != nil {
-				cancel(err)
-				return
-			}
-		}
+		err := receiveSession(ctx, stream, near)
+		received <- err
+		cancel(err)
 	}()
 	<-ctx.Done()
 	cause := context.Cause(ctx)
+	if cause == errAwaitTrailers {
+		select {
+		case cause = <-received:
+		case <-run.Done():
+			cause = context.Cause(run)
+		}
+	}
 	interrupt(cause)
 	if errors.Is(cause, errSessionClosed) {
 		return nil

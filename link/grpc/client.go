@@ -123,6 +123,17 @@ func (c *Client) set(s ClientStatus) {
 	c.state = s
 }
 
+func (c *Client) newConn() (*grpc.ClientConn, error) {
+	tc, err := c.config.TLSConfig()
+	if err != nil {
+		return nil, err
+	}
+	tc.ServerName = c.config.ServerName
+	return grpc.NewClient("passthrough:///"+c.config.Address,
+		grpc.WithTransportCredentials(credentials.NewTLS(tc)),
+		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(MaxWireSize), grpc.MaxCallRecvMsgSize(MaxWireSize)))
+}
+
 func (c *Client) Start() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -132,14 +143,7 @@ func (c *Client) Start() error {
 	if c.cancel != nil {
 		return nil
 	}
-	tc, err := c.config.TLSConfig()
-	if err != nil {
-		return err
-	}
-	tc.ServerName = c.config.ServerName
-	conn, err := grpc.NewClient("passthrough:///"+c.config.Address,
-		grpc.WithTransportCredentials(credentials.NewTLS(tc)),
-		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(MaxWireSize), grpc.MaxCallRecvMsgSize(MaxWireSize)))
+	conn, err := c.newConn()
 	if err != nil {
 		return err
 	}
@@ -150,7 +154,6 @@ func (c *Client) Start() error {
 	c.set(ClientStatus{Phase: "connecting"})
 	go func() {
 		defer close(done)
-		defer conn.Close()
 		c.run(ctx, conn)
 	}()
 	return nil
@@ -169,10 +172,23 @@ func (c *Client) Stop() {
 
 func (c *Client) run(ctx context.Context, conn *grpc.ClientConn) {
 	backoff := 500 * time.Millisecond
-	for ctx.Err() == nil {
+	for {
 		c.set(ClientStatus{Phase: "connecting"})
 		started := time.Now()
-		err := c.connect(ctx, conn)
+		// Start validated the first connection. Each retry uses the current
+		// trust roots and identity, even after a partially installed rotation.
+		var err error
+		if conn == nil {
+			conn, err = c.newConn()
+			if err != nil {
+				err = status.Error(codes.FailedPrecondition, err.Error())
+			}
+		}
+		if err == nil {
+			err = c.connect(ctx, conn)
+			conn.Close()
+			conn = nil
+		}
 		if ctx.Err() != nil {
 			break
 		}

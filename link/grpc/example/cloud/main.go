@@ -9,6 +9,7 @@ import (
 	"net"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	link "github.com/arcships/rutis-network/link/grpc"
 	"github.com/arcships/rutis/go/rutis"
@@ -59,7 +60,19 @@ var cloud = rutis.Define(rutis.Plugin[cloudConfig]{
 		}
 		done := make(chan struct{})
 		go func() { defer close(done); _ = server.Serve(l) }()
-		row.Effect(func(context.Context) error { server.Stop(); <-done; return nil })
+		row.Effect(func(ctx context.Context) error {
+			ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			fallback := context.AfterFunc(ctx, server.Stop)
+			defer fallback()
+			err := endpoint.Drain(ctx)
+			server.GracefulStop()
+			<-done
+			if err != nil {
+				return err
+			}
+			return ctx.Err()
+		})
 		row.Provide("cloud-runtime", &cloudService{endpoint: endpoint})
 		return nil
 	},

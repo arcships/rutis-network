@@ -24,11 +24,13 @@ type Endpoint struct {
 	clientName string
 	mu         sync.Mutex
 	bound      *binding
+	draining   bool
 }
 
 type binding struct {
 	row      context.Context
 	run      context.Context
+	cancel   context.CancelFunc
 	sessions tcp.Sessions
 	active   chan struct{}
 }
@@ -51,8 +53,13 @@ func (e *Endpoint) Bind(row *rutis.Ctx) error {
 		return err
 	}
 	ctx, cancel := context.WithCancel(row)
-	b := &binding{row: row, run: ctx, sessions: sessions}
+	b := &binding{row: row, run: ctx, cancel: cancel, sessions: sessions}
 	e.mu.Lock()
+	if e.draining {
+		e.mu.Unlock()
+		cancel()
+		return errors.New("gRPC endpoint is draining")
+	}
 	if e.bound != nil {
 		e.mu.Unlock()
 		cancel()
@@ -76,6 +83,29 @@ func (e *Endpoint) Bind(row *rutis.Ctx) error {
 	return nil
 }
 
+// Drain permanently closes admission and ends the bound session before the
+// application calls grpc.Server.GracefulStop. A caller whose deadline expires
+// can call Drain again to wait for the same cleanup.
+func (e *Endpoint) Drain(ctx context.Context) error {
+	e.mu.Lock()
+	e.draining = true
+	var active <-chan struct{}
+	if b := e.bound; b != nil {
+		b.cancel()
+		active = b.active
+	}
+	e.mu.Unlock()
+	if active == nil {
+		return nil
+	}
+	select {
+	case <-active:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 func (e *Endpoint) Tunnel(stream grpc.BidiStreamingServer[wire.Frame, wire.Frame]) error {
 	p, ok := peer.FromContext(stream.Context())
 	if !ok {
@@ -90,7 +120,7 @@ func (e *Endpoint) Tunnel(stream grpc.BidiStreamingServer[wire.Frame, wire.Frame
 	}
 	e.mu.Lock()
 	b := e.bound
-	if b == nil || b.run.Err() != nil {
+	if e.draining || b == nil || b.run.Err() != nil {
 		e.mu.Unlock()
 		return status.Error(codes.Unavailable, "plugin offline")
 	}

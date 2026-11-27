@@ -143,6 +143,8 @@ let view = ctx.plugin(Session::new(admitted_channel));
 
 接入已有 Go 服务时，在启动应用自己的 gRPC server 前调用 `grpclink.Register(server, clientDNSName)`。配置双向 TLS，把 gRPC 收发消息上限都设为 `grpclink.MaxWireSize`。云端插件在 `Inject` 声明 `rutis/sessions`，在 `Apply` 中调用 `endpoint.Bind(row)`。监听端口和证书由云服务管理。每个已绑定的 endpoint 同时接纳一台设备，设备证书须经受信 CA 签发并匹配配置的名称。设备可以挂载 `go:link-grpc` 行，也可以在插件里调用 `MountClient`，通过返回对象在本地执行 `Start`、`Stop` 和 `Status`。
 
+云服务停机时，先调用 `endpoint.Drain(ctx)`，再调用 `server.GracefulStop()`。Drain 永久停止该端点接纳设备，关闭当前隧道，并等待 rutis 会话清理完成。等待超时后可再次调用。清理期间，同一服务器上的其他 RPC 仍可用。日常单独卸载插件时，rutis 会自动解绑，之后可以重新挂载。
+
 在仓库根目录使用 Go 1.26 或更新版本构建。两端各有一份 rutis 0.23.0 项目配置。把[云端配置](../../link/grpc/example/cloud/rutis.json)和[设备配置](../../link/grpc/example/device/rutis.json)里的 PEM 路径改为受信 CA 和各自的证书、私钥。示例在回环地址监听，证书 DNS 名分别为 `cloud.test` 和 `device.test`。分开部署时，填写云端可达的监听地址和设备的拨号目标。
 
 ```sh
@@ -153,4 +155,4 @@ go -C link/grpc build -o example/device/plugins/go/link-grpc ./cmd/link-grpc
 
 在两个终端分别执行 `rutis-host run link/grpc/example/cloud/rutis.json` 和 `rutis-host run link/grpc/example/device/rutis.json`。在设备上执行 `rutis-host call --config link/grpc/example/device/rutis.json device.submit '"build"'`。刚启动的服务返回 `{"id":"job-1","progress":"job-1 queued"}`。在 macOS 或 Linux 上把 `RUTIS_HOST` 设为 rutis-host 的绝对路径，执行 `go -C link/grpc test -race -count=1 ./...`，即可使用临时证书验证两端和重连。
 
-一条获准的流承载一个会话，每个 protobuf 帧携带一条 rutis 消息，上限 16 MiB。设备断线后按 0.5–30 秒退避重连，收到明确的 gRPC 准入拒绝时等待 30 秒。中断时请求可能已进入调度器，重新连接不会自动重放。Go 0.23 会话接口尚未向监听端暴露远端 ID，也没有配置会话总出站队列上限的接口。[传输协议](../../link/grpc/wire/link.proto)
+一条获准的流承载一个会话，每个 protobuf 帧携带一条 rutis 消息，上限 16 MiB。设备断线后按 0.5–30 秒退避重连。若云端返回 `PermissionDenied` 或 `Unauthenticated`，即使隧道已建立，设备也会记录该状态码，等待 30 秒再重试。设备每次重连都会重新读取 CA、证书和私钥。如果轮换中的证书与私钥暂不匹配，设备会继续退避重试。中断时请求可能已进入调度器，重新连接不会自动重放。Go 0.23 会话接口尚未向监听端暴露远端 ID，也没有配置会话总出站队列上限的接口。[传输协议](../../link/grpc/wire/link.proto)

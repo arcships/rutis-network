@@ -34,7 +34,7 @@ func TestTunnelFramesAndAdmission(t *testing.T) {
 	ended := make(chan struct{}, 1)
 	run, cancelBinding := context.WithCancel(t.Context())
 	defer cancelBinding()
-	e.bound = &binding{row: t.Context(), run: run, sessions: tcp.Sessions{Open: func(_ context.Context, f tcp.Far) (tcp.Near, error) {
+	e.bound = &binding{row: t.Context(), run: run, cancel: cancelBinding, sessions: tcp.Sessions{Open: func(_ context.Context, f tcp.Far) (tcp.Near, error) {
 		opens.Add(1)
 		fars <- f
 		return tcp.Near{Receive: func(_ context.Context, b []byte) error { return f.Send(b) }, End: func(context.Context, tcp.CloseReason) error { ended <- struct{}{}; return nil }}, nil
@@ -131,7 +131,7 @@ func TestUnbindInterruptsBlockedServerSend(t *testing.T) {
 	run, stop := context.WithCancel(t.Context())
 	defer stop()
 	started, sendDone, ended := make(chan struct{}), make(chan struct{}), make(chan struct{})
-	e.bound = &binding{row: t.Context(), run: run, sessions: tcp.Sessions{Open: func(_ context.Context, f tcp.Far) (tcp.Near, error) {
+	e.bound = &binding{row: t.Context(), run: run, cancel: stop, sessions: tcp.Sessions{Open: func(_ context.Context, f tcp.Far) (tcp.Near, error) {
 		go func() {
 			defer close(sendDone)
 			frame := make([]byte, MaxPayload)
