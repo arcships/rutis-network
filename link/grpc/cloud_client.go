@@ -42,6 +42,7 @@ func (c *Client) resolve(parent context.Context, conn *grpc.ClientConn) (*wire.R
 	}
 	directory := wire.NewCloudClient(conn)
 	in := c.registration()
+	in.PreviousGeneration = c.previousGeneration
 	if in.Region == "" {
 		candidates, err := directory.Candidates(authCtx, in)
 		if err != nil {

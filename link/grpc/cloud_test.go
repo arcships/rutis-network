@@ -78,6 +78,10 @@ func until(t *testing.T, test func() bool) {
 }
 func cloudFixture(t *testing.T, pairWait time.Duration) *cloudTest {
 	t.Helper()
+	return cloudFixtureWithCapacity(t, pairWait, 2)
+}
+func cloudFixtureWithCapacity(t *testing.T, pairWait time.Duration, maxStreams int) *cloudTest {
+	t.Helper()
 	issue := testIssuer(t)
 	srv := issue("cloud.test", x509.ExtKeyUsageServerAuth)
 	member := func(name string) Identity { return issue(name, x509.ExtKeyUsageClientAuth) }
@@ -122,7 +126,7 @@ func cloudFixture(t *testing.T, pairWait time.Duration) *cloudTest {
 	for _, r := range cfg.Regions {
 		agent := &regionTest{}
 		d := wire.NewCloudClient(testConn(t, x.address, member(r.AgentName)))
-		agent.Relay, err = NewRelay(heartbeatGate{d, &agent.blocked}, r.Name, 2, pairWait)
+		agent.Relay, err = NewRelay(heartbeatGate{d, &agent.blocked}, r.Name, maxStreams, pairWait)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -153,7 +157,11 @@ func (x *cloudTest) route(t *testing.T, id Identity, target, region string) *wir
 }
 func openTestStream(t *testing.T, ctx context.Context, r *wire.Route, target string, cc *grpc.ClientConn) wire.CloudRelay_TunnelClient {
 	t.Helper()
-	ctx = metadata.AppendToOutgoingContext(ctx, versionHeader, "1", pairHeader, "jobs", targetHeader, target, generationHeader, strconv.FormatUint(r.Generation, 10), ticketHeader, r.Ticket)
+	return openPairStream(t, ctx, r, "jobs", target, cc)
+}
+func openPairStream(t *testing.T, ctx context.Context, r *wire.Route, pair, target string, cc *grpc.ClientConn) wire.CloudRelay_TunnelClient {
+	t.Helper()
+	ctx = metadata.AppendToOutgoingContext(ctx, versionHeader, "1", pairHeader, pair, targetHeader, target, generationHeader, strconv.FormatUint(r.Generation, 10), ticketHeader, r.Ticket)
 	s, err := wire.NewCloudRelayClient(cc).Tunnel(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -227,10 +235,10 @@ func TestCloudRelayPairing(t *testing.T) {
 		t.Fatal("generation reused")
 	}
 	waiting := openTestStream(t, ctx, next, "worker", ac)
-	for _, s := range []wire.CloudRelay_TunnelClient{left, right} {
-		_, err := s.Recv()
-		expectReason(t, err, codes.Aborted, "REPLACED")
-	}
+	_, err = left.Recv()
+	expectReason(t, err, codes.Aborted, "REPLACED")
+	_, err = right.Recv()
+	expectReason(t, err, codes.Aborted, "PEER_REPLACED")
 	_, err = waiting.Recv()
 	expectReason(t, err, codes.Unavailable, "PAIR_TIMEOUT")
 }
@@ -399,8 +407,8 @@ func TestAuthorityRestart(t *testing.T) {
 	}
 }
 
-func TestBearerPairAndStreamQuota(t *testing.T) {
-	x := cloudFixture(t, 4*time.Second)
+func TestBearerPairTenantIsolation(t *testing.T) {
+	x := cloudFixtureWithCapacity(t, 4*time.Second, 4)
 	id := Identity{CAFile: x.a.CAFile}
 	cfg := ClientConfig{Identity: id, Address: x.address, ServerName: "cloud.test", Cloud: &CloudConfig{Pair: "jobs", Target: "worker", BearerFile: filepath.Join(t.TempDir(), "token")}}
 	if err := os.WriteFile(cfg.Cloud.BearerFile, []byte("external\n"), 0600); err != nil {
@@ -436,36 +444,23 @@ func TestBearerPairAndStreamQuota(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = openTestStream(t, ctx, r, "mobile", rc).Recv()
-	expectReason(t, err, codes.ResourceExhausted, "STREAM_QUOTA")
-	// Foreign tenant can never provide the second leg.
-	_, err = waiting.Recv()
-	expectReason(t, err, codes.Unavailable, "PAIR_TIMEOUT")
-	_, err = s.Recv()
-	expectReason(t, err, codes.Unavailable, "PAIR_TIMEOUT")
-	r, err = c.resolve(ctx, cc)
-	if err != nil {
-		t.Fatal(err)
-	}
 	right := openTestStream(t, ctx, r, "mobile", rc)
-	if err := os.WriteFile(cfg.Cloud.BearerFile, []byte("external"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	cfg.Cloud.Target = "worker"
-	a, err = c.resolve(ctx, cc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	left := openTestStream(t, ctx, a, "worker", rc)
-	if h, err := left.Header(); err != nil || len(h.Get(admittedHeader)) != 1 {
-		t.Fatal(h, err)
-	}
-	if err := left.Send(&wire.Frame{Payload: []byte("token")}); err != nil {
-		t.Fatal(err)
-	}
-	f, err := right.Recv()
-	if err != nil || string(f.GetPayload()) != "token" {
-		t.Fatal(f, err)
+	acmeRoute := x.route(t, x.a, "worker", "west")
+	acme := openTestStream(t, ctx, acmeRoute, "worker", testConn(t, acmeRoute.Address, x.a))
+	for _, pair := range []struct {
+		left, right wire.CloudRelay_TunnelClient
+		payload     string
+	}{{s, right, "bearer tenant"}, {acme, waiting, "certificate tenant"}} {
+		if h, err := pair.left.Header(); err != nil || len(h.Get(admittedHeader)) != 1 {
+			t.Fatal(h, err)
+		}
+		if err := pair.left.Send(&wire.Frame{Payload: []byte(pair.payload)}); err != nil {
+			t.Fatal(err)
+		}
+		f, err := pair.right.Recv()
+		if err != nil || string(f.GetPayload()) != pair.payload {
+			t.Fatalf("tenant payload: %q, %v", f.GetPayload(), err)
+		}
 	}
 }
 
@@ -518,4 +513,199 @@ func TestLiveBearerRevocation(t *testing.T) {
 	if s.LastError != codes.Unauthenticated.String() || time.Until(s.RetryAt) < 25*time.Second {
 		t.Fatalf("unexpected denial backoff: %+v", s)
 	}
+}
+
+func (x *cloudTest) startMember(t *testing.T, id Identity, target string) *Client {
+	t.Helper()
+	c := &Client{row: t.Context(), config: ClientConfig{Identity: id, Address: x.address, ServerName: "cloud.test", Cloud: &CloudConfig{Pair: "jobs", Target: target, Region: "east"}},
+		sessions: tcp.Sessions{Open: func(context.Context, tcp.Far) (tcp.Near, error) {
+			return tcp.Near{Receive: func(context.Context, []byte) error { return nil }, End: func(context.Context, tcp.CloseReason) error { return nil }}, nil
+		}}}
+	if err := c.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(c.Stop)
+	return c
+}
+
+func TestCloudRollingReplacement(t *testing.T) {
+	x := cloudFixture(t, time.Second)
+	old := x.startMember(t, x.a, "worker")
+	peer := x.startMember(t, x.b, "mobile")
+	admitted := func(s ClientStatus) bool { return s.Phase == "admitted" }
+	replaced := func(s ClientStatus) bool { return s.Phase == "replaced" && s.Reason == "REPLACED" }
+	oldGeneration := waitClientStatus(t, old, admitted).Generation
+	peerGeneration := waitClientStatus(t, peer, admitted).Generation
+	fresh := x.startMember(t, x.a, "worker")
+	waitClientStatus(t, old, replaced)
+	waitClientStatus(t, fresh, admitted)
+	waitClientStatus(t, peer, func(s ClientStatus) bool { return admitted(s) && s.Generation > peerGeneration })
+
+	// If replacement trailers were lost, resuming the old generation is fenced at Resolve.
+	d := wire.NewCloudClient(testConn(t, x.address, x.a))
+	_, err := d.Resolve(t.Context(), &wire.Registration{Pair: "jobs", Target: "worker", PreviousGeneration: oldGeneration})
+	expectReason(t, err, codes.Aborted, "REPLACED")
+	select {
+	case <-old.done:
+	case <-time.After(time.Second):
+		t.Fatal("superseded client is still retrying")
+	}
+	if err := old.Start(); err != nil {
+		t.Fatal(err)
+	}
+	waitClientStatus(t, fresh, replaced)
+	waitClientStatus(t, old, admitted)
+	waitClientStatus(t, peer, admitted)
+}
+
+func TestCloudPairTimeoutRetry(t *testing.T) {
+	const exhausted = 30 * time.Second
+	if d := retryDelay(codes.Unavailable, "PAIR_TIMEOUT", true, exhausted); d != 0 {
+		t.Fatalf("late peer would incur a second wait of %v", d)
+	}
+	if d := retryDelay(codes.Unavailable, "", true, exhausted); d != exhausted {
+		t.Fatalf("ordinary outage lost backoff: %v", d)
+	}
+	x := cloudFixture(t, 200*time.Millisecond)
+	first := x.startMember(t, x.a, "worker")
+	until(t, func() bool { return x.regions["east"].report().Errors[codes.Unavailable.String()] >= 2 })
+	late := x.startMember(t, x.b, "mobile")
+	for _, c := range []*Client{first, late} {
+		waitClientStatus(t, c, func(s ClientStatus) bool { return s.Phase == "admitted" })
+	}
+}
+
+func TestSameRelayReacquiresExpiredLease(t *testing.T) {
+	x := cloudFixture(t, 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 8*time.Second)
+	defer cancel()
+	a, b := wire.NewCloudClient(testConn(t, x.address, x.a)), wire.NewCloudClient(testConn(t, x.address, x.b))
+	reg := &wire.Registration{Pair: "only-east", Target: "worker"}
+	left, err := a.Resolve(ctx, reg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ticket, err := b.Resolve(ctx, &wire.Registration{Pair: "only-east", Target: "mobile"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waiting := openPairStream(t, ctx, left, "only-east", "worker", testConn(t, left.Address, x.a))
+	east := x.regions["east"]
+	until(t, func() bool { return east.report().Streams == 1 })
+	east.blocked.Store(true)
+	if _, err := waiting.Recv(); status.Code(err) != codes.Unavailable {
+		t.Fatalf("waiting stream survived lease expiry: %v", err)
+	}
+	// The sole tenant slot is allocated elsewhere while east has no lease.
+	until(t, func() bool {
+		_, err := a.Resolve(ctx, reg)
+		return status.Code(err) == codes.Unavailable
+	})
+	if r := x.route(t, x.a, "worker", "west"); r.Region != "west" {
+		t.Fatal(r)
+	}
+	east.blocked.Store(false)
+	until(t, func() bool { _, err := east.Ping(ctx, &wire.Probe{}); return err == nil })
+	if _, err := a.Resolve(ctx, reg); status.Code(err) != codes.ResourceExhausted {
+		t.Fatalf("expired placement bypassed tenant quota: %v", err)
+	}
+	_, err = openPairStream(t, ctx, ticket, "only-east", "mobile", testConn(t, left.Address, x.b)).Recv()
+	if status.Code(err) != codes.PermissionDenied {
+		t.Fatalf("ticket from previous lease: %v", err)
+	}
+}
+
+func TestRegionalPairCapacity(t *testing.T) {
+	for _, tc := range []struct {
+		name               string
+		advertised, actual int
+	}{{"reservation", 2, 2}, {"stale heartbeat", 4, 2}, {"one stream left", 4, 3}} {
+		t.Run(tc.name, func(t *testing.T) {
+			lag := tc.actual != tc.advertised
+			x := cloudFixtureWithCapacity(t, 3*time.Second, tc.advertised)
+			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+			defer cancel()
+			west := x.regions["west"]
+			id := Identity{CAFile: x.a.CAFile}
+			anonymous := func(addr string) *grpc.ClientConn {
+				t.Helper()
+				cc, err := dial(id, addr, "cloud.test", false)
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { cc.Close() })
+				return cc
+			}
+			d := wire.NewCloudClient(anonymous(x.address))
+			bearer := func(token string) context.Context {
+				return metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+token)
+			}
+			reg := &wire.Registration{Pair: "jobs", Target: "worker", Region: "west"}
+			leftRoute, err := d.Resolve(bearer("external"), reg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			member := wire.NewCloudClient(testConn(t, x.address, x.a))
+			candidates, err := member.Candidates(ctx, reg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !lag && (len(candidates.Regions) != 1 || candidates.Regions[0].Name != "east") {
+				t.Fatalf("reservation must cover both legs before either joins: %v", candidates)
+			}
+			a, b := x.route(t, x.a, "worker", "west"), x.route(t, x.b, "mobile", "west")
+			rightRoute, err := d.Resolve(bearer("external-worker"), &wire.Registration{Pair: "jobs", Target: "mobile"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			cc := anonymous(leftRoute.Address)
+			left, right := openTestStream(t, ctx, leftRoute, "worker", cc), openTestStream(t, ctx, rightRoute, "mobile", cc)
+			if h, err := left.Header(); err != nil || len(h.Get(admittedHeader)) != 1 {
+				t.Fatal(h, err)
+			}
+
+			if lag {
+				if a.Region != "west" || b.Region != "west" {
+					t.Fatal(a, b)
+				}
+				// The live limit changed after both tickets were issued from the previous report.
+				west.mu.Lock()
+				west.maxStreams = tc.actual
+				west.mu.Unlock()
+				_, err = openTestStream(t, ctx, a, "worker", testConn(t, a.Address, x.a)).Recv()
+				expectReason(t, err, codes.ResourceExhausted, "STREAM_QUOTA")
+				_, err = openTestStream(t, ctx, b, "mobile", testConn(t, b.Address, x.b)).Recv()
+				if status.Code(err) != codes.PermissionDenied {
+					t.Fatal("old reciprocal ticket", err)
+				}
+				a, b = x.route(t, x.a, "worker", "west"), x.route(t, x.b, "mobile", "west")
+			}
+			if a.Region != "east" || b.Region != "east" {
+				t.Fatalf("both members must move to east: %s, %s", a.Region, b.Region)
+			}
+			otherLeft := openTestStream(t, ctx, a, "worker", testConn(t, a.Address, x.a))
+			otherRight := openTestStream(t, ctx, b, "mobile", testConn(t, b.Address, x.b))
+			for _, streams := range [][2]wire.CloudRelay_TunnelClient{{otherLeft, otherRight}, {left, right}} {
+				if err := streams[0].Send(&wire.Frame{Payload: []byte("online")}); err != nil {
+					t.Fatal(err)
+				}
+				if f, err := streams[1].Recv(); err != nil || string(f.GetPayload()) != "online" {
+					t.Fatal(f, err)
+				}
+			}
+		})
+	}
+}
+
+func TestNoCapacityInAllowedRegion(t *testing.T) {
+	x := cloudFixture(t, time.Second)
+	x.route(t, x.a, "worker", "west")
+	cc, err := dial(Identity{CAFile: x.a.CAFile}, x.address, "cloud.test", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cc.Close()
+	ctx := metadata.AppendToOutgoingContext(t.Context(), "authorization", "Bearer external")
+	_, err = wire.NewCloudClient(cc).Resolve(ctx, &wire.Registration{Pair: "jobs", Target: "worker"})
+	expectReason(t, err, codes.ResourceExhausted, "STREAM_QUOTA")
 }

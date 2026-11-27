@@ -95,16 +95,17 @@ var ClientPlugin = rutis.Define(rutis.Plugin[ClientConfig]{
 // Client manages the connection for one device row. An embedding plugin can
 // call Start, Stop and Status locally. Unloading the row always stops retries.
 type Client struct {
-	row            context.Context
-	config         ClientConfig
-	sessions       tcp.Sessions
-	mu             sync.Mutex
-	cancel         context.CancelFunc
-	done           chan struct{}
-	statusMu       sync.Mutex
-	state          ClientStatus
-	registrationMu sync.RWMutex
-	advertised     *wire.Registration
+	row                context.Context
+	config             ClientConfig
+	sessions           tcp.Sessions
+	mu                 sync.Mutex
+	cancel             context.CancelFunc
+	done               chan struct{}
+	statusMu           sync.Mutex
+	state              ClientStatus
+	registrationMu     sync.RWMutex
+	advertised         *wire.Registration
+	previousGeneration uint64 // used only by the current connection loop
 }
 
 type ClientStatus struct {
@@ -189,16 +190,21 @@ func (c *Client) Start() error {
 	if c.cancel != nil {
 		select {
 		case <-c.done:
-			c.cancel()
-			c.cancel = nil
 		default:
-			return nil
+			phase := c.Status().Phase
+			if phase != "replaced" && phase != "incompatible" {
+				return nil
+			}
+			<-c.done
 		}
+		c.cancel()
+		c.cancel = nil
 	}
 	conn, err := c.newConn()
 	if err != nil {
 		return err
 	}
+	c.previousGeneration = 0
 	ctx, cancel := context.WithCancel(c.row)
 	c.cancel = cancel
 	done := make(chan struct{})
@@ -247,11 +253,7 @@ func (c *Client) run(ctx context.Context, conn *grpc.ClientConn) {
 		if time.Since(started) >= time.Minute {
 			backoff = 500 * time.Millisecond
 		}
-		wait := backoff
 		code := status.Code(err)
-		if code == codes.PermissionDenied || code == codes.Unauthenticated {
-			wait = 30 * time.Second
-		}
 		reason := "stream-ended"
 		if err != nil {
 			reason = code.String()
@@ -263,10 +265,22 @@ func (c *Client) run(ctx context.Context, conn *grpc.ClientConn) {
 				s.Reason = info.Reason
 			}
 		}
-		if c.config.Cloud != nil && code == codes.Unimplemented {
-			s.Phase = "incompatible"
-			c.set(s)
-			return
+		if c.config.Cloud != nil {
+			switch {
+			case code == codes.Aborted && s.Reason == "REPLACED":
+				s.Phase = "replaced"
+				c.set(s)
+				return
+			case code == codes.Unimplemented:
+				s.Phase = "incompatible"
+				c.set(s)
+				return
+			}
+		}
+		wait := retryDelay(code, s.Reason, c.config.Cloud != nil, backoff)
+		if wait == 0 {
+			backoff = 500 * time.Millisecond
+			continue
 		}
 		s.Phase = "retrying"
 		s.RetryAt = time.Now().Add(wait)
@@ -278,6 +292,18 @@ func (c *Client) run(ctx context.Context, conn *grpc.ClientConn) {
 		}
 		backoff = min(2*backoff, 30*time.Second)
 	}
+}
+
+// A pairing timeout has already waited at the relay. After a peer replacement
+// the new peer is already waiting. Neither case needs an additional delay.
+func retryDelay(code codes.Code, reason string, cloud bool, backoff time.Duration) time.Duration {
+	if cloud && ((code == codes.Unavailable && reason == "PAIR_TIMEOUT") || (code == codes.Aborted && reason == "PEER_REPLACED")) {
+		return 0
+	}
+	if code == codes.PermissionDenied || code == codes.Unauthenticated {
+		return 30 * time.Second
+	}
+	return backoff
 }
 
 func (c *Client) connect(parent context.Context, conn *grpc.ClientConn) error {
@@ -294,6 +320,7 @@ func (c *Client) connect(parent context.Context, conn *grpc.ClientConn) error {
 		if !label(member.GetTenant()) || !label(member.GetId()) || !validAddress(route.Address) || !label(route.ServerName) || !label(route.Region) || len(route.Ticket) != 64 || route.Generation == 0 {
 			return status.Error(codes.FailedPrecondition, "invalid route")
 		}
+		c.previousGeneration = route.Generation
 		regional, err := dial(c.config.Identity, route.Address, route.ServerName, cfg.BearerFile == "")
 		if err != nil {
 			return status.Error(codes.FailedPrecondition, "invalid regional credentials")

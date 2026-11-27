@@ -45,8 +45,10 @@ type ControlConfig struct {
 type pairKey struct{ tenant, pair string }
 type regionState struct {
 	CloudRegion
-	until  time.Time
-	report *wire.RegionReport
+	until     time.Time
+	epoch     uint64 // changes on reacquisition, including by the same process
+	fullUntil time.Time
+	report    *wire.RegionReport
 }
 type issuedRoute struct {
 	ticket     string
@@ -56,9 +58,12 @@ type issuedRoute struct {
 }
 type placement struct {
 	CloudPair
-	region, instance string
-	reserved         time.Time
-	routes           map[string]issuedRoute
+	region       string
+	epoch        uint64
+	admitted     bool              // at least one ticket redeemed against this reservation
+	lastAdmitted map[string]uint64 // per member, retained across placements
+	reserved     time.Time
+	routes       map[string]issuedRoute
 }
 
 // Control is the single route authority in the reference deployment. A cold
@@ -137,7 +142,7 @@ func newControl(cfg ControlConfig, lease time.Duration) (*Control, error) {
 		}
 		p.Members = slices.Clone(p.Members)
 		p.Regions = slices.Clone(p.Regions)
-		c.pairs[key] = &placement{CloudPair: p, routes: map[string]issuedRoute{}}
+		c.pairs[key] = &placement{CloudPair: p, routes: map[string]issuedRoute{}, lastAdmitted: map[string]uint64{}}
 	}
 	for tenant, n := range c.quota {
 		if !tenants[tenant] || n < 1 {
@@ -213,14 +218,17 @@ func (c *Control) Heartbeat(ctx context.Context, r *wire.RegionReport) (*wire.Le
 	if now.Before(c.ready) {
 		return nil, status.Error(codes.Unavailable, "authority starting")
 	}
-	if now.Before(g.until) && g.report.Instance != r.Instance {
+	if !now.Before(g.until) {
+		g.epoch++
+		g.fullUntil = time.Time{}
+	} else if g.report.Instance != r.Instance {
 		return nil, status.Error(codes.AlreadyExists, "regional lease held")
 	}
 	g.report = proto.CloneOf(r)
 	g.until = now.Add(c.lease)
 	for _, active := range r.Pairs {
 		p := c.pairs[pairKey{active.GetTenant(), active.GetPair()}]
-		if p != nil && p.region == r.Region && p.instance == r.Instance {
+		if p != nil && p.region == r.Region && p.epoch == g.epoch {
 			p.reserved = now.Add(ticketTTL + c.lease)
 		}
 	}
@@ -228,13 +236,47 @@ func (c *Control) Heartbeat(ctx context.Context, r *wire.RegionReport) (*wire.Le
 }
 func (c *Control) placed(p *placement, now time.Time) bool {
 	g := c.regions[p.region]
-	return g != nil && now.Before(p.reserved) && now.Before(g.until) && g.report.Instance == p.instance
+	return g != nil && now.Before(p.reserved) && now.Before(g.until) && g.epoch == p.epoch
 }
+
+// Reserve both legs when placing a pair. Either member can resolve first, and
+// concurrent resolves see the same reservations under the directory lock.
+func (c *Control) hasRoom(g *regionState, p *placement, now time.Time) bool {
+	if now.Before(g.fullUntil) {
+		return false
+	}
+	limit := int64(g.report.MaxStreams)
+	if limit == 0 { // Older regional agents do not advertise a limit.
+		return true
+	}
+	if limit-int64(g.report.Streams) < 2 {
+		return false
+	}
+	slots := limit / 2
+	for _, other := range c.pairs {
+		if other != p && other.region == g.Name && c.placed(other, now) {
+			slots--
+		}
+	}
+	return slots > 0
+}
+
+func (c *Control) eligible(g *regionState, p *placement, now time.Time) bool {
+	if !now.Before(g.until) {
+		return false
+	}
+	if p.region == g.Name && c.placed(p, now) && p.admitted {
+		return true
+	}
+	return c.hasRoom(g, p, now)
+}
+
 func (c *Control) choose(p *placement, preferred string, now time.Time) (*regionState, error) {
 	if c.placed(p, now) {
-		return c.regions[p.region], nil
-	}
-	if limit := c.quota[p.Tenant]; limit > 0 {
+		if current := c.regions[p.region]; c.eligible(current, p, now) {
+			return current, nil
+		}
+	} else if limit := c.quota[p.Tenant]; limit > 0 {
 		n := 0
 		for _, other := range c.pairs {
 			if other.Tenant == p.Tenant && c.placed(other, now) {
@@ -249,13 +291,23 @@ func (c *Control) choose(p *placement, preferred string, now time.Time) (*region
 	if slices.Contains(order, preferred) {
 		order = append([]string{preferred}, order...)
 	}
+	healthy := false
 	for _, name := range order {
 		g := c.regions[name]
-		if now.Before(g.until) {
-			p.region, p.instance = g.Name, g.report.Instance
-			clear(p.routes)
-			return g, nil
+		if !now.Before(g.until) {
+			continue
 		}
+		healthy = true
+		if !c.hasRoom(g, p, now) {
+			continue
+		}
+		p.region, p.epoch = g.Name, g.epoch
+		p.admitted = false
+		clear(p.routes)
+		return g, nil
+	}
+	if healthy {
+		return nil, pairError(codes.ResourceExhausted, "STREAM_QUOTA", p.ID, "", 0)
 	}
 	return nil, pairError(codes.Unavailable, "NO_ALLOWED_REGION", p.ID, "", 0)
 }
@@ -307,13 +359,13 @@ func (c *Control) Candidates(ctx context.Context, in *wire.Registration) (*wire.
 	}
 	now := time.Now()
 	names := p.Regions
-	if c.placed(p, now) {
+	if c.placed(p, now) && c.eligible(c.regions[p.region], p, now) {
 		names = []string{p.region}
 	}
 	list := &wire.RegionList{}
 	for _, name := range names {
 		g := c.regions[name]
-		if now.Before(g.until) {
+		if c.eligible(g, p, now) {
 			list.Regions = append(list.Regions, &wire.RegionEndpoint{Name: g.Name, Address: g.Address, ServerName: g.ServerName})
 		}
 	}
@@ -332,6 +384,9 @@ func (c *Control) Resolve(ctx context.Context, in *wire.Registration) (*wire.Rou
 		return nil, err
 	}
 	now := time.Now()
+	if in.PreviousGeneration != 0 && in.PreviousGeneration < p.lastAdmitted[member.id] {
+		return nil, pairError(codes.Aborted, "REPLACED", in.Pair, in.Target, in.PreviousGeneration)
+	}
 	c.record(member, in, now)
 	g, err := c.choose(p, in.Region, now)
 	if err != nil {
@@ -362,12 +417,23 @@ func (c *Control) Admit(ctx context.Context, in *wire.Claim) (*wire.Member, erro
 	}
 	// A ticket is only usable by its assigned agent, pair, target and TLS peer.
 	for _, p := range c.pairs {
-		if p.ID != in.Pair || p.region != g.Name || p.instance != in.Instance || !slices.Contains(p.Members, in.Target) {
+		if p.ID != in.Pair || p.region != g.Name || !c.placed(p, now) || !slices.Contains(p.Members, in.Target) {
 			continue
 		}
 		for member, t := range p.routes {
 			if member != in.Target && t.generation == in.Generation && t.ticket == in.Ticket && now.Before(t.expires) && bytes.Equal(t.cert, in.CertificateHash) {
+				if in.AtCapacity && !p.admitted {
+					// No redeemed legs can reside here. Invalidate both outstanding
+					// tickets before permitting another region to take this pair.
+					clear(p.routes)
+					p.region = ""
+					p.reserved = time.Time{}
+					g.fullUntil = now.Add(c.lease)
+					return nil, pairError(codes.ResourceExhausted, "STREAM_QUOTA", p.ID, in.Target, in.Generation)
+				}
 				delete(p.routes, member)
+				p.admitted = true
+				p.lastAdmitted[member] = t.generation
 				return &wire.Member{Tenant: p.Tenant, Id: member}, nil
 			}
 		}

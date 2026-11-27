@@ -79,8 +79,9 @@ message Frame {
 
 - **模型**：relay 不挂 session、不握手、不解析 `payload`；A/B 各自与自己的 session 握手，`Hello` 端到端。relay 只把两条 stream 的 `payload` 原样对接。
 - **配对**：`x-rutis-pair` + `x-rutis-target` 定位两条 stream；租户 id 来自准入，配对键只在租户内有效。
-- **代次**：每次重连 `x-rutis-generation` 递增；同 pair 的新代次到达时，relay 关闭旧代次的两条 stream，再对接新代次。
-- **失败**：配对超时/找不到对端时，两端都收到 `UNAVAILABLE` 和结构化 `data`（pair、target、generation、reason）；不创建 session。
+- 目录为每次成功选路分配递增的 `x-rutis-generation`。同一成员的新实例接管时，中继关闭原配对。旧实例收到 `REPLACED` 后停止重试，对端收到 `PEER_REPLACED` 后立即重新配对。自动重连携带上次取得的代次，目录会拒绝已被接管的旧实例。
+- 配对等待超时后，等待方收到 `UNAVAILABLE / PAIR_TIMEOUT` 并立即重新配对。普通网络故障仍按指数退避重试。
+- 目录为新配对在一个允许区域同时预留两条流。满载时改选其他允许区域，已有成员接入的配对继续使用原区域。区域租约到期后，该租约下的预留和待用票据一起失效。
 - **不做**：relay 不做身份、不做 session 顶替、不解析 `Hello`；这些都在 A/B。
 - **边界**：relay/控制面是独立的云服务或应用，不是本地链接层的 manager/注册表，也不替 link 管凭据；不违反 #1 D11。
 

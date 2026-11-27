@@ -79,8 +79,9 @@ The session `Hello` still registers identity; the gRPC principal is not mapped t
 
 - **Model**: the relay mounts no session, does no handshake, and does not parse `payload`. A/B each handshake with their own session; `Hello` is end-to-end. The relay pairs two streams and forwards `payload` unchanged.
 - **Pairing**: `x-rutis-pair` + `x-rutis-target` locate the two streams; the tenant id comes from admission, and the pair key is tenant-scoped.
-- **Generation**: every reconnect increments `x-rutis-generation`; when a newer generation for the same pair arrives, the relay closes the two old streams and pairs the new ones.
-- **Failure**: on pair timeout/no peer, both ends get `UNAVAILABLE` with structured `data` (pair, target, generation, reason); no session is created.
+- The directory assigns an increasing `x-rutis-generation` on each successful resolution. When a new instance takes over a member, the relay closes the old pair. The superseded instance stops retrying on `REPLACED`, and its peer immediately pairs again on `PEER_REPLACED`. Automatic retries carry the previous generation so the directory can reject a superseded instance.
+- The waiting member immediately pairs again after `UNAVAILABLE / PAIR_TIMEOUT`. Ordinary network failures retain exponential backoff.
+- The directory reserves both stream slots in one permitted region. Full regions are skipped for new pairs. A pair with an admitted member retains its region. Lease expiry invalidates its reservations and outstanding tickets.
 - **Non-goals**: the relay does not own identity, replace sessions, or parse `Hello`; those live at A/B.
 - **Boundary**: the relay/control plane is a separate cloud service or application, not the local link layer's manager/registry, and does not hold link credentials; #1 D11 stays intact.
 

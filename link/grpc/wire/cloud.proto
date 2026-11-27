@@ -18,6 +18,8 @@ message Registration {
   string region = 3;
   repeated string capabilities = 4;
   uint32 load = 5;
+  // Previous route obtained by this running client. Zero starts a fresh run.
+  uint64 previous_generation = 6;
 }
 message RegionEndpoint { string name = 1; string address = 2; string server_name = 3; }
 message RegionList { repeated RegionEndpoint regions = 1; }
@@ -39,6 +41,8 @@ message Claim {
   uint64 generation = 5;
   string ticket = 6;
   bytes certificate_hash = 7;
+  // The relay has no room for another two-leg pair at redemption time.
+  bool at_capacity = 8;
 }
 message PairKey { string tenant = 1; string pair = 2; }
 message RegionReport {
@@ -49,6 +53,7 @@ message RegionReport {
   uint64 bytes = 5;
   map<string,uint64> errors = 6;
   uint32 streams = 7;
+  uint32 max_streams = 8;
 }
 message Lease { int64 milliseconds = 1; }
 message InspectRequest {}

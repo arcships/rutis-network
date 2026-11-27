@@ -126,7 +126,7 @@ func closeReason(err error) tcp.CloseReason {
 	s := status.Convert(err)
 	if s.Code() == codes.Aborted {
 		for _, d := range s.Details() {
-			if info, ok := d.(*errdetails.ErrorInfo); ok && info.Domain == "rutis.link.v1" && info.Reason == "REPLACED" {
+			if info, ok := d.(*errdetails.ErrorInfo); ok && info.Domain == "rutis.link.v1" && (info.Reason == "REPLACED" || info.Reason == "PEER_REPLACED") {
 				return tcp.CloseReason{Kind: "replaced"}
 			}
 		}

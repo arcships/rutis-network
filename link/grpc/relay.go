@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"math"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -22,13 +23,14 @@ const ticketHeader = "x-rutis-ticket"
 const versionHeader = "x-rutis-version"
 
 type rendezvous struct {
-	key      pairKey
-	ctx      context.Context
-	cancel   context.CancelCauseFunc
-	ready    chan struct{}
-	admitted chan struct{}
-	headers  atomic.Int32
-	legs     map[string]wire.CloudRelay_TunnelServer
+	replacedMember string // set under Relay.mu before canceling both old legs
+	key            pairKey
+	ctx            context.Context
+	cancel         context.CancelCauseFunc
+	ready          chan struct{}
+	admitted       chan struct{}
+	headers        atomic.Int32
+	legs           map[string]wire.CloudRelay_TunnelServer
 }
 type memberSlot struct {
 	pairKey
@@ -54,7 +56,7 @@ type Relay struct {
 }
 
 func NewRelay(control wire.CloudClient, region string, maxStreams int, pairWait time.Duration) (*Relay, error) {
-	if control == nil || !label(region) || maxStreams < 2 || pairWait <= 0 {
+	if control == nil || !label(region) || maxStreams < 2 || uint64(maxStreams) > math.MaxUint32 || pairWait <= 0 {
 		return nil, errors.New("invalid relay configuration")
 	}
 	return &Relay{
@@ -75,7 +77,7 @@ func (r *Relay) expireLocked() {
 func (r *Relay) report() *wire.RegionReport {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	out := &wire.RegionReport{Region: r.region, Instance: r.instance, Messages: r.messages.Load(), Bytes: r.bytes.Load(), Streams: uint32(r.streams), Errors: map[string]uint64{}}
+	out := &wire.RegionReport{Region: r.region, Instance: r.instance, Messages: r.messages.Load(), Bytes: r.bytes.Load(), Streams: uint32(r.streams), MaxStreams: uint32(r.maxStreams), Errors: map[string]uint64{}}
 	for k := range r.pairs {
 		out.Pairs = append(out.Pairs, &wire.PairKey{Tenant: k.tenant, Pair: k.pair})
 	}
@@ -183,6 +185,13 @@ func (r *Relay) Tunnel(s wire.CloudRelay_TunnelServer) (result error) {
 		r.mu.Lock()
 		defer r.mu.Unlock()
 		r.removeLocked(p.key, p, cause)
+		if p.replacedMember != "" {
+			reason := "REPLACED"
+			if target == p.replacedMember {
+				reason = "PEER_REPLACED"
+			}
+			result = pairError(codes.Aborted, reason, pair, target, gen)
+		}
 	}()
 	t := time.NewTimer(r.pairWait)
 	defer t.Stop()
@@ -270,8 +279,9 @@ func (r *Relay) join(s wire.CloudRelay_TunnelServer, claim *wire.Claim) (*rendez
 	}
 	if r.admitting >= r.maxStreams {
 		r.mu.Unlock()
-		return nil, pairError(codes.ResourceExhausted, "STREAM_QUOTA", pair, target, gen)
+		return nil, pairError(codes.ResourceExhausted, "ADMISSION_BUSY", pair, target, gen)
 	}
+	claim.AtCapacity = len(r.pairs) >= r.maxStreams/2
 	epoch := r.epoch
 	r.admitting++
 	r.mu.Unlock()
@@ -294,7 +304,8 @@ func (r *Relay) join(s wire.CloudRelay_TunnelServer, claim *wire.Claim) (*rendez
 	}
 	p := r.pairs[k]
 	if p != nil && p.legs[m.Id] != nil {
-		r.removeLocked(k, p, pairError(codes.Aborted, "REPLACED", pair, target, gen))
+		p.replacedMember = m.Id
+		r.removeLocked(k, p, status.Error(codes.Aborted, "member replaced"))
 		p = nil
 	}
 	if r.streams >= r.maxStreams {

@@ -22,14 +22,16 @@ const (
 )
 
 type Registration struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Pair          string                 `protobuf:"bytes,1,opt,name=pair,proto3" json:"pair,omitempty"`
-	Target        string                 `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
-	Region        string                 `protobuf:"bytes,3,opt,name=region,proto3" json:"region,omitempty"`
-	Capabilities  []string               `protobuf:"bytes,4,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
-	Load          uint32                 `protobuf:"varint,5,opt,name=load,proto3" json:"load,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Pair         string                 `protobuf:"bytes,1,opt,name=pair,proto3" json:"pair,omitempty"`
+	Target       string                 `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
+	Region       string                 `protobuf:"bytes,3,opt,name=region,proto3" json:"region,omitempty"`
+	Capabilities []string               `protobuf:"bytes,4,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	Load         uint32                 `protobuf:"varint,5,opt,name=load,proto3" json:"load,omitempty"`
+	// Previous route obtained by this running client. Zero starts a fresh run.
+	PreviousGeneration uint64 `protobuf:"varint,6,opt,name=previous_generation,json=previousGeneration,proto3" json:"previous_generation,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Registration) Reset() {
@@ -93,6 +95,13 @@ func (x *Registration) GetCapabilities() []string {
 func (x *Registration) GetLoad() uint32 {
 	if x != nil {
 		return x.Load
+	}
+	return 0
+}
+
+func (x *Registration) GetPreviousGeneration() uint64 {
+	if x != nil {
+		return x.PreviousGeneration
 	}
 	return 0
 }
@@ -382,8 +391,10 @@ type Claim struct {
 	Generation      uint64                 `protobuf:"varint,5,opt,name=generation,proto3" json:"generation,omitempty"`
 	Ticket          string                 `protobuf:"bytes,6,opt,name=ticket,proto3" json:"ticket,omitempty"`
 	CertificateHash []byte                 `protobuf:"bytes,7,opt,name=certificate_hash,json=certificateHash,proto3" json:"certificate_hash,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// The relay has no room for another two-leg pair at redemption time.
+	AtCapacity    bool `protobuf:"varint,8,opt,name=at_capacity,json=atCapacity,proto3" json:"at_capacity,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Claim) Reset() {
@@ -465,6 +476,13 @@ func (x *Claim) GetCertificateHash() []byte {
 	return nil
 }
 
+func (x *Claim) GetAtCapacity() bool {
+	if x != nil {
+		return x.AtCapacity
+	}
+	return false
+}
+
 type PairKey struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Tenant        string                 `protobuf:"bytes,1,opt,name=tenant,proto3" json:"tenant,omitempty"`
@@ -526,6 +544,7 @@ type RegionReport struct {
 	Bytes         uint64                 `protobuf:"varint,5,opt,name=bytes,proto3" json:"bytes,omitempty"`
 	Errors        map[string]uint64      `protobuf:"bytes,6,rep,name=errors,proto3" json:"errors,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
 	Streams       uint32                 `protobuf:"varint,7,opt,name=streams,proto3" json:"streams,omitempty"`
+	MaxStreams    uint32                 `protobuf:"varint,8,opt,name=max_streams,json=maxStreams,proto3" json:"max_streams,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -605,6 +624,13 @@ func (x *RegionReport) GetErrors() map[string]uint64 {
 func (x *RegionReport) GetStreams() uint32 {
 	if x != nil {
 		return x.Streams
+	}
+	return 0
+}
+
+func (x *RegionReport) GetMaxStreams() uint32 {
+	if x != nil {
+		return x.MaxStreams
 	}
 	return 0
 }
@@ -865,13 +891,14 @@ var File_wire_cloud_proto protoreflect.FileDescriptor
 
 const file_wire_cloud_proto_rawDesc = "" +
 	"\n" +
-	"\x10wire/cloud.proto\x12\rrutis.link.v1\x1a\x0fwire/link.proto\"\x8a\x01\n" +
+	"\x10wire/cloud.proto\x12\rrutis.link.v1\x1a\x0fwire/link.proto\"\xbb\x01\n" +
 	"\fRegistration\x12\x12\n" +
 	"\x04pair\x18\x01 \x01(\tR\x04pair\x12\x16\n" +
 	"\x06target\x18\x02 \x01(\tR\x06target\x12\x16\n" +
 	"\x06region\x18\x03 \x01(\tR\x06region\x12\"\n" +
 	"\fcapabilities\x18\x04 \x03(\tR\fcapabilities\x12\x12\n" +
-	"\x04load\x18\x05 \x01(\rR\x04load\"_\n" +
+	"\x04load\x18\x05 \x01(\rR\x04load\x12/\n" +
+	"\x13previous_generation\x18\x06 \x01(\x04R\x12previousGeneration\"_\n" +
 	"\x0eRegionEndpoint\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\aaddress\x18\x02 \x01(\tR\aaddress\x12\x1f\n" +
@@ -893,7 +920,7 @@ const file_wire_cloud_proto_rawDesc = "" +
 	"\x06member\x18\x06 \x01(\v2\x15.rutis.link.v1.MemberR\x06member\"0\n" +
 	"\x06Member\x12\x16\n" +
 	"\x06tenant\x18\x01 \x01(\tR\x06tenant\x12\x0e\n" +
-	"\x02id\x18\x02 \x01(\tR\x02id\"\xca\x01\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\"\xeb\x01\n" +
 	"\x05Claim\x12\x16\n" +
 	"\x06region\x18\x01 \x01(\tR\x06region\x12\x1a\n" +
 	"\binstance\x18\x02 \x01(\tR\binstance\x12\x12\n" +
@@ -903,10 +930,12 @@ const file_wire_cloud_proto_rawDesc = "" +
 	"generation\x18\x05 \x01(\x04R\n" +
 	"generation\x12\x16\n" +
 	"\x06ticket\x18\x06 \x01(\tR\x06ticket\x12)\n" +
-	"\x10certificate_hash\x18\a \x01(\fR\x0fcertificateHash\"5\n" +
+	"\x10certificate_hash\x18\a \x01(\fR\x0fcertificateHash\x12\x1f\n" +
+	"\vat_capacity\x18\b \x01(\bR\n" +
+	"atCapacity\"5\n" +
 	"\aPairKey\x12\x16\n" +
 	"\x06tenant\x18\x01 \x01(\tR\x06tenant\x12\x12\n" +
-	"\x04pair\x18\x02 \x01(\tR\x04pair\"\xb8\x02\n" +
+	"\x04pair\x18\x02 \x01(\tR\x04pair\"\xd9\x02\n" +
 	"\fRegionReport\x12\x16\n" +
 	"\x06region\x18\x01 \x01(\tR\x06region\x12\x1a\n" +
 	"\binstance\x18\x02 \x01(\tR\binstance\x12,\n" +
@@ -914,7 +943,9 @@ const file_wire_cloud_proto_rawDesc = "" +
 	"\bmessages\x18\x04 \x01(\x04R\bmessages\x12\x14\n" +
 	"\x05bytes\x18\x05 \x01(\x04R\x05bytes\x12?\n" +
 	"\x06errors\x18\x06 \x03(\v2'.rutis.link.v1.RegionReport.ErrorsEntryR\x06errors\x12\x18\n" +
-	"\astreams\x18\a \x01(\rR\astreams\x1a9\n" +
+	"\astreams\x18\a \x01(\rR\astreams\x12\x1f\n" +
+	"\vmax_streams\x18\b \x01(\rR\n" +
+	"maxStreams\x1a9\n" +
 	"\vErrorsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x04R\x05value:\x028\x01\"+\n" +
