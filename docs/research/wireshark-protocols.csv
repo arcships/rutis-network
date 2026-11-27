@@ -1,0 +1,2167 @@
+filter_id,display_name,versions,family,decision,dfref_path
+104apci,IEC 60870-5-104-Apci,1.2.0 to 3.0.14,utilities,historical,1/104apci.html
+104asdu,IEC 60870-5-104-Asdu,1.2.0 to 3.0.14,utilities,historical,1/104asdu.html
+1722a,IEEE 1722a Protocol,1.12.0 to 2.0.16,media,historical,1/1722a.html
+2dparityfec,Pro-MPEG Code of Practice #3 release 2 FEC Protocol,1.0.0 to 4.6.10,media,application,2/2dparityfec.html
+3comxns,3Com XNS Encapsulation,1.0.0 to 4.6.10,legacy,reference,3/3comxns.html
+3gpp,3GPP COMMON,3.4.0 to 4.6.10,cellular,reuse,3/3gpp.html
+4607,STANAG 4607 (GMTI Format),1.12.0 to 1.12.1,fieldradio,historical,4/4607.html
+5co_legacy,FiveCo's Legacy Register Access Protocol,4.0.0 to 4.6.10,industrial,gateway,5/5co_legacy.html
+5co_rap,FiveCo RAP Register Access Protocol,4.2.0 to 4.6.10,industrial,gateway,5/5co_rap.html
+5gli,5G Lawful Interception,3.6.0 to 4.2.14,cellular,historical,5/5gli.html
+61883,IEC 61883 Protocol,"2.2.0 to 2.4.7, 2.6.0 to 2.6.1",media,historical,6/61883.html
+6lowpan,IPv6 over Low power Wireless Personal Area Networks,1.4.0 to 4.6.10,pan,reuse,6/6lowpan.html
+9p,Plan 9,1.0.0 to 4.6.10,file,application,9/9p.html
+_ws.byte_array_string.decoding_error,Byte Array-String Decoding Error,4.2.0 to 4.6.10,capture,reference,_/_ws.byte_array_string.decoding_error.html
+_ws.col,Wireshark Columns,4.2.0 to 4.6.10,capture,reference,_/_ws.col.html
+_ws.date_time_string.decoding_error,Date and Time-String Decoding Error,4.2.0 to 4.6.10,capture,reference,_/_ws.date_time_string.decoding_error.html
+_ws.dissector_bug,Dissector Bug,4.4.0 to 4.6.10,capture,reference,_/_ws.dissector_bug.html
+_ws.expert,Expert Info,1.12.0 to 4.6.10,capture,reference,_/_ws.expert.html
+_ws.ftypes,Wireshark Field/Fundamental Types,4.0.0 to 4.6.10,capture,reference,_/_ws.ftypes.html
+_ws.lua,Lua Dissection,1.12.0 to 4.6.10,capture,reference,_/_ws.lua.html
+_ws.malformed,Malformed Packet,1.12.0 to 4.6.10,capture,reference,_/_ws.malformed.html
+_ws.number_string.decoding_error,Number-String Decoding Error,1.12.0 to 4.0.17,capture,historical,_/_ws.number_string.decoding_error.html
+_ws.string,String Errors,3.0.0 to 4.6.10,capture,reference,_/_ws.string.html
+_ws.type_length,Type Length Mismatch,1.12.0 to 4.6.10,capture,reference,_/_ws.type_length.html
+_ws.unreassembled,Unreassembled Fragmented Packet,1.12.0 to 4.6.10,capture,reference,_/_ws.unreassembled.html
+_ws.wscbor,CBOR Item Decoder,3.6.0 to 4.6.10,capture,reference,_/_ws.wscbor.html
+a11,3GPP2 A11,1.0.0 to 4.6.10,cellular,reuse,a/a11.html
+a21,A21 Protocol,1.12.0 to 4.6.10,cellular,reuse,a/a21.html
+a615a,Arinc 615a Protocol,3.4.0 to 4.6.10,aviation,application,a/a615a.html
+aaf,AVTP Audio Format,2.2.0 to 4.6.10,media,application,a/aaf.html
+aarp,Appletalk Address Resolution Protocol,1.0.0 to 4.6.10,legacy,reference,a/aarp.html
+aasp,Aastra Signalling Protocol,1.8.0 to 4.6.10,voice,application,a/aasp.html
+acap,Application Configuration Access Protocol,1.0.0 to 4.6.10,enterprise,application,a/acap.html
+acdr,Debug Recording Trace,3.4.0 to 4.6.10,capture,reference,a/acdr.html
+acf,ACF Message,3.2.0 to 4.6.10,vehicle,gateway,a/acf.html
+acf-can,ACF CAN,3.2.0 to 4.6.10,vehicle,gateway,a/acf-can.html
+acf-lin,ACF LIN,3.2.0 to 4.6.10,vehicle,gateway,a/acf-lin.html
+acn,Architecture for Control Networks,1.0.0 to 4.6.10,media,application,a/acn.html
+acp133,ACP133 Attribute Syntaxes,1.0.0 to 4.6.10,fieldradio,application,a/acp133.html
+acr122,Advanced Card Systems ACR122,1.12.0 to 4.6.10,nfc,gateway,a/acr122.html
+acse,ISO 8650-1 OSI Association Control Service,1.0.0 to 4.6.10,legacy,reference,a/acse.html
+actrace,Trunk Trace,1.0.0 to 4.6.10,capture,reference,a/actrace.html
+adb,Android Debug Bridge,2.0.0 to 4.6.10,usb,trial-link,a/adb.html
+adb_cs,Android Debug Bridge Client-Server,1.12.0 to 4.6.10,usb,gateway,a/adb_cs.html
+adb_service,Android Debug Bridge Service,2.0.0 to 4.6.10,usb,gateway,a/adb_service.html
+adp,Aruba Discovery Protocol,1.0.0 to 4.6.10,discovery,reuse,a/adp.html
+adwin,ADwin communication protocol,1.6.0 to 4.6.10,industrial,gateway,a/adwin.html
+adwin_config,ADwin configuration protocol,1.6.0 to 4.6.10,industrial,gateway,a/adwin_config.html
+aeron,Aeron Protocol,2.0.0 to 4.6.10,messaging,gateway,a/aeron.html
+afp,Apple Filing Protocol,1.0.0 to 4.6.10,file,application,a/afp.html
+afs,Andrew File System (AFS),1.0.0 to 4.6.10,storage,application,a/afs.html
+agentx,AgentX,1.0.0 to 4.6.10,ops,reuse,a/agentx.html
+ah,Authentication Header,1.0.0 to 4.6.10,overlay,reuse,a/ah.html
+aim,AOL Instant Messenger,1.0.0 to 4.6.10,collab,application,a/aim.html
+aim_admin,AIM Administrative,1.0.0 to 4.6.10,collab,application,a/aim_admin.html
+aim_bos,AIM Privacy Management Service,1.0.0 to 4.6.10,collab,application,a/aim_bos.html
+aim_buddylist,AIM Buddylist Service,1.0.0 to 4.6.10,collab,application,a/aim_buddylist.html
+aim_chat,AIM Chat Service,1.0.0 to 4.6.10,collab,application,a/aim_chat.html
+aim_generic,AIM Generic Service,1.0.0 to 4.6.10,collab,application,a/aim_generic.html
+aim_icq,AIM ICQ,1.0.0 to 4.6.10,collab,application,a/aim_icq.html
+aim_location,AIM Location,1.0.0 to 4.6.10,collab,application,a/aim_location.html
+aim_lookup,AIM User Lookup,1.0.0 to 4.6.10,collab,application,a/aim_lookup.html
+aim_messaging,AIM Messaging,1.0.0 to 4.6.10,collab,application,a/aim_messaging.html
+aim_signon,AIM Signon,1.0.0 to 4.6.10,collab,application,a/aim_signon.html
+aim_ssi,AIM Server Side Info,1.0.0 to 4.6.10,collab,application,a/aim_ssi.html
+aim_sst,AIM Server Side Themes,1.0.0 to 4.6.10,collab,application,a/aim_sst.html
+ain,Advanced Intelligent Network,3.0.0 to 4.6.10,cellular,reuse,a/ain.html
+airopeek,AiroPeek 802.11 radio information,1.0.0 to 2.0.16,capture,historical,a/airopeek.html
+aj,AllJoyn Message Protocol,1.12.0 to 4.6.10,iot,gateway,a/aj.html
+ajns,AllJoyn Name Service Protocol,1.12.0 to 4.6.10,discovery,reuse,a/ajns.html
+ajp13,Apache JServ Protocol v1.3,1.0.0 to 4.6.10,web,reuse,a/ajp13.html
+akp,Asymmetric Key Packages,4.6.0 to 4.6.10,auth,reuse,a/akp.html
+alc,Asynchronous Layered Coding,1.0.0 to 4.6.10,transport,reuse,a/alc.html
+alcap,AAL type 2 signalling protocol (Q.2630),1.0.0 to 4.6.10,cellular,reuse,a/alcap.html
+alp,ATSC Link-Layer Protocol,4.2.0 to 4.6.10,media,application,a/alp.html
+alt_beacon,AltBeacon,2.4.0 to 4.6.10,bluetooth,gateway,a/alt_beacon.html
+amf,Action Message Format,1.10.0 to 4.6.10,media,application,a/amf.html
+amp,AMP,3.2.0 to 4.6.10,delay,defer,a/amp.html
+amqp,Advanced Message Queuing Protocol,1.0.0 to 4.6.10,messaging,gateway,a/amqp.html
+amr,Adaptive Multi-Rate,1.0.0 to 4.6.10,media,application,a/amr.html
+ams,AMS,1.0.0 to 4.6.10,industrial,gateway,a/ams.html
+amt,Automatic Multicast Tunneling,2.6.0 to 4.6.10,routing,reuse,a/amt.html
+ancp,Access Node Control Protocol,1.4.0 to 4.6.10,access,reuse,a/ancp.html
+ans,Intel ANS probe,1.0.0 to 4.6.10,ops,reuse,a/ans.html
+ansi_637_tele,ANSI IS-637-A (SMS) Teleservice Layer,1.0.0 to 4.6.10,cellular,reuse,a/ansi_637_tele.html
+ansi_637_trans,ANSI IS-637-A (SMS) Transport Layer,1.0.0 to 4.6.10,cellular,reuse,a/ansi_637_trans.html
+ansi_683,ANSI IS-683 (OTA (Mobile)),1.0.0 to 4.6.10,cellular,reuse,a/ansi_683.html
+ansi_801,ANSI IS-801 (Location Services (PLD)),1.0.0 to 4.6.10,cellular,reuse,a/ansi_801.html
+ansi_a_bsmap,ANSI A-I/F BSMAP,1.0.0 to 4.6.10,cellular,reuse,a/ansi_a_bsmap.html
+ansi_map,ANSI Mobile Application Part,1.0.0 to 4.6.10,cellular,reuse,a/ansi_map.html
+ansi_tcap,ANSI Transaction Capabilities Application Part,1.0.0 to 4.6.10,cellular,reuse,a/ansi_tcap.html
+aodv,Ad hoc On-demand Distance Vector Routing Protocol,1.0.0 to 4.6.10,routing,reuse,a/aodv.html
+aoe,ATAoverEthernet,1.0.0 to 4.6.10,storage,application,a/aoe.html
+aol,America Online,1.10.0 to 4.6.10,collab,application,a/aol.html
+ap1394,Apple IP-over-IEEE 1394,1.0.0 to 4.6.10,legacy,reference,a/ap1394.html
+apap,Printer Access Protocol,1.0.0 to 1.8.15,peripheral,historical,a/apap.html
+applemidi,Apple Network-MIDI Session Protocol,1.4.0 to 4.6.10,media,application,a/applemidi.html
+aprs,Automatic Position Reporting System,1.10.0 to 4.6.10,radio,application,a/aprs.html
+aptx,aptX Codec,2.0.0 to 4.6.10,media,application,a/aptx.html
+ar_drone,AR Drone Packet,1.10.0 to 4.6.10,aviation,application,a/ar_drone.html
+arcnet,ARCNET,1.0.0 to 4.6.10,legacy,reference,a/arcnet.html
+armagetronad,The Armagetron Advanced OpenGL Tron clone,1.0.0 to 4.6.10,gaming,application,a/armagetronad.html
+arp,Address Resolution Protocol,1.0.0 to 4.6.10,routing,reuse,a/arp.html
+artemis,Artemis Core Protocol,2.6.0 to 4.6.10,messaging,gateway,a/artemis.html
+artnet,Art-Net,1.0.0 to 4.6.10,media,application,a/artnet.html
+aruba_erm,Aruba Networks encapsulated remote mirroring,1.4.0 to 4.6.10,capture,reference,a/aruba_erm.html
+aruba_iap,Aruba Instant AP Protocol,1.12.0 to 4.6.10,wifi,reuse,a/aruba_iap.html
+asam-cmp,ASAM Capture Module Protocol,4.2.0 to 4.6.10,vehicle,gateway,a/asam-cmp.html
+asap,Aggregate Server Access Protocol,1.0.0 to 4.6.10,transport,reuse,a/asap.html
+ascend,Lucent/Ascend debug output,1.0.0 to 4.6.10,capture,reference,a/ascend.html
+asf,Alert Standard Forum,1.0.0 to 4.6.10,ops,reuse,a/asf.html
+asp,AppleTalk Session Protocol,1.0.0 to 4.6.10,legacy,reference,a/asp.html
+asphodel,Asphodel,3.4.0 to 4.6.10,industrial,gateway,a/asphodel.html
+asterix,ASTERIX packet,1.12.0 to 4.6.10,aviation,application,a/asterix.html
+at,AT Command,1.6.0 to 4.6.10,usb,gateway,a/at.html
+ath,Apache Tribes Heartbeat Protocol,2.0.0 to 4.6.10,enterprise,application,a/ath.html
+atldf,Allied Telesis Loop Detection,4.0.0 to 4.6.10,lan,reuse,a/atldf.html
+atm,Asynchronous Transfer Mode,1.0.0 to 4.6.10,access,reuse,a/atm.html
+atmtcp,ATM over TCP,1.6.0 to 4.6.10,access,reuse,a/atmtcp.html
+atn-cm,ICAO Doc9705 CM,1.12.0 to 4.6.10,aviation,application,a/atn-cm.html
+atn-cpdlc,ICAO Doc9705 CPDLC,1.12.0 to 4.6.10,aviation,application,a/atn-cpdlc.html
+atn-ulcs,ICAO Doc9705 ULCS,1.12.0 to 4.6.10,aviation,application,a/atn-ulcs.html
+atn_sl,ATN Security Label,4.4.0 to 4.6.10,aviation,application,a/atn_sl.html
+atp,AppleTalk Transaction Protocol packet,1.0.0 to 4.6.10,legacy,reference,a/atp.html
+atrl,Allied Telesis Resiliency Link,4.4.0 to 4.6.10,lan,reuse,a/atrl.html
+atsvc,Microsoft AT-Scheduler Service,1.0.0 to 4.6.10,enterprise,application,a/atsvc.html
+auto_rp,Cisco Auto-RP,1.0.0 to 4.6.10,routing,reuse,a/auto_rp.html
+autosar-nm,AUTOSAR Network Management,3.0.0 to 4.6.10,vehicle,gateway,a/autosar-nm.html
+avsp,Arista Vendor Specific Protocol,2.6.0 to 4.6.10,lan,reuse,a/avsp.html
+awdl,Apple Wireless Direct Link action frame,3.0.0 to 4.6.10,wifi,reuse,a/awdl.html
+awdl_data,Apple Wireless Direct Link data frame,3.0.0 to 4.6.10,wifi,reuse,a/awdl_data.html
+ax25,Amateur Radio AX.25,1.10.0 to 4.6.10,radio,application,a/ax25.html
+ax25_kiss,AX.25 KISS,1.10.0 to 4.6.10,radio,application,a/ax25_kiss.html
+ax4000,AX/4000 Test Block,1.0.0 to 4.6.10,ops,reuse,a/ax4000.html
+ayiya,Anything in Anything Protocol,1.2.0 to 4.6.10,overlay,reuse,a/ayiya.html
+babel,Babel Routing Protocol,1.6.0 to 4.6.10,routing,reuse,b/babel.html
+bacapp,Building Automation and Control Network APDU,1.0.0 to 4.6.10,building,gateway,b/bacapp.html
+bacnet,Building Automation and Control Network NPDU,1.0.0 to 4.6.10,building,gateway,b/bacnet.html
+bacp,PPP Bandwidth Allocation Control Protocol,1.0.0 to 4.6.10,access,reuse,b/bacp.html
+banana,Twisted Banana,1.4.0 to 4.6.10,format,reference,b/banana.html
+bap,PPP Bandwidth Allocation Protocol,1.0.0 to 4.6.10,access,reuse,b/bap.html
+basicxid,Logical-Link Control Basic Format XID,1.0.0 to 4.6.10,legacy,reference,b/basicxid.html
+bat,B.A.T.M.A.N. Layer 3 Protocol,1.2.0 to 4.6.10,wifi,reuse,b/bat.html
+batadv,B.A.T.M.A.N. Advanced Protocol,1.4.0 to 4.6.10,wifi,reuse,b/batadv.html
+bblog,Black Box Log,3.6.0 to 4.6.10,capture,reference,b/bblog.html
+bcp,PPP Bridging Control Protocol,1.0.0 to 2.0.16,access,historical,b/bcp.html
+bcp_bpdu,PPP Bridging Control Protocol Bridged PDU,2.2.0 to 4.6.10,access,reuse,b/bcp_bpdu.html
+bcp_ncp,PPP Bridging Control Protocol Network Control Protocol,2.2.0 to 4.6.10,access,reuse,b/bcp_ncp.html
+bctp,BCTP Q.1990,1.0.0 to 4.6.10,cellular,reuse,b/bctp.html
+beacon,Bluetooth Mesh Beacon,3.2.0 to 4.6.10,bluetooth,gateway,b/beacon.html
+beep,Blocks Extensible Exchange Protocol,1.0.0 to 4.6.10,enterprise,application,b/beep.html
+bencode,Bencode,1.12.0 to 4.6.10,format,reference,b/bencode.html
+ber,Basic Encoding Rules (ASN.1 X.690),1.0.0 to 4.6.10,format,reference,b/ber.html
+bfcp,Binary Floor Control Protocol,1.8.0 to 4.6.10,voice,application,b/bfcp.html
+bfd,Bidirectional Forwarding Detection Control Message,1.0.0 to 4.6.10,routing,reuse,b/bfd.html
+bfd_echo,Bidirectional Forwarding Detection Echo Packet,3.4.0 to 4.6.10,routing,reuse,b/bfd_echo.html
+bgp,Border Gateway Protocol,1.0.0 to 4.6.10,routing,reuse,b/bgp.html
+bhttp,Binary representation of HTTP Messages,4.6.0 to 4.6.10,web,reuse,b/bhttp.html
+bicc,Bearer Independent Call Control,1.0.0 to 4.6.10,cellular,reuse,b/bicc.html
+bicc_mst,3GPP BICC MST,3.2.0 to 4.6.10,cellular,reuse,b/bicc_mst.html
+bier,Bit Index Explicit Replication,4.4.0 to 4.6.10,routing,reuse,b/bier.html
+bist_itch,BIST ITCH,4.6.0 to 4.6.10,finance,application,b/bist_itch.html
+bist_ouch,BIST OUCH,4.6.0 to 4.6.10,finance,application,b/bist_ouch.html
+bitcoin,Bitcoin protocol,1.10.0 to 4.6.10,finance,application,b/bitcoin.html
+bittorrent,BitTorrent,1.0.0 to 4.6.10,file,application,b/bittorrent.html
+bjnp,Canon BJNP,1.2.0 to 4.6.10,peripheral,gateway,b/bjnp.html
+blip,BLIP Couchbase Mobile,3.0.0 to 4.6.10,database,application,b/blip.html
+bluecom,bluecom Protocol,2.2.0 to 4.6.10,industrial,gateway,b/bluecom.html
+bluetooth,Bluetooth,2.0.0 to 4.6.10,bluetooth,reuse,b/bluetooth.html
+bluetooth.gaen,Google/Apple Exposure Notification,3.4.0 to 4.6.10,bluetooth,gateway,b/bluetooth.gaen.html
+bluetooth.matter,Matter Advertising Data,4.4.0 to 4.6.10,matter,gateway,b/bluetooth.matter.html
+bmc,Broadcast/Multicast Control,1.6.0 to 4.6.10,cellular,reuse,b/bmc.html
+bmp,BGP Monitoring Protocol,2.0.0 to 4.6.10,routing,reuse,b/bmp.html
+bofl,Wellfleet Breath of Life,1.0.0 to 4.6.10,ops,reuse,b/bofl.html
+bootp,Bootstrap Protocol,1.0.0 to 2.6.20,discovery,historical,b/bootp.html
+bootparams,Boot Parameters,1.0.0 to 4.6.10,discovery,reuse,b/bootparams.html
+bossvr,DCE DFS Basic Overseer Server,1.0.0 to 4.6.10,enterprise,application,b/bossvr.html
+bpq,Amateur Radio BPQ,1.10.0 to 4.6.10,radio,application,b/bpq.html
+bpsec,DTN Bundle Protocol Security,3.6.0 to 4.6.10,delay,defer,b/bpsec.html
+bpsec-cose,BPSec COSE Context,4.6.0 to 4.6.10,delay,defer,b/bpsec-cose.html
+bpsec-defaultsc,BPSec Default Security Contexts,4.6.0 to 4.6.10,delay,defer,b/bpsec-defaultsc.html
+bpv7,DTN Bundle Protocol Version 7,3.6.0 to 4.6.10,delay,defer,b/bpv7.html
+brcm-tag,Broadcom tag protocol,2.6.0 to 4.6.10,lan,reuse,b/brcm-tag.html
+brdwlk,Boardwalk,1.0.0 to 4.6.10,capture,reference,b/brdwlk.html
+browser,Microsoft Windows Browser Protocol,1.0.0 to 4.6.10,enterprise,application,b/browser.html
+brp,BRP Protocol,1.8.0 to 4.6.10,media,application,b/brp.html
+bscvlc,BACnet Secure Connect Virtual Link Control,3.6.0 to 4.6.10,building,gateway,b/bscvlc.html
+bssap,BSSAP,1.0.0 to 4.6.10,cellular,reuse,b/bssap.html
+bssgp,Base Station Subsystem GPRS Protocol,1.0.0 to 4.6.10,cellular,reuse,b/bssgp.html
+bsslap,BSS LCS Assistance Protocol,1.2.0 to 4.6.10,cellular,reuse,b/bsslap.html
+bt-dht,BitTorrent DHT Protocol,1.8.0 to 4.6.10,file,application,b/bt-dht.html
+bt-tracker,BitTorrent Tracker,4.2.0 to 4.6.10,file,application,b/bt-tracker.html
+bt-utp,uTorrent Transport Protocol,1.6.0 to 4.6.10,file,application,b/bt-utp.html
+bt3ds,Bluetooth 3DS Profile,1.12.0 to 4.6.10,bluetooth,gateway,b/bt3ds.html
+bta2dp,Bluetooth A2DP Profile,1.10.0 to 4.6.10,bluetooth,gateway,b/bta2dp.html
+bta2dp_content_protection_header_scms_t,Bluetooth A2DP Content Protection Header SCMS-T,1.12.0 to 4.6.10,bluetooth,gateway,b/bta2dp_content_protection_header_scms_t.html
+btamp,Bluetooth AMP Packet,1.4.0 to 4.6.10,bluetooth,gateway,b/btamp.html
+btatt,Bluetooth Attribute Protocol,1.10.0 to 4.6.10,bluetooth,reuse,b/btatt.html
+btavctp,Bluetooth AVCTP Protocol,1.10.0 to 4.6.10,bluetooth,gateway,b/btavctp.html
+btavdtp,Bluetooth AVDTP Protocol,1.10.0 to 4.6.10,bluetooth,gateway,b/btavdtp.html
+btavrcp,Bluetooth AVRCP Profile,1.10.0 to 4.6.10,bluetooth,gateway,b/btavrcp.html
+btbnep,Bluetooth BNEP Protocol,1.10.0 to 4.6.10,bluetooth,gateway,b/btbnep.html
+btbredr_fhs,Bluetooth BR/EDR FHS,3.6.0 to 4.6.10,bluetooth,gateway,b/btbredr_fhs.html
+btbredr_rf,Bluetooth Pseudoheader for BR/EDR,2.2.0 to 4.6.10,bluetooth,gateway,b/btbredr_rf.html
+btcommon,Bluetooth Common,1.12.0 to 4.6.10,bluetooth,gateway,b/btcommon.html
+btdun,Bluetooth DUN Packet,1.6.0 to 4.6.10,bluetooth,gateway,b/btdun.html
+btgatt,Bluetooth GATT Attribute Protocol,2.2.0 to 4.6.10,bluetooth,reuse,b/btgatt.html
+btgnss,Bluetooth GNSS Profile,1.10.0 to 4.6.10,bluetooth,gateway,b/btgnss.html
+bthci_acl,Bluetooth HCI ACL Packet,1.0.0 to 4.6.10,bluetooth,gateway,b/bthci_acl.html
+bthci_cmd,Bluetooth HCI Command,1.0.0 to 4.6.10,bluetooth,gateway,b/bthci_cmd.html
+bthci_evt,Bluetooth HCI Event,1.0.0 to 4.6.10,bluetooth,gateway,b/bthci_evt.html
+bthci_iso,Bluetooth HCI ISO Packet,3.4.0 to 4.6.10,bluetooth,gateway,b/bthci_iso.html
+bthci_iso_data,Bluetooth ISO Data,3.4.0 to 4.6.10,bluetooth,gateway,b/bthci_iso_data.html
+bthci_sco,Bluetooth HCI SCO Packet,1.0.0 to 4.6.10,bluetooth,gateway,b/bthci_sco.html
+bthci_vendor.android,Bluetooth Android HCI,4.6.0 to 4.6.10,bluetooth,gateway,b/bthci_vendor.android.html
+bthci_vendor.broadcom,Bluetooth Broadcom HCI,2.0.0 to 4.6.10,bluetooth,gateway,b/bthci_vendor.broadcom.html
+bthci_vendor.intel,Bluetooth Intel HCI,2.4.0 to 4.6.10,bluetooth,gateway,b/bthci_vendor.intel.html
+bthcrp,Bluetooth HCRP Profile,1.10.0 to 4.6.10,bluetooth,gateway,b/bthcrp.html
+bthf,Bluetooth Handsfree Packet,1.6.0 to 1.8.15,bluetooth,historical,b/bthf.html
+bthfp,Bluetooth HFP Profile,1.10.0 to 4.6.10,bluetooth,gateway,b/bthfp.html
+bthid,Bluetooth HID Profile,1.10.0 to 4.6.10,bluetooth,gateway,b/bthid.html
+bthsp,Bluetooth HSP Profile,1.12.0 to 4.6.10,bluetooth,gateway,b/bthsp.html
+btl2cap,Bluetooth L2CAP Protocol,1.0.0 to 4.6.10,bluetooth,reuse,b/btl2cap.html
+btle,Bluetooth Low Energy Link Layer,1.12.0 to 4.6.10,bluetooth,reuse,b/btle.html
+btle_rf,Bluetooth Low Energy RF Info,1.12.0 to 4.6.10,bluetooth,gateway,b/btle_rf.html
+btlmp,Bluetooth Link Manager Protocol,3.6.0 to 4.6.10,bluetooth,gateway,b/btlmp.html
+btmcap,Bluetooth MCAP Protocol,1.10.0 to 4.6.10,bluetooth,gateway,b/btmcap.html
+btmesh,Bluetooth Mesh,2.6.0 to 4.6.10,bluetooth,gateway,b/btmesh.html
+btmproxy,Bluetooth Mesh Proxy,3.2.0 to 4.6.10,bluetooth,gateway,b/btmproxy.html
+btobex,Bluetooth OBEX Protocol,1.4.0 to 2.0.16,bluetooth,historical,b/btobex.html
+btp-matter,Matter Bluetooth Transport Protocol,4.4.0 to 4.6.10,matter,gateway,b/btp-matter.html
+btpa,BTP-A,3.0.0 to 4.6.10,vehicle,gateway,b/btpa.html
+btpb,BTP-B,3.0.0 to 4.6.10,vehicle,gateway,b/btpb.html
+btrfcomm,Bluetooth RFCOMM Protocol,1.0.0 to 4.6.10,bluetooth,gateway,b/btrfcomm.html
+btsap,Bluetooth SAP Profile,1.10.0 to 4.6.10,bluetooth,gateway,b/btsap.html
+btsdp,Bluetooth SDP Protocol,1.0.0 to 4.6.10,bluetooth,gateway,b/btsdp.html
+btsmp,Bluetooth Security Manager Protocol,1.10.0 to 4.6.10,bluetooth,gateway,b/btsmp.html
+btsnoop,Symbian OS BTSNOOP File Format,2.0.0 to 4.6.10,capture,reference,b/btsnoop.html
+btspp,Bluetooth SPP Packet,1.6.0 to 4.6.10,bluetooth,gateway,b/btspp.html
+btvdp,Bluetooth VDP Profile,1.10.0 to 4.6.10,bluetooth,gateway,b/btvdp.html
+btvdp_content_protection_header_scms_t,Bluetooth VDP Content Protection Header SCMS-T,1.12.0 to 4.6.10,bluetooth,gateway,b/btvdp_content_protection_header_scms_t.html
+budb,DCE/DFS BUDB,1.0.0 to 4.6.10,enterprise,application,b/budb.html
+bundle,Bundle Protocol,1.4.0 to 4.6.10,delay,defer,b/bundle.html
+busmirroring,Bus Mirroring Protocol,4.4.0 to 4.6.10,vehicle,gateway,b/busmirroring.html
+butc,DCE/RPC BUTC,1.0.0 to 4.6.10,enterprise,application,b/butc.html
+bvlc,BACnet Virtual Link Control,1.0.0 to 4.6.10,building,gateway,b/bvlc.html
+bzr,Bazaar Smart Protocol,1.8.0 to 4.6.10,file,application,b/bzr.html
+c1222,ANSI C12.22,1.8.0 to 4.6.10,utilities,gateway,c/c1222.html
+c15,C15 Call History Protocol,2.0.0 to 4.6.10,voice,application,c/c15.html
+c15.ch,C15 Call History Common Header Protocol,2.0.0 to 4.6.10,voice,application,c/c15.ch.html
+c15.inc_gwe,C15 Incoming GWE,2.0.0 to 4.6.10,voice,application,c/c15.inc_gwe.html
+c15.out_gwe,C15 Outgoing GWE,2.0.0 to 4.6.10,voice,application,c/c15.out_gwe.html
+c15.tone,C15 Tone,2.0.0 to 4.6.10,voice,application,c/c15.tone.html
+c15hbeat,C15 Call History Heartbeat Protocol,2.0.0 to 4.6.10,voice,application,c/c15hbeat.html
+c2p,C2P (Commsignia Capture Protocol),4.6.0 to 4.6.10,capture,reference,c/c2p.html
+calcappprotocol,Calculation Application Protocol,1.0.0 to 4.6.10,ops,reuse,c/calcappprotocol.html
+camel,Camel,1.0.0 to 4.6.10,cellular,reuse,c/camel.html
+can,Controller Area Network,1.4.0 to 4.6.10,vehicle,gateway,c/can.html
+caneth,Controller Area Network over Ethernet,2.6.0 to 4.6.10,vehicle,gateway,c/caneth.html
+canopen,CANopen,1.8.0 to 4.6.10,vehicle,gateway,c/canopen.html
+capwap,Control And Provisioning of Wireless Access Points - Control,1.4.0 to 4.6.10,wifi,reuse,c/capwap.html
+carp,Common Address Redundancy Protocol,1.12.0 to 4.6.10,routing,reuse,c/carp.html
+cast,Cast Client Control Protocol,1.0.0 to 4.6.10,media,application,c/cast.html
+cattp,ETSI Card Application Toolkit Transport Protocol,2.0.0 to 4.6.10,cellular,reuse,c/cattp.html
+cba_acco_cb,ICBAAccoCallback,1.0.0 to 4.6.10,industrial,gateway,c/cba_acco_cb.html
+cba_acco_mgt,ICBAAccoMgt,1.0.0 to 4.6.10,industrial,gateway,c/cba_acco_mgt.html
+cba_acco_server,ICBAAccoServer,1.0.0 to 4.6.10,industrial,gateway,c/cba_acco_server.html
+cba_browse,ICBABrowse,1.0.0 to 4.6.10,industrial,gateway,c/cba_browse.html
+cba_pdev,ICBAPhysicalDevice,1.0.0 to 4.6.10,industrial,gateway,c/cba_pdev.html
+cbcp,PPP Callback Control Protocol,1.0.0 to 4.6.10,access,reuse,c/cbcp.html
+cbor,Concise Binary Object Representation,2.0.0 to 4.6.10,format,reference,c/cbor.html
+cbrs_oids,Citizen Broadband Radio Service - Object Identifiers,3.0.0 to 4.6.10,cellular,reuse,c/cbrs_oids.html
+cbsp,3GPP/GSM Cell Broadcast Service Protocol,3.2.0 to 4.6.10,cellular,reuse,c/cbsp.html
+ccp,PPP Compression Control Protocol,1.0.0 to 4.6.10,access,reuse,c/ccp.html
+ccsds,CCSDS,1.0.0 to 4.6.10,delay,defer,c/ccsds.html
+ccsrl,H.324/CCSRL,1.0.0 to 4.6.10,voice,application,c/ccsrl.html
+cdma2k,CDMA2K,3.0.0 to 4.6.10,cellular,reuse,c/cdma2k.html
+cdp,Cisco Discovery Protocol,1.0.0 to 4.6.10,lan,reuse,c/cdp.html
+cds_clerkserver,CDS Clerk Server Calls,1.0.0 to 4.6.10,enterprise,application,c/cds_clerkserver.html
+cds_solicit,DCE/RPC CDS Solicitation,1.0.0 to 4.6.10,enterprise,application,c/cds_solicit.html
+cdt,Compressed Data Type,1.0.0 to 4.6.10,format,reference,c/cdt.html
+cemi,Common External Message Interface,3.0.0 to 4.6.10,building,gateway,c/cemi.html
+ceph,Ceph,2.0.0 to 4.6.10,storage,application,c/ceph.html
+cesoeth,Circuit Emulation Service over Ethernet,3.0.0 to 4.6.10,access,reuse,c/cesoeth.html
+cfdp,CFDP,1.12.0 to 4.6.10,delay,defer,c/cfdp.html
+cflow,Cisco NetFlow/IPFIX,1.0.0 to 4.6.10,ops,reuse,c/cflow.html
+cfm,CFM EOAM IEEE 802.1Q/ITU-T Y.1731 Protocol,1.0.0 to 4.6.10,lan,reuse,c/cfm.html
+cfp,Cisco FabricPath,1.8.0 to 4.6.10,lan,reuse,c/cfp.html
+cgmp,Cisco Group Management Protocol,1.0.0 to 4.6.10,routing,reuse,c/cgmp.html
+chap,PPP Challenge Handshake Authentication Protocol,1.0.0 to 4.6.10,auth,reuse,c/chap.html
+chargen,Character Generator Protocol,2.0.0 to 4.6.10,ops,reuse,c/chargen.html
+chargingase,Charging ASE,1.2.0 to 4.6.10,cellular,reuse,c/chargingase.html
+chdlc,Cisco HDLC,1.0.0 to 4.6.10,access,reuse,c/chdlc.html
+cigi,Common Image Generator Interface,1.0.0 to 4.6.10,fieldradio,application,c/cigi.html
+cimd,Computer Interface to Message Distribution,1.0.0 to 4.6.10,collab,application,c/cimd.html
+cimetrics,Cimetrics MS/TP,1.2.0 to 4.6.10,building,gateway,c/cimetrics.html
+cip,Common Industrial Protocol,1.0.0 to 4.6.10,industrial,gateway,c/cip.html
+cipcc,Concurrent Connection Packet,4.2.0 to 4.6.10,industrial,gateway,c/cipcc.html
+cipcco,CIP Connection Configuration Object,1.4.0 to 4.6.10,industrial,gateway,c/cipcco.html
+cipcm,CIP Connection Manager,1.4.0 to 4.6.10,industrial,gateway,c/cipcm.html
+cipm,"Common Industrial Protocol, Motion",1.8.0 to 4.6.10,industrial,gateway,c/cipm.html
+cipmb,CIP Modbus Object,1.8.0 to 4.6.10,industrial,gateway,c/cipmb.html
+cippccc,CIP PCCC Object,3.0.0 to 4.6.10,industrial,gateway,c/cippccc.html
+cipsafety,"Common Industrial Protocol, Safety",1.8.0 to 4.6.10,industrial,gateway,c/cipsafety.html
+cipssupervisor,CIP Safety Supervisor,1.8.0 to 4.6.10,industrial,gateway,c/cipssupervisor.html
+cipsvalidator,CIP Safety Validator,1.8.0 to 4.6.10,industrial,gateway,c/cipsvalidator.html
+cisco-erspan3-marker,CISCO ERSPAN3 Marker Packet,2.2.0 to 3.6.24,capture,historical,c/cisco-erspan3-marker.html
+cl3,CableLabs Layer 3 Protocol,3.2.0 to 4.6.10,access,reuse,c/cl3.html
+cl3dcw,CableLabs Dual-Channel Wi-Fi,3.2.0 to 4.6.10,wifi,reuse,c/cl3dcw.html
+classicstun,Simple Traversal of UDP Through NAT,1.4.0 to 4.6.10,traversal,reference,c/classicstun.html
+clearcase,Clearcase NFS,1.0.0 to 4.6.10,storage,application,c/clearcase.html
+clip,Classical IP frame,2.0.0 to 4.6.10,access,reuse,c/clip.html
+clique-rm,Clique Reliable Multicast Protocol,1.10.0 to 4.6.10,transport,reuse,c/clique-rm.html
+clnp,ISO 8473/X.233 CLNP ConnectionLess Network Protocol,1.0.0 to 4.6.10,legacy,reference,c/clnp.html
+cltp,ISO 8602/X.234 CLTP ConnectionLess Transport Protocol,1.0.0 to 4.6.10,legacy,reference,c/cltp.html
+clusapi,Failover Cluster Management API (clusapi),2.4.0 to 4.6.10,enterprise,application,c/clusapi.html
+cmctrl_tlv,DOCSIS CM-CTRL TLV's,1.6.0 to 2.2.17,access,historical,c/cmctrl_tlv.html
+cmd,Cisco MetaData,1.12.0 to 4.6.10,lan,reuse,c/cmd.html
+cmip,X711 CMIP,1.0.0 to 4.6.10,ops,reuse,c/cmip.html
+cmp,Certificate Management Protocol,1.0.0 to 4.6.10,auth,reuse,c/cmp.html
+cmpp,China Mobile Point to Point Protocol,1.0.0 to 4.6.10,collab,application,c/cmpp.html
+cms,Cryptographic Message Syntax,1.0.0 to 4.6.10,auth,reuse,c/cms.html
+cnip,Component Network over IP,1.8.0 to 4.6.10,building,gateway,c/cnip.html
+coap,Constrained Application Protocol,1.6.0 to 4.6.10,resource,trial-service,c/coap.html
+collectd,collectd network data,1.4.0 to 4.6.10,ops,reuse,c/collectd.html
+communityid,Community ID Flow Hashing,3.4.0 to 4.6.10,capture,reference,c/communityid.html
+componentstatusprotocol,Component Status Protocol,1.0.0 to 4.6.10,ops,reuse,c/componentstatusprotocol.html
+conv,DCE/RPC Conversation Manager,1.0.0 to 4.6.10,enterprise,application,c/conv.html
+cops,Common Open Policy Service,1.0.0 to 4.6.10,ops,reuse,c/cops.html
+corosync_totemnet,Totemnet Layer of Corosync Cluster Engine,2.0.0 to 4.6.10,enterprise,application,c/corosync_totemnet.html
+corosync_totemsrp,Totem Single Ring Protocol implemented in Corosync Cluster Engine,2.0.0 to 4.6.10,enterprise,application,c/corosync_totemsrp.html
+cose,CBOR Object Signing and Encryption,3.6.0 to 4.6.10,auth,reuse,c/cose.html
+cosem,DLMS/COSEM,4.6.0 to 4.6.10,utilities,gateway,c/cosem.html
+cosine,CoSine IPNOS L2 debug output,1.0.0 to 4.6.10,capture,reference,c/cosine.html
+cotp,ISO 8073/X.224 COTP Connection-Oriented Transport Protocol,1.0.0 to 4.6.10,legacy,reference,c/cotp.html
+couchbase,Couchbase Protocol,2.0.0 to 4.6.10,database,application,c/couchbase.html
+cp2179,CP2179 Protocol,2.0.0 to 4.6.10,utilities,gateway,c/cp2179.html
+cpfi,Cross Point Frame Injector,1.0.0 to 4.6.10,capture,reference,c/cpfi.html
+cpha,Check Point High Availability Protocol,1.0.0 to 4.6.10,enterprise,application,c/cpha.html
+cprpc_server,DNS Control Program Server,1.0.0 to 4.6.10,enterprise,application,c/cprpc_server.html
+cql,Cassandra CQL Protocol,2.2.0 to 4.6.10,database,application,c/cql.html
+credssp,Credential Security Support Provider,1.8.0 to 4.6.10,auth,reuse,c/credssp.html
+crf,Clock Reference Format,2.2.0 to 4.6.10,media,application,c/crf.html
+crmf,Certificate Request Message Format,1.0.0 to 4.6.10,auth,reuse,c/crmf.html
+crtp,CRTP,1.0.0 to 4.6.10,voice,application,c/crtp.html
+csm_encaps,CSM_ENCAPS,1.0.0 to 4.6.10,capture,reference,c/csm_encaps.html
+csn1,CSN.1,2.0.0 to 4.6.10,format,reference,c/csn1.html
+ctdb,Cluster TDB,1.0.0 to 4.6.10,database,application,c/ctdb.html
+cups,Common Unix Printing System (CUPS) Browsing Protocol,1.0.0 to 4.6.10,peripheral,gateway,c/cups.html
+cvf,AVTP Compressed Video Format,2.6.0 to 4.6.10,media,application,c/cvf.html
+cvspserver,CVS pserver,2.6.0 to 4.6.10,file,application,c/cvspserver.html
+cwids,Cisco Wireless IDS Captures,1.0.0 to 4.6.10,capture,reference,c/cwids.html
+daap,Digital Audio Access Protocol,1.0.0 to 4.6.10,media,application,d/daap.html
+dap,X.519 Directory Access Protocol,1.0.0 to 4.6.10,enterprise,application,d/dap.html
+data,Data,1.0.0 to 4.6.10,capture,reference,d/data.html
+daytime,Daytime Protocol,1.0.0 to 4.6.10,ops,reuse,d/daytime.html
+db-lsp,Dropbox LAN sync Protocol,1.4.0 to 4.6.10,file,application,d/db-lsp.html
+dbus,D-Bus,1.10.0 to 4.6.10,enterprise,application,d/dbus.html
+dc,Dublin Core Metadata (DC),1.0.0 to 4.6.10,format,reference,d/dc.html
+dcc,Distributed Checksum Clearinghouse protocol,1.0.0 to 4.6.10,collab,application,d/dcc.html
+dccp,Datagram Congestion Control Protocol,1.0.0 to 4.6.10,transport,reuse,d/dccp.html
+dce_update,DCE/RPC UpServer,1.0.0 to 4.6.10,enterprise,application,d/dce_update.html
+dcerpc,Distributed Computing Environment / Remote Procedure Call (DCE/RPC),1.0.0 to 4.6.10,enterprise,application,d/dcerpc.html
+dcm,DICOM,1.0.0 to 1.0.16,medical,historical,d/dcm.html
+dcom,DCOM,1.0.0 to 4.6.10,enterprise,application,d/dcom.html
+dcp-af,DCP Application Framing Layer,1.0.0 to 4.6.10,media,application,d/dcp-af.html
+dcp-etsi,ETSI Distribution & Communication Protocol (for DRM),1.0.0 to 4.6.10,media,application,d/dcp-etsi.html
+dcp-pft,"DCP Protection, Fragmentation & Transport Layer",1.0.0 to 4.6.10,media,application,d/dcp-pft.html
+dcp-tpl,DCP Tag Packet Layer,1.0.0 to 4.6.10,media,application,d/dcp-tpl.html
+dct2000,Catapult DCT2000 packet,1.0.0 to 4.6.10,capture,reference,d/dct2000.html
+ddp,Datagram Delivery Protocol,1.0.0 to 4.6.10,legacy,reference,d/ddp.html
+ddtp,Dynamic DNS Tools Protocol,1.0.0 to 4.6.10,discovery,reuse,d/ddtp.html
+dec_dna,DEC DNA Routing Protocol,1.0.0 to 4.6.10,legacy,reference,d/dec_dna.html
+dec_stp,DEC Spanning Tree Protocol,1.0.0 to 4.6.10,legacy,reference,d/dec_stp.html
+dect,DECT Protocol,1.2.0 to 4.6.10,cellular,reuse,d/dect.html
+dect_dlc,DECT DLC (LAPC),4.2.0 to 4.6.10,cellular,reuse,d/dect_dlc.html
+dect_mitel_eth,Aastra/Mitel DECT-over-Ethernet,4.2.0 to 4.6.10,cellular,reuse,d/dect_mitel_eth.html
+dect_mitel_rfp,Mitel RFP/OMM TCP communication protocol,4.2.0 to 4.6.10,cellular,reuse,d/dect_mitel_rfp.html
+dect_nr,DECT NR+ (DECT-2020 New Radio),4.6.0 to 4.6.10,cellular,reuse,d/dect_nr.html
+dect_nwk,DECT NWK,4.2.0 to 4.6.10,cellular,reuse,d/dect_nwk.html
+devicenet,DeviceNet Protocol,1.12.0 to 4.6.10,industrial,gateway,d/devicenet.html
+dhcp,Dynamic Host Configuration Protocol,3.0.0 to 4.6.10,discovery,reuse,d/dhcp.html
+dhcpfo,DHCP Failover,1.0.0 to 4.6.10,discovery,reuse,d/dhcpfo.html
+dhcpv6,DHCPv6,1.0.0 to 4.6.10,discovery,reuse,d/dhcpv6.html
+dhcpv6.bulk_leasequery,DHCPv6 Bulk Leasequery,1.10.0 to 4.6.10,discovery,reuse,d/dhcpv6.bulk_leasequery.html
+diameter,Diameter Protocol,1.0.0 to 4.6.10,cellular,reuse,d/diameter.html
+diameter.3gpp,Diameter 3GPP,1.10.0 to 4.6.10,cellular,reuse,d/diameter.3gpp.html
+diameter3gpp,Diameter 3GPP,1.0.0 to 1.8.15,cellular,historical,d/diameter3gpp.html
+dicom,DICOM,1.2.0 to 4.6.10,medical,application,d/dicom.html
+dis,Distributed Interactive Simulation,1.0.0 to 4.6.10,fieldradio,application,d/dis.html
+discard,Discard Protocol,4.2.0 to 4.6.10,ops,reuse,d/discard.html
+disp,X.519 Directory Information Shadowing Protocol,1.0.0 to 4.6.10,enterprise,application,d/disp.html
+dispatch,DCOM IDispatch,1.0.0 to 4.6.10,enterprise,application,d/dispatch.html
+distcc,Distcc Distributed Compiler,1.0.0 to 4.6.10,enterprise,application,d/distcc.html
+djiuav,DJI UAV Drone Control Protocol,2.0.0 to 4.6.10,aviation,application,d/djiuav.html
+dlep,Dynamic Link Exchange Protocol,3.4.0 to 4.6.10,routing,reuse,d/dlep.html
+dlm3,Distributed Lock Manager,1.0.0 to 4.6.10,enterprise,application,d/dlm3.html
+dlms,Device Language Message Specification,4.6.0 to 4.6.10,utilities,gateway,d/dlms.html
+dlr,Device Level Ring,1.4.0 to 4.6.10,lan,reuse,d/dlr.html
+dlsw,Data Link SWitching,1.0.0 to 4.6.10,legacy,reference,d/dlsw.html
+dlt,Diagnostic Log and Trace (DLT),3.2.0 to 4.6.10,vehicle,gateway,d/dlt.html
+dmp,Direct Message Profile,1.0.0 to 4.6.10,collab,application,d/dmp.html
+dmx,DMX,1.8.0 to 4.6.10,media,application,d/dmx.html
+dmx-chan,DMX Channels,1.8.0 to 2.0.16,media,historical,d/dmx-chan.html
+dmx-sip,DMX SIP,1.8.0 to 2.0.16,media,historical,d/dmx-sip.html
+dmx-test,DMX Test Frame,1.8.0 to 2.0.16,media,historical,d/dmx-test.html
+dmx-text,DMX Text Frame,1.8.0 to 2.0.16,media,historical,d/dmx-text.html
+dmx_chan,DMX Channels,2.2.0 to 4.6.10,media,application,d/dmx_chan.html
+dmx_sip,DMX SIP,2.2.0 to 4.6.10,media,application,d/dmx_sip.html
+dmx_test,DMX Test Frame,2.2.0 to 4.6.10,media,application,d/dmx_test.html
+dmx_text,DMX Text Frame,2.2.0 to 4.6.10,media,application,d/dmx_text.html
+dnp3,Distributed Network Protocol 3.0,1.0.0 to 4.6.10,utilities,gateway,d/dnp3.html
+dns,Domain Name System,1.0.0 to 4.6.10,discovery,trial-service,d/dns.html
+dnsserver,DNS Server,1.0.0 to 4.6.10,enterprise,application,d/dnsserver.html
+do-irp,Digital Object Identifier Resolution Protocol,4.2.0 to 4.6.10,discovery,reuse,d/do-irp.html
+docsis,DOCSIS,1.0.0 to 4.6.10,access,reuse,d/docsis.html
+docsis_bintrngreq,DOCSIS Bonded Initial Ranging Message,1.4.0 to 4.6.10,access,reuse,d/docsis_bintrngreq.html
+docsis_bpkmattr,DOCSIS Baseline Privacy Key Management Attributes,1.0.0 to 2.2.17,access,historical,d/docsis_bpkmattr.html
+docsis_bpkmreq,DOCSIS Baseline Privacy Key Management Request,1.0.0 to 2.2.17,access,historical,d/docsis_bpkmreq.html
+docsis_bpkmrsp,DOCSIS Baseline Privacy Key Management Response,1.0.0 to 2.2.17,access,historical,d/docsis_bpkmrsp.html
+docsis_cmctrlreq,DOCSIS CM Control Request,1.6.0 to 2.2.17,access,historical,d/docsis_cmctrlreq.html
+docsis_cmctrlrsp,DOCSIS CM Control Response,1.6.0 to 4.6.10,access,reuse,d/docsis_cmctrlrsp.html
+docsis_cmstatus,DOCSIS CM-STATUS Report,1.6.0 to 4.6.10,access,reuse,d/docsis_cmstatus.html
+docsis_dbcack,DOCSIS Dynamic Bonding Change Acknowledge,1.6.0 to 4.6.10,access,reuse,d/docsis_dbcack.html
+docsis_dbcreq,DOCSIS Dynamic Bonding Change Request,1.6.0 to 4.6.10,access,reuse,d/docsis_dbcreq.html
+docsis_dbcrsp,DOCSIS Dynamic Bonding Change Response,1.6.0 to 4.6.10,access,reuse,d/docsis_dbcrsp.html
+docsis_dccack,DOCSIS Downstream Channel Change Acknowledge,1.0.0 to 4.6.10,access,reuse,d/docsis_dccack.html
+docsis_dccreq,DOCSIS Downstream Channel Change Request,1.0.0 to 4.6.10,access,reuse,d/docsis_dccreq.html
+docsis_dccrsp,DOCSIS Downstream Channel Change Response,1.0.0 to 4.6.10,access,reuse,d/docsis_dccrsp.html
+docsis_dcd,DOCSIS Downstream Channel Descriptor,1.0.0 to 4.6.10,access,reuse,d/docsis_dcd.html
+docsis_dpd,DOCSIS Downstream Profile Descriptor,2.2.0 to 4.6.10,access,reuse,d/docsis_dpd.html
+docsis_dpvreq,DOCSIS Path Verify Request,1.6.0 to 2.2.17,access,historical,d/docsis_dpvreq.html
+docsis_dpvrsp,DOCSIS Path Verify Response,1.6.0 to 2.2.17,access,historical,d/docsis_dpvrsp.html
+docsis_dsaack,DOCSIS Dynamic Service Addition Acknowledge,1.0.0 to 4.6.10,access,reuse,d/docsis_dsaack.html
+docsis_dsareq,DOCSIS Dynamic Service Addition Request,1.0.0 to 4.6.10,access,reuse,d/docsis_dsareq.html
+docsis_dsarsp,DOCSIS Dynamic Service Addition Response,1.0.0 to 4.6.10,access,reuse,d/docsis_dsarsp.html
+docsis_dscack,DOCSIS Dynamic Service Change Acknowledge,1.0.0 to 4.6.10,access,reuse,d/docsis_dscack.html
+docsis_dscreq,DOCSIS Dynamic Service Change Request,1.0.0 to 4.6.10,access,reuse,d/docsis_dscreq.html
+docsis_dscrsp,DOCSIS Dynamic Service Change Response,1.0.0 to 4.6.10,access,reuse,d/docsis_dscrsp.html
+docsis_dsdreq,DOCSIS Dynamic Service Delete Request,1.0.0 to 4.6.10,access,reuse,d/docsis_dsdreq.html
+docsis_dsdrsp,DOCSIS Dynamic Service Delete Response,1.0.0 to 4.6.10,access,reuse,d/docsis_dsdrsp.html
+docsis_intrngreq,DOCSIS Initial Ranging Message,1.0.0 to 4.6.10,access,reuse,d/docsis_intrngreq.html
+docsis_map,DOCSIS Upstream Bandwidth Allocation - version 1,1.0.0 to 4.6.10,access,reuse,d/docsis_map.html
+docsis_mdd,DOCSIS MAC Domain Description,1.2.0 to 4.6.10,access,reuse,d/docsis_mdd.html
+docsis_mgmt,DOCSIS MAC Management,1.0.0 to 4.6.10,access,reuse,d/docsis_mgmt.html
+docsis_ocd,DOCSIS OFDM Channel Descriptor,2.2.0 to 4.6.10,access,reuse,d/docsis_ocd.html
+docsis_regack,DOCSIS Registration Acknowledge,1.0.0 to 4.6.10,access,reuse,d/docsis_regack.html
+docsis_regreq,DOCSIS Registration Requests,1.0.0 to 4.6.10,access,reuse,d/docsis_regreq.html
+docsis_regreqmp,DOCSIS Registration Request Multipart,1.2.0 to 4.6.10,access,reuse,d/docsis_regreqmp.html
+docsis_regrsp,DOCSIS Registration Responses,1.0.0 to 4.6.10,access,reuse,d/docsis_regrsp.html
+docsis_regrspmp,DOCSIS Registration Response Multipart,1.2.0 to 4.6.10,access,reuse,d/docsis_regrspmp.html
+docsis_rngreq,DOCSIS Range Request Message,1.0.0 to 4.6.10,access,reuse,d/docsis_rngreq.html
+docsis_rngrsp,DOCSIS Ranging Response,1.0.0 to 4.6.10,access,reuse,d/docsis_rngrsp.html
+docsis_sync,DOCSIS Synchronisation Message,1.2.0 to 4.6.10,access,reuse,d/docsis_sync.html
+docsis_tlv,DOCSIS Appendix C TLVs,1.0.0 to 4.6.10,access,reuse,d/docsis_tlv.html
+docsis_type29ucd,DOCSIS Upstream Channel Descriptor Type 29,1.0.0 to 4.6.10,access,reuse,d/docsis_type29ucd.html
+docsis_type35ucd,DOCSIS Upstream Channel Descriptor Type 35,2.2.0 to 4.6.10,access,reuse,d/docsis_type35ucd.html
+docsis_uccreq,DOCSIS Upstream Channel Change Request,1.0.0 to 4.6.10,access,reuse,d/docsis_uccreq.html
+docsis_uccrsp,DOCSIS Upstream Channel Change Response,1.0.0 to 4.6.10,access,reuse,d/docsis_uccrsp.html
+docsis_ucd,DOCSIS Upstream Channel Descriptor,1.0.0 to 4.6.10,access,reuse,d/docsis_ucd.html
+docsis_vsif,DOCSIS Vendor Specific Encodings,1.0.0 to 4.6.10,access,reuse,d/docsis_vsif.html
+dof,DOF Protocol Stack,2.2.0 to 4.6.10,iot,gateway,d/dof.html
+dof.ccm,DOF CCM Security Mode of Operation,2.2.0 to 4.6.10,iot,gateway,d/dof.ccm.html
+dof.ccm.app,DOF CCM Security Mode App,2.2.0 to 4.6.10,iot,gateway,d/dof.ccm.app.html
+dof.ccm.dsp,DOF CCM Security Mode DSP Options,2.2.0 to 4.6.10,iot,gateway,d/dof.ccm.dsp.html
+dof.dnp,DOF Network Protocol,2.2.0 to 4.6.10,iot,gateway,d/dof.dnp.html
+dof.dnp.v0,DOF Network Protocol V0,2.2.0 to 4.6.10,iot,gateway,d/dof.dnp.v0.html
+dof.dnp.v1,DOF Network Protocol V1,2.2.0 to 4.6.10,iot,gateway,d/dof.dnp.v1.html
+dof.dpp,DOF Presentation Protocol,2.2.0 to 4.6.10,iot,gateway,d/dof.dpp.html
+dof.dpp.v0,DOF Presentation Protocol V0,2.2.0 to 4.6.10,iot,gateway,d/dof.dpp.v0.html
+dof.dpp.v2,DOF Presentation Protocol V2,2.2.0 to 4.6.10,iot,gateway,d/dof.dpp.v2.html
+dof.esp,DOF Session Protocol,2.2.0 to 4.6.10,iot,gateway,d/dof.esp.html
+dof.oap,DOF Object Access Protocol,2.2.0 to 4.6.10,iot,gateway,d/dof.oap.html
+dof.oap.dsp,DOF Object Access Protocol DSP Options,2.2.0 to 4.6.10,iot,gateway,d/dof.oap.dsp.html
+dof.oid,DOF Object Identifier,2.2.0 to 4.6.10,iot,gateway,d/dof.oid.html
+dof.sgmp,DOF Secure Group Management Protocol,2.2.0 to 4.6.10,iot,gateway,d/dof.sgmp.html
+dof.tep1,DOF Ticket Exchange Protocol Version 1,2.2.0 to 4.6.10,iot,gateway,d/dof.tep1.html
+dof.tep1.dsp,DOF Ticket Exchange Protocol DSP Options,2.2.0 to 4.6.10,iot,gateway,d/dof.tep1.dsp.html
+dof.trp,DOF Ticket Request Protocol,2.2.0 to 4.6.10,iot,gateway,d/dof.trp.html
+dof.trp.dsp,DOF Ticket Request Protocol DSP Options,2.2.0 to 4.6.10,iot,gateway,d/dof.trp.dsp.html
+doip,DoIP (ISO13400) Protocol,3.0.0 to 4.6.10,vehicle,gateway,d/doip.html
+dop,X.501 Directory Operational Binding Management Protocol,1.0.0 to 4.6.10,enterprise,application,d/dop.html
+dpaux,DisplayPort AUX-Channel,3.0.0 to 4.6.10,usb,gateway,d/dpaux.html
+dpauxmon,DPAUXMON DisplayPort AUX channel monitor,3.0.0 to 4.6.10,capture,reference,d/dpauxmon.html
+dplay,DirectPlay Protocol,1.0.0 to 4.6.10,gaming,application,d/dplay.html
+dpnet,DirectPlay 8 protocol,2.4.0 to 4.6.10,gaming,application,d/dpnet.html
+dpnss,Digital Private Signalling System No 1,1.0.0 to 4.6.10,voice,application,d/dpnss.html
+dpnss_link,Digital Private Signalling System No 1 Link Layer,1.2.0 to 4.6.10,voice,application,d/dpnss_link.html
+dpp,Wi-Fi Device Provisioning Protocol,2.6.0 to 4.6.10,wifi,reuse,d/dpp.html
+drb,Distributed Ruby,3.0.0 to 4.6.10,enterprise,application,d/drb.html
+drbd,DRBD Protocol,3.2.0 to 4.6.10,storage,application,d/drbd.html
+drbd_lb_tcp,DRBD Load-Balanced Protocol,4.4.0 to 4.6.10,storage,application,d/drbd_lb_tcp.html
+drda,DRDA,1.0.0 to 4.6.10,database,application,d/drda.html
+drsuapi,Active Directory Replication,1.0.0 to 4.6.10,enterprise,application,d/drsuapi.html
+dsi,Data Stream Interface,1.0.0 to 4.6.10,storage,application,d/dsi.html
+dsp,X.519 Directory System Protocol,1.0.0 to 4.6.10,enterprise,application,d/dsp.html
+dsr,Dynamic Source Routing,2.0.0 to 4.6.10,routing,reuse,d/dsr.html
+dssetup,Active Directory Setup,1.0.0 to 4.6.10,enterprise,application,d/dssetup.html
+dtcp-ip,Digital Transmission Content Protection over IP,1.10.0 to 4.6.10,media,application,d/dtcp-ip.html
+dtls,Datagram Transport Layer Security,1.0.0 to 4.6.10,auth,reuse,d/dtls.html
+dtp,Dynamic Trunk Protocol,1.0.0 to 4.6.10,lan,reuse,d/dtp.html
+dtps,DOF Tunnel Protocol Stack,2.2.0 to 4.6.10,iot,gateway,d/dtps.html
+dtpt,DeskTop PassThrough Protocol,1.0.0 to 4.6.10,overlay,reuse,d/dtpt.html
+dtsprovider,DCE Distributed Time Service Provider,1.0.0 to 4.6.10,enterprise,application,d/dtsprovider.html
+dtsstime_req,DCE Distributed Time Service Local Server,1.0.0 to 4.6.10,enterprise,application,d/dtsstime_req.html
+dua,DPNSS/DASS2-User Adaptation Layer,1.0.0 to 4.6.10,voice,application,d/dua.html
+dvb-ci,DVB Common Interface,1.6.0 to 4.6.10,media,application,d/dvb-ci.html
+dvb-s2_bb,DVB-S2 Baseband Frame,1.10.0 to 4.6.10,media,application,d/dvb-s2_bb.html
+dvb-s2_gse,DVB-S2 GSE Packet,1.10.0 to 4.6.10,media,application,d/dvb-s2_gse.html
+dvb-s2_modeadapt,DVB-S2 Mode Adaptation Header,1.10.0 to 4.6.10,media,application,d/dvb-s2_modeadapt.html
+dvb-s2_table,DVB-S2 Signalization Table,3.4.0 to 4.6.10,media,application,d/dvb-s2_table.html
+dvb_ait,DVB Application Information Table,1.8.0 to 4.6.10,media,application,d/dvb_ait.html
+dvb_bat,DVB Bouquet Association Table,1.8.0 to 4.6.10,media,application,d/dvb_bat.html
+dvb_data_mpe,DVB-DATA MultiProtocol Encapsulation,1.8.0 to 4.6.10,media,application,d/dvb_data_mpe.html
+dvb_eit,DVB Event Information Table,1.8.0 to 4.6.10,media,application,d/dvb_eit.html
+dvb_ipdc,ETSI IPDC Bootstrap,1.8.0 to 4.6.10,media,application,d/dvb_ipdc.html
+dvb_nit,DVB Network Information Table,1.8.0 to 4.6.10,media,application,d/dvb_nit.html
+dvb_sdt,DVB Service Description Table,1.8.0 to 4.6.10,media,application,d/dvb_sdt.html
+dvb_sit,DVB Selection Information Table,4.0.0 to 4.6.10,media,application,d/dvb_sit.html
+dvb_tdt,DVB Time and Date Table,1.8.0 to 4.6.10,media,application,d/dvb_tdt.html
+dvb_tot,DVB Time Offset Table,1.8.0 to 4.6.10,media,application,d/dvb_tot.html
+dvmrp,Distance Vector Multicast Routing Protocol,1.0.0 to 4.6.10,routing,reuse,d/dvmrp.html
+dx,DX cluster,1.10.0 to 4.6.10,radio,application,d/dx.html
+dxl,Data Exchange Layer,3.0.0 to 4.6.10,messaging,gateway,d/dxl.html
+e.212,ITU-T E.212 number,1.0.0 to 1.0.16,cellular,historical,e/e.212.html
+e100,E100 Encapsulation,1.2.0 to 4.6.10,capture,reference,e/e100.html
+e164,ITU-T E.164 number,1.0.0 to 4.6.10,cellular,reuse,e/e164.html
+e1ap,E1 Application Protocol,3.0.0 to 4.6.10,cellular,reuse,e/e1ap.html
+e212,ITU-T E.212 number,1.2.0 to 4.6.10,cellular,reuse,e/e212.html
+e2ap,E2 Application Protocol,3.6.0 to 4.6.10,cellular,reuse,e/e2ap.html
+eap,Extensible Authentication Protocol,1.0.0 to 4.6.10,auth,reuse,e/eap.html
+eapol,802.1X Authentication,1.0.0 to 4.6.10,auth,reuse,e/eapol.html
+ebhscr,EBHSCR Protocol,3.2.0 to 4.6.10,vehicle,gateway,e/ebhscr.html
+ecat,EtherCAT datagram(s),1.0.0 to 4.6.10,industrial,gateway,e/ecat.html
+ecat_mailbox,EtherCAT Mailbox Protocol,1.0.0 to 4.6.10,industrial,gateway,e/ecat_mailbox.html
+ecatf,EtherCAT frame header,2.2.0 to 4.6.10,industrial,gateway,e/ecatf.html
+echo,Echo,1.0.0 to 4.6.10,ops,reuse,e/echo.html
+ecmp,ECMP,2.2.0 to 4.6.10,industrial,gateway,e/ecmp.html
+ecp,ECP Protocol,1.8.0 to 4.6.10,lan,reuse,e/ecp.html
+ecp21,Edge Control Protocol,2.2.0 to 4.6.10,lan,reuse,e/ecp21.html
+ecpri,evolved Common Public Radio Interface,3.2.0 to 4.6.10,cellular,reuse,e/ecpri.html
+edhoc,Ephemeral Diffie-Hellman Over COSE,4.6.0 to 4.6.10,auth,reuse,e/edhoc.html
+edonkey,eDonkey Protocol,1.0.0 to 4.6.10,file,application,e/edonkey.html
+edp,Extreme Discovery Protocol,1.0.0 to 4.6.10,lan,reuse,e/edp.html
+eero,EERO Protocol,3.2.0 to 4.6.10,wifi,reuse,e/eero.html
+efs,EFS (pidl),1.0.0 to 4.6.10,enterprise,application,e/efs.html
+egd,Ethernet Global Data,1.2.0 to 4.6.10,industrial,gateway,e/egd.html
+ehdlc,Ericsson HDLC,1.8.0 to 4.6.10,cellular,reuse,e/ehdlc.html
+ehs,EHS,1.2.0 to 4.6.10,aviation,application,e/ehs.html
+eigrp,Enhanced Interior Gateway Routing Protocol,1.0.0 to 4.6.10,routing,reuse,e/eigrp.html
+eiss,ETV-AM EISS Section,1.8.0 to 4.6.10,media,application,e/eiss.html
+elasticsearch,Elasticsearch,2.0.0 to 4.6.10,database,application,e/elasticsearch.html
+elcom,ELCOM Communication Protocol,1.8.0 to 4.6.10,industrial,gateway,e/elcom.html
+elf,Executable and Linkable Format,1.12.0 to 4.6.10,format,reference,e/elf.html
+elmi,Ethernet Local Management Interface,1.12.0 to 4.6.10,lan,reuse,e/elmi.html
+ems,EGNOS Message Server file,4.4.0 to 4.6.10,aviation,application,e/ems.html
+enc,OpenBSD Encapsulating device,1.0.0 to 4.6.10,capture,reference,e/enc.html
+enip,EtherNet/IP (Industrial Protocol),1.0.0 to 4.6.10,industrial,gateway,e/enip.html
+enrp,Endpoint Handlespace Redundancy Protocol,1.0.0 to 4.6.10,transport,reuse,e/enrp.html
+enttec,ENTTEC,1.0.0 to 4.6.10,media,application,e/enttec.html
+eobi,Enhanced Order Book Interface 10.0,4.0.0 to 4.6.10,finance,application,e/eobi.html
+epl,Ethernet POWERLINK,1.0.0 to 4.6.10,industrial,gateway,e/epl.html
+epl_v1,ETHERNET Powerlink V1.0,1.0.0 to 4.6.10,industrial,gateway,e/epl_v1.html
+epm,DCE/RPC Endpoint Mapper,1.0.0 to 4.6.10,enterprise,application,e/epm.html
+epmd,Erlang Port Mapper Daemon,1.0.0 to 4.6.10,enterprise,application,e/epmd.html
+epon,IEEE 802.3 EPON Preamble,1.12.0 to 4.6.10,access,reuse,e/epon.html
+erf,Extensible Record Format,1.0.0 to 4.6.10,capture,reference,e/erf.html
+erldp,Erlang Distribution Protocol,1.6.0 to 4.6.10,enterprise,application,e/erldp.html
+erspan,Encapsulated Remote Switch Packet ANalysis,1.0.0 to 4.6.10,capture,reference,e/erspan.html
+erspan-marker,CISCO ERSPAN3 Marker Packet,4.0.0 to 4.6.10,capture,reference,e/erspan-marker.html
+esio,SAIA Ether-S-I/O protocol,1.6.0 to 4.6.10,industrial,gateway,e/esio.html
+esis,ISO 9542 ESIS Routeing Information Exchange Protocol,1.0.0 to 4.6.10,legacy,reference,e/esis.html
+esl,EtherCAT Switch Link,1.4.0 to 4.6.10,industrial,gateway,e/esl.html
+esp,Encapsulating Security Payload,1.0.0 to 4.6.10,overlay,reuse,e/esp.html
+ess,Extended Security Services,1.0.0 to 4.6.10,auth,reuse,e/ess.html
+etag,802.1BR E-Tag,2.2.0 to 4.6.10,lan,reuse,e/etag.html
+etch,Apache Etch Protocol,1.6.0 to 4.6.10,enterprise,application,e/etch.html
+eth,Ethernet,1.0.0 to 4.6.10,lan,reuse,e/eth.html
+ethercat,EtherCAT frame header,1.0.0 to 2.0.16,industrial,historical,e/ethercat.html
+etheric,Etheric,1.0.0 to 1.2.18,unresolved,historical,e/etheric.html
+etherip,Ethernet over IP,1.0.0 to 4.6.10,overlay,reuse,e/etherip.html
+ethertype,Ethertype,1.12.0 to 4.6.10,lan,reuse,e/ethertype.html
+eti,Enhanced Trading Interface 10.0,4.0.0 to 4.6.10,finance,application,e/eti.html
+etsi_cat,Card Application Toolkit ETSI TS 102.223,1.8.0 to 4.6.10,cellular,reuse,e/etsi_cat.html
+etv-ddb,ETV-AM DDB Section,1.8.0 to 4.6.10,media,application,e/etv-ddb.html
+etv-dii,ETV-AM DII Section,1.8.0 to 4.6.10,media,application,e/etv-dii.html
+etw,Event Tracing for Windows,3.6.0 to 4.6.10,capture,reference,e/etw.html
+etw.ndis,ETW Ndis,2.6.0 to 4.6.10,capture,reference,e/etw.ndis.html
+etw.wfp_capture,ETW WFP Capture,2.6.0 to 4.6.10,capture,reference,e/etw.wfp_capture.html
+eventlog,Event Logger,1.0.0 to 4.6.10,enterprise,application,e/eventlog.html
+evrc,Enhanced Variable Rate Codec,1.2.0 to 4.6.10,media,application,e/evrc.html
+evs,Enhanced Voice Services,3.0.0 to 4.6.10,media,application,e/evs.html
+exablaze,Exablaze trailer,3.0.0 to 4.6.10,capture,reference,e/exablaze.html
+exec,Remote Process Execution,1.0.0 to 4.6.10,remote,application,e/exec.html
+exeh,EXtreme extra Eth Header,3.6.0 to 4.6.10,lan,reuse,e/exeh.html
+expert,Expert Info,1.2.0 to 1.10.14,capture,historical,e/expert.html
+exported_pdu,EXPORTED_PDU,1.12.0 to 4.6.10,capture,reference,e/exported_pdu.html
+extrememesh,Extreme Mesh,4.0.0 to 4.6.10,wifi,reuse,e/extrememesh.html
+extrememesh_l2upd,Extreme Mesh L2 Update,4.0.0 to 4.6.10,wifi,reuse,e/extrememesh_l2upd.html
+extrememesh_mch,Extreme Mesh Control Header,4.0.0 to 4.6.10,wifi,reuse,e/extrememesh_mch.html
+extrememesh_probe,Extreme Mesh Probe Message,4.0.0 to 4.6.10,wifi,reuse,e/extrememesh_probe.html
+extrememesh_ps_arep,Extreme Mesh Path Selection Authorization Reply,4.0.0 to 4.6.10,wifi,reuse,e/extrememesh_ps_arep.html
+extrememesh_ps_areq,Extreme Mesh Path Selection Authorization Request,4.0.0 to 4.6.10,wifi,reuse,e/extrememesh_ps_areq.html
+extrememesh_ps_bann,Extreme Mesh Path Selection Bind Announcement,4.0.0 to 4.6.10,wifi,reuse,e/extrememesh_ps_bann.html
+extrememesh_ps_bred,Extreme Mesh Path Selection Bind Removed,4.0.0 to 4.6.10,wifi,reuse,e/extrememesh_ps_bred.html
+extrememesh_ps_brep,Extreme Mesh Path Selection Bind Reply,4.0.0 to 4.6.10,wifi,reuse,e/extrememesh_ps_brep.html
+extrememesh_ps_breq,Extreme Mesh Path Selection Bind Request,4.0.0 to 4.6.10,wifi,reuse,e/extrememesh_ps_breq.html
+extrememesh_ps_perr,Extreme Mesh Path Selection Path Error,4.0.0 to 4.6.10,wifi,reuse,e/extrememesh_ps_perr.html
+extrememesh_ps_prem,Extreme Mesh Path Selection Proxy Remove,4.0.0 to 4.6.10,wifi,reuse,e/extrememesh_ps_prem.html
+extrememesh_ps_prep,Extreme Mesh Path Selection Path Reply,4.0.0 to 4.6.10,wifi,reuse,e/extrememesh_ps_prep.html
+extrememesh_ps_preq,Extreme Mesh Path Selection Path Request,4.0.0 to 4.6.10,wifi,reuse,e/extrememesh_ps_preq.html
+extrememesh_ps_prer,Extreme Mesh Path Selection Proxy Error,4.0.0 to 4.6.10,wifi,reuse,e/extrememesh_ps_prer.html
+extrememesh_ps_prst,Extreme Mesh Path Selection Path Reset,4.0.0 to 4.6.10,wifi,reuse,e/extrememesh_ps_prst.html
+extrememesh_ps_srep,Extreme Mesh Path Selection Status Reply,4.0.0 to 4.6.10,wifi,reuse,e/extrememesh_ps_srep.html
+extrememesh_ps_sreq,Extreme Mesh Path Selection Status Request,4.0.0 to 4.6.10,wifi,reuse,e/extrememesh_ps_sreq.html
+extrememesh_ps_trace,Extreme Mesh Path Selection Trace Path,4.0.0 to 4.6.10,wifi,reuse,e/extrememesh_ps_trace.html
+f1ap,F1 Application Protocol,2.6.0 to 4.6.10,cellular,reuse,f/f1ap.html
+f5ethtrailer,F5 Ethernet Trailer Protocol,2.6.0 to 4.6.10,capture,reference,f/f5ethtrailer.html
+f5fileinfo,F5 Capture Information,2.6.0 to 4.6.10,capture,reference,f/f5fileinfo.html
+fb_zero,(Facebook) Zero Protocol,2.4.0 to 4.6.10,web,reuse,f/fb_zero.html
+fc,Fibre Channel,1.0.0 to 4.6.10,storage,application,f/fc.html
+fc00,Fc00 CryptoAuth,2.4.0 to 4.6.10,overlay,reuse,f/fc00.html
+fcct,Fibre Channel Common Transport,1.0.0 to 4.6.10,storage,application,f/fcct.html
+fcdns,Fibre Channel Name Server,1.0.0 to 4.6.10,storage,application,f/fcdns.html
+fcels,FC Extended Link Svc,1.0.0 to 4.6.10,storage,application,f/fcels.html
+fcfzs,Fibre Channel Fabric Zone Server,1.0.0 to 4.6.10,storage,application,f/fcfzs.html
+fcgi,FastCGI,1.6.0 to 4.6.10,web,reuse,f/fcgi.html
+fcip,FCIP,1.0.0 to 4.6.10,storage,application,f/fcip.html
+fcoe,Fibre Channel over Ethernet,1.0.0 to 4.6.10,storage,application,f/fcoe.html
+fcoib,Fibre Channel over Infiniband,1.6.0 to 4.6.10,storage,application,f/fcoib.html
+fcp,Fibre Channel Protocol for SCSI,1.0.0 to 4.6.10,storage,application,f/fcp.html
+fcs,FC Fabric Configuration Server,1.0.0 to 4.6.10,storage,application,f/fcs.html
+fcsb3,Fibre Channel Single Byte Command,1.10.0 to 4.6.10,storage,application,f/fcsb3.html
+fcsof,Fibre Channel Delimiters,1.4.0 to 4.6.10,storage,application,f/fcsof.html
+fcsp,Fibre Channel Security Protocol,1.0.0 to 4.6.10,storage,application,f/fcsp.html
+fddi,Fiber Distributed Data Interface,1.0.0 to 4.6.10,lan,reuse,f/fddi.html
+fdp,Foundry Discovery Protocol,1.10.0 to 4.6.10,lan,reuse,f/fdp.html
+fefd,Far End Failure Detection,1.2.0 to 4.6.10,lan,reuse,f/fefd.html
+felica,Sony FeliCa,1.8.0 to 4.6.10,nfc,gateway,f/felica.html
+ff,FOUNDATION Fieldbus,1.0.0 to 4.6.10,industrial,gateway,f/ff.html
+file,File,1.12.0 to 4.6.10,capture,reference,f/file.html
+file-blf,BLF File Format,3.6.0 to 4.6.10,capture,reference,f/file-blf.html
+file-dlt,DLT File Format,4.2.0 to 4.6.10,capture,reference,f/file-dlt.html
+file-pcap,PCAP File Format,2.0.0 to 4.6.10,capture,reference,f/file-pcap.html
+file-pcapng,PCAPNG File Format,2.0.0 to 4.6.10,capture,reference,f/file-pcapng.html
+file-ttl,TTL File Format,4.6.0 to 4.6.10,capture,reference,f/file-ttl.html
+fileexp,DCE DFS File Exporter,1.0.0 to 4.6.10,enterprise,application,f/fileexp.html
+find,Find Identification of Network Devices,3.6.0 to 4.6.10,discovery,reuse,f/find.html
+finger,finger,1.12.0 to 4.6.10,ops,reuse,f/finger.html
+fip,FCoE Initialization Protocol,1.2.0 to 4.6.10,storage,application,f/fip.html
+fix,Financial Information eXchange Protocol,1.0.0 to 4.6.10,finance,application,f/fix.html
+fldb,DCE DFS Fileset Location Server,1.0.0 to 4.6.10,enterprise,application,f/fldb.html
+flexnet,FlexNet,1.10.0 to 4.6.10,enterprise,application,f/flexnet.html
+flexray,FlexRay Protocol,2.2.0 to 4.6.10,vehicle,gateway,f/flexray.html
+flip,NSN FLIP,1.4.0 to 4.6.10,cellular,reuse,f/flip.html
+fmp,File Mapping Protocol,1.0.0 to 4.6.10,storage,application,f/fmp.html
+fmp_notify,File Mapping Protocol Notify,1.0.0 to 4.6.10,storage,application,f/fmp_notify.html
+fmtp,Flight Message Transfer Protocol (FMTP),1.8.0 to 4.6.10,aviation,application,f/fmtp.html
+forces,Forwarding and Control Element Separation Protocol,1.10.0 to 4.6.10,routing,reuse,f/forces.html
+fortinet_fgcp_hb,FortiGate Cluster Protocol - HeartBeat,4.2.0 to 4.6.10,ops,reuse,f/fortinet_fgcp_hb.html
+fortinet_sso,Fortinet Single Sign On,3.4.0 to 4.6.10,auth,reuse,f/fortinet_sso.html
+fp,FP,1.0.0 to 4.6.10,cellular,reuse,f/fp.html
+fp_hint,FP Hint,1.4.0 to 4.6.10,cellular,reuse,f/fp_hint.html
+fp_mux,Huawei FP Multiplexing Header,2.6.0 to 4.6.10,cellular,reuse,f/fp_mux.html
+fpp,IEEE 802.3br Frame Preemption Protocol,2.6.0 to 4.6.10,lan,reuse,f/fpp.html
+fr,Frame Relay,1.0.0 to 4.6.10,access,reuse,f/fr.html
+fractalgeneratorprotocol,Fractal Generator Protocol,1.0.0 to 4.6.10,ops,reuse,f/fractalgeneratorprotocol.html
+frame,Frame,1.0.0 to 4.6.10,capture,reference,f/frame.html
+frsapi,Microsoft File Replication Service API,1.0.0 to 4.6.10,enterprise,application,f/frsapi.html
+frsrpc,File Replication Service,1.0.0 to 4.6.10,enterprise,application,f/frsrpc.html
+frstrans,File Replication Service DFS-R,1.4.0 to 4.6.10,enterprise,application,f/frstrans.html
+fsrvp,File Server Remote VSS Protocol,3.2.0 to 4.6.10,enterprise,application,f/fsrvp.html
+ftam,ISO 8571 FTAM,1.0.0 to 4.6.10,file,application,f/ftam.html
+ftdi-ft,FTDI FT USB,3.4.0 to 4.6.10,usb,gateway,f/ftdi-ft.html
+ftdi-mpsse,FTDI Multi-Protocol Synchronous Serial Engine,3.4.0 to 4.6.10,usb,gateway,f/ftdi-mpsse.html
+ftdift,FTDI FT USB,3.2.0 to 3.2.18,usb,historical,f/ftdift.html
+ftp,File Transfer Protocol (FTP),1.0.0 to 4.6.10,file,application,f/ftp.html
+ftserver,FTServer Operations,1.0.0 to 4.6.10,enterprise,application,f/ftserver.html
+fw1,Checkpoint FW-1,1.0.0 to 4.6.10,ops,reuse,f/fw1.html
+g723,G.723,1.0.0 to 4.6.10,media,application,g/g723.html
+gadu-gadu,Gadu-Gadu Protocol,1.8.0 to 4.6.10,collab,application,g/gadu-gadu.html
+gal_inav,Galileo E1-B I/NAV Navigation Message,4.4.0 to 4.6.10,aviation,application,g/gal_inav.html
+gbcs_gbz,GBCS GBZ,3.0.0 to 4.6.10,utilities,gateway,g/gbcs_gbz.html
+gbcs_message,GBCS Message,3.0.0 to 4.6.10,utilities,gateway,g/gbcs_message.html
+gbcs_tunnel,GBCS Tunnel,3.0.0 to 4.6.10,utilities,gateway,g/gbcs_tunnel.html
+gcsna,GCSNA,3.0.0 to 4.6.10,cellular,reuse,g/gcsna.html
+gdb,GDB Remote Serial Protocol,2.0.0 to 4.6.10,remote,application,g/gdb.html
+gdsdb,Firebird SQL Database Remote Protocol,1.0.0 to 4.6.10,database,application,g/gdsdb.html
+gdt,Generic Data Transfer Protocol,4.0.0 to 4.6.10,unresolved,defer,g/gdt.html
+gearman,Gearman Protocol,1.10.0 to 4.6.10,enterprise,application,g/gearman.html
+ged125,Cisco GED-125 Protocol,1.10.0 to 4.6.10,voice,application,g/ged125.html
+gelf,Graylog Extended Log Format,3.2.0 to 4.6.10,ops,reuse,g/gelf.html
+geneve,Generic Network Virtualization Encapsulation,2.0.0 to 4.6.10,overlay,reuse,g/geneve.html
+genl,Linux Generic Netlink protocol,2.4.0 to 4.6.10,capture,reference,g/genl.html
+gfp,Generic Framing Procedure,2.2.0 to 4.6.10,access,reuse,g/gfp.html
+gift,giFT Internet File Transfer,1.0.0 to 4.6.10,file,application,g/gift.html
+giop,General Inter-ORB Protocol,1.0.0 to 4.6.10,enterprise,application,g/giop.html
+giop-coseventcomm,Coseventcomm Dissector Using GIOP API,1.0.0 to 4.6.10,enterprise,application,g/giop-coseventcomm.html
+giop-cosnaming,Cosnaming Dissector Using GIOP API,1.0.0 to 4.6.10,enterprise,application,g/giop-cosnaming.html
+giop-gias,Gias Dissector Using GIOP API,2.0.0 to 4.6.10,enterprise,application,g/giop-gias.html
+giop-parlay,Parlay Dissector Using GIOP API,1.0.0 to 4.2.14,enterprise,historical,g/giop-parlay.html
+giop-tango,Tango Dissector Using GIOP API,1.0.0 to 4.6.10,enterprise,application,g/giop-tango.html
+git,Git Smart Protocol,1.4.0 to 4.6.10,file,application,g/git.html
+glbp,Gateway Load Balancing Protocol,1.4.0 to 4.6.10,routing,reuse,g/glbp.html
+glow,Glow,3.0.0 to 4.6.10,media,application,g/glow.html
+gluster.cli,Gluster CLI,1.8.0 to 4.6.10,storage,application,g/gluster.cli.html
+gluster.dump,Gluster Dump,1.8.0 to 4.6.10,storage,application,g/gluster.dump.html
+gluster.pmap,Gluster Portmap,1.8.0 to 4.6.10,storage,application,g/gluster.pmap.html
+glusterd,Gluster Daemon,1.8.0 to 4.6.10,storage,application,g/glusterd.html
+glusterfs,GlusterFS,1.8.0 to 4.6.10,storage,application,g/glusterfs.html
+glusterfs.cbk,GlusterFS Callback,1.8.0 to 4.6.10,storage,application,g/glusterfs.cbk.html
+glusterfs.hndsk,GlusterFS Handshake,1.8.0 to 4.6.10,storage,application,g/glusterfs.hndsk.html
+gmhdr,Gigamon Header,1.4.0 to 4.6.10,capture,reference,g/gmhdr.html
+gmr1.bcch,GEO-Mobile Radio (1) BCCH,1.10.0 to 4.6.10,cellular,reuse,g/gmr1.bcch.html
+gmr1.common,GEO-Mobile Radio (1) Common,1.10.0 to 4.6.10,cellular,reuse,g/gmr1.common.html
+gmr1.dtap,GEO-Mobile Radio (1) DTAP,1.10.0 to 4.6.10,cellular,reuse,g/gmr1.dtap.html
+gmr1.rach,GEO-Mobile Radio (1) RACH,1.10.0 to 4.6.10,cellular,reuse,g/gmr1.rach.html
+gmr1.rr,GEO-Mobile Radio (1) RR,1.10.0 to 4.6.10,cellular,reuse,g/gmr1.rr.html
+gmr1_bcch,GEO-Mobile Radio (1) BCCH,1.8.0 to 1.8.15,cellular,historical,g/gmr1_bcch.html
+gmr1_ccch,GEO-Mobile Radio (1) CCCH,1.8.0 to 1.8.15,cellular,historical,g/gmr1_ccch.html
+gmr1_common,GEO-Mobile Radio (1) Common,1.8.0 to 1.8.15,cellular,historical,g/gmr1_common.html
+gmrp,GARP Multicast Registration Protocol,1.0.0 to 4.6.10,lan,reuse,g/gmrp.html
+gmtrailer,Gigamon Trailer,1.10.0 to 4.6.10,capture,reference,g/gmtrailer.html
+gnm,ITU M.3100 Generic Network Information Model,1.0.0 to 1.10.14,ops,historical,g/gnm.html
+gnutella,Gnutella Protocol,1.0.0 to 4.6.10,file,application,g/gnutella.html
+gnw,GeoNetworking,3.0.0 to 4.6.10,vehicle,gateway,g/gnw.html
+goose,GOOSE,1.2.0 to 4.6.10,utilities,gateway,g/goose.html
+gopher,Gopher,1.6.0 to 4.6.10,web,reuse,g/gopher.html
+gpef,GPEF,1.2.0 to 4.6.10,enterprise,application,g/gpef.html
+gprs-ns,GPRS Network Service,1.4.0 to 4.6.10,cellular,reuse,g/gprs-ns.html
+gprs_ns,GPRS Network service,1.0.0 to 1.2.18,cellular,historical,g/gprs_ns.html
+gprscdr,GPRS CDR,1.6.0 to 4.6.10,cellular,reuse,g/gprscdr.html
+gps_l1,GPS L1 Navigation Message,4.2.0 to 4.6.10,aviation,application,g/gps_l1.html
+gquic,GQUIC (Google Quick UDP Internet Connections),2.6.0 to 4.6.10,transport,reference,g/gquic.html
+gre,Generic Routing Encapsulation,1.0.0 to 4.6.10,overlay,reuse,g/gre.html
+grebonding,Huawei GRE bonding,4.0.0 to 4.6.10,overlay,reuse,g/grebonding.html
+grpc,GRPC Message,2.6.0 to 4.6.10,web,existing-link,g/grpc.html
+gryphon,DG Gryphon Protocol,1.0.0 to 4.6.10,vehicle,gateway,g/gryphon.html
+gsm-r-uus1,GSM-R User-to-User Signaling,3.0.0 to 4.6.10,cellular,reuse,g/gsm-r-uus1.html
+gsm-sms-ud,GSM Short Message Service User Data,1.0.0 to 1.8.15,cellular,historical,g/gsm-sms-ud.html
+gsm_a,GSM A-I/F COMMON,1.10.0 to 4.6.10,cellular,reuse,g/gsm_a.html
+gsm_a.bssmap,GSM A-I/F BSSMAP,1.10.0 to 4.6.10,cellular,reuse,g/gsm_a.bssmap.html
+gsm_a.dtap,GSM A-I/F DTAP,1.10.0 to 4.6.10,cellular,reuse,g/gsm_a.dtap.html
+gsm_a.gm,GSM A-I/F GPRS Mobility and Session Management,1.10.0 to 4.6.10,cellular,reuse,g/gsm_a.gm.html
+gsm_a.rp,GSM A-I/F RP,1.10.0 to 4.6.10,cellular,reuse,g/gsm_a.rp.html
+gsm_a.rr,GSM A-I/F Radio Resource Management,1.8.5 to 4.6.10,cellular,reuse,g/gsm_a.rr.html
+gsm_a.sacch,GSM SACCH,1.8.5 to 4.6.10,cellular,reuse,g/gsm_a.sacch.html
+gsm_a_bssmap,GSM A-I/F BSSMAP,1.0.0 to 1.8.15,cellular,historical,g/gsm_a_bssmap.html
+gsm_a_ccch,GSM CCCH,1.0.0 to 1.8.4,cellular,historical,g/gsm_a_ccch.html
+gsm_a_common,GSM A-I/F COMMON,1.2.0 to 1.8.15,cellular,historical,g/gsm_a_common.html
+gsm_a_dtap,GSM A-I/F DTAP,1.0.0 to 1.8.15,cellular,historical,g/gsm_a_dtap.html
+gsm_a_gm,GSM A-I/F GPRS Mobility and Session Management,1.2.0 to 1.8.15,cellular,historical,g/gsm_a_gm.html
+gsm_a_rp,GSM A-I/F RP,1.0.0 to 1.8.15,cellular,historical,g/gsm_a_rp.html
+gsm_a_sacch,GSM SACCH,1.2.0 to 1.8.4,cellular,historical,g/gsm_a_sacch.html
+gsm_abis_om2000,Ericsson A-bis OML,1.8.0 to 4.6.10,cellular,reuse,g/gsm_abis_om2000.html
+gsm_abis_oml,GSM A-bis OML,1.8.0 to 4.6.10,cellular,reuse,g/gsm_abis_oml.html
+gsm_abis_pgsl,GSM A-bis P-GSL,2.4.0 to 4.6.10,cellular,reuse,g/gsm_abis_pgsl.html
+gsm_abis_rsl,Radio Signalling Link (RSL),1.10.0 to 4.6.10,cellular,reuse,g/gsm_abis_rsl.html
+gsm_abis_tfp,GSM A-bis TFP,2.4.0 to 4.6.10,cellular,reuse,g/gsm_abis_tfp.html
+gsm_bssmap_le,Lb-I/F BSSMAP LE,1.2.0 to 4.6.10,cellular,reuse,g/gsm_bssmap_le.html
+gsm_cbch,GSM Cell Broadcast Channel,1.8.0 to 4.6.10,cellular,reuse,g/gsm_cbch.html
+gsm_cbs,GSM Cell Broadcast Service,1.10.0 to 4.6.10,cellular,reuse,g/gsm_cbs.html
+gsm_cell_broadcast,GSM Cell Broadcast Service,1.8.0 to 1.8.15,cellular,historical,g/gsm_cell_broadcast.html
+gsm_ipa,GSM over IP protocol as used by ip.access,1.4.0 to 4.6.10,cellular,reuse,g/gsm_ipa.html
+gsm_l2rcop,GSM L2R Character Oriented Protocol (L2RCOP),4.2.0 to 4.6.10,cellular,reuse,g/gsm_l2rcop.html
+gsm_map,GSM Mobile Application,1.0.0 to 4.6.10,cellular,reuse,g/gsm_map.html
+gsm_rlcmac,"Radio Link Control, Medium Access Control, 3GPP TS44.060",1.6.0 to 4.6.10,cellular,reuse,g/gsm_rlcmac.html
+gsm_rlp,GSM Radio Link Protocol (RLP),4.2.0 to 4.6.10,cellular,reuse,g/gsm_rlp.html
+gsm_sim,GSM SIM 11.11,1.8.0 to 4.6.10,cellular,reuse,g/gsm_sim.html
+gsm_sms,GSM SMS TPDU (GSM 03.40),1.0.0 to 4.6.10,cellular,reuse,g/gsm_sms.html
+gsm_sms_ud,GSM Short Message Service User Data,1.10.0 to 4.6.10,cellular,reuse,g/gsm_sms_ud.html
+gsm_um,GSM Um Interface,1.2.0 to 4.6.10,cellular,reuse,g/gsm_um.html
+gsmtap,GSM Radiotap,1.4.0 to 4.6.10,capture,reference,g/gsmtap.html
+gsmtap_log,GSMTAP libosmocore logging,2.4.0 to 4.6.10,capture,reference,g/gsmtap_log.html
+gss-api,GSS-API Generic Security Service Application Program Interface,1.0.0 to 4.6.10,auth,reuse,g/gss-api.html
+gsup,Osmocom General Subscriber Update Protocol,3.0.0 to 4.6.10,cellular,reuse,g/gsup.html
+gtp,GPRS Tunneling Protocol,1.0.0 to 4.6.10,cellular,reuse,g/gtp.html
+gtpv2,GPRS Tunneling Protocol V2,1.2.0 to 4.6.10,cellular,reuse,g/gtpv2.html
+gvcp,GigE Vision Control Protocol,1.4.0 to 4.6.10,media,application,g/gvcp.html
+gvrp,GARP VLAN Registration Protocol,1.0.0 to 4.6.10,lan,reuse,g/gvrp.html
+gvsp,GigE Vision Streaming Protocol,2.0.0 to 4.6.10,media,application,g/gvsp.html
+h1,Sinec H1 Protocol,1.0.0 to 4.6.10,industrial,gateway,h/h1.html
+h221nonstd,H221NonStandard,1.0.0 to 4.6.10,voice,application,h/h221nonstd.html
+h223,ITU-T Recommendation H.223,1.0.0 to 4.6.10,voice,application,h/h223.html
+h224,H.224,4.2.0 to 4.6.10,voice,application,h/h224.html
+h225,H323-MESSAGES,1.0.0 to 4.6.10,voice,application,h/h225.html
+h235,H235-SECURITY-MESSAGES,1.0.0 to 4.6.10,auth,reuse,h/h235.html
+h245,MULTIMEDIA-SYSTEM-CONTROL,1.0.0 to 4.6.10,voice,application,h/h245.html
+h248,H.248 MEGACO,1.0.0 to 4.6.10,voice,application,h/h248.html
+h248.2,H.248.2,1.10.0 to 4.6.10,voice,application,h/h248.2.html
+h248.3gpp,H.248 3GPP,1.10.0 to 4.6.10,voice,application,h/h248.3gpp.html
+h248.an,H.248.7,1.10.0 to 4.6.10,voice,application,h/h248.an.html
+h248.annexc,H.248 Annex C,2.0.0 to 4.6.10,voice,application,h/h248.annexc.html
+h248.chp,H.248.10,1.10.0 to 4.6.10,voice,application,h/h248.chp.html
+h2483gpp,H.248 3GPP,1.0.0 to 1.8.15,voice,historical,h/h2483gpp.html
+h248_2,H.248.2,1.8.0 to 1.8.15,voice,historical,h/h248_2.html
+h248an,H.248.7,1.0.0 to 1.8.15,voice,historical,h/h248an.html
+h248c,H.248 Annex C,1.0.0 to 1.12.13,voice,historical,h/h248c.html
+h248chp,H.248.10,1.0.0 to 1.8.15,voice,historical,h/h248chp.html
+h248e,H.248 Annex E,1.0.0 to 4.6.10,voice,application,h/h248e.html
+h248q1950,H.248 Q.1950 Annex A,1.0.0 to 4.6.10,voice,application,h/h248q1950.html
+h261,ITU-T Recommendation H.261,1.0.0 to 4.6.10,media,application,h/h261.html
+h263,ITU-T Recommendation H.263,1.0.0 to 4.6.10,media,application,h/h263.html
+h263p,ITU-T Recommendation H.263 RTP Payload header (RFC4629),1.0.0 to 4.6.10,media,application,h/h263p.html
+h264,H.264,1.0.0 to 4.6.10,media,application,h/h264.html
+h265,H.265,3.0.0 to 4.6.10,media,application,h/h265.html
+h323,H.323,1.0.0 to 4.6.10,voice,application,h/h323.html
+h450,H.450 Supplementary Services,1.0.0 to 4.6.10,voice,application,h/h450.html
+h450.ros,H.450 Remote Operations Apdus,1.0.0 to 4.6.10,voice,application,h/h450.ros.html
+h460,H.460 Supplementary Services,1.0.0 to 4.6.10,voice,application,h/h460.html
+h501,H.501 Mobility,1.0.0 to 4.6.10,voice,application,h/h501.html
+hart_ip,HART_IP Protocol,1.8.0 to 4.6.10,industrial,gateway,h/hart_ip.html
+hbbak,Palo Alto Heartbeat Backup,3.4.0 to 4.6.10,ops,reuse,h/hbbak.html
+hci_h1,Bluetooth HCI H1,1.0.0 to 4.6.10,bluetooth,gateway,h/hci_h1.html
+hci_h4,Bluetooth HCI H4,1.0.0 to 4.6.10,bluetooth,gateway,h/hci_h4.html
+hci_mon,Bluetooth Linux Monitor Transport,1.12.0 to 4.6.10,capture,reference,h/hci_mon.html
+hci_usb,Bluetooth HCI USB Transport,1.10.0 to 4.6.10,bluetooth,gateway,h/hci_usb.html
+hclnfsd,Hummingbird NFS Daemon,1.0.0 to 4.6.10,storage,application,h/hclnfsd.html
+hcrt,Hotline Command-Response Transaction protocol,2.0.0 to 4.6.10,collab,application,h/hcrt.html
+hdcp,High bandwidth Digital Content Protection,1.8.0 to 4.6.10,media,application,h/hdcp.html
+hdcp2,High bandwidth Digital Content Protection version 2,1.8.0 to 4.6.10,media,application,h/hdcp2.html
+hdfs,HDFS Protocol,1.8.0 to 4.6.10,storage,application,h/hdfs.html
+hdfsdata,HDFSDATA Protocol,1.8.0 to 4.6.10,storage,application,h/hdfsdata.html
+hdmi,High-Definition Multimedia Interface,1.12.0 to 4.6.10,media,application,h/hdmi.html
+HI2operations,HI2Operations,1.4.0 to 4.6.10,cellular,reuse,h/HI2operations.html
+hicp,Host IP Configuration Protocol,4.0.0 to 4.6.10,industrial,gateway,h/hicp.html
+hilscher,Hilscher analyzer dissector,1.0.0 to 1.6.16,industrial,historical,h/hilscher.html
+hip,Host Identity Protocol,1.4.0 to 4.6.10,overlay,reuse,h/hip.html
+hipercontracer,HiPerConTracer Trace Service,3.6.0 to 4.6.10,ops,reuse,h/hipercontracer.html
+hiqnet,Harman HiQnet,2.0.0 to 4.6.10,media,application,h/hiqnet.html
+hislip,High-Speed LAN Instrument Protocol,1.12.0 to 4.6.10,instrument,gateway,h/hislip.html
+hl7,Health Level Seven,2.4.0 to 4.6.10,medical,application,h/hl7.html
+hnbap,UTRAN Iuh interface HNBAP signalling,1.4.0 to 4.6.10,cellular,reuse,h/hnbap.html
+homeplug,HomePlug protocol,1.0.0 to 4.6.10,access,reuse,h/homeplug.html
+homeplug-av,HomePlug AV protocol,1.8.0 to 4.6.10,access,reuse,h/homeplug-av.html
+hp_erm,HP encapsulated remote mirroring,1.4.0 to 4.6.10,capture,reference,h/hp_erm.html
+hpext,HP Extended Local-Link Control,1.0.0 to 4.6.10,lan,reuse,h/hpext.html
+hpfeeds,HPFEEDS HoneyPot Feeds Protocol,1.10.0 to 4.6.10,messaging,gateway,h/hpfeeds.html
+hpna,"HomePNA, wlan link local tunnel",2.4.0 to 4.6.10,access,reuse,h/hpna.html
+hpsw,HP Switch Protocol,1.0.0 to 4.6.10,lan,reuse,h/hpsw.html
+hpteam,HP NIC Teaming Heartbeat,1.4.0 to 4.6.10,lan,reuse,h/hpteam.html
+hsfz,High Speed Fahrzeugzugang,4.2.0 to 4.6.10,vehicle,gateway,h/hsfz.html
+hsms,High-speed SECS Message Service Protocol,2.4.0 to 4.6.10,instrument,gateway,h/hsms.html
+hsr,High-availability Seamless Redundancy (IEC62439 Part 3 Chapter 5),1.8.0 to 4.6.10,lan,reuse,h/hsr.html
+hsr_prp_supervision,HSR/PRP Supervision (IEC62439 Part 3),1.8.0 to 4.6.10,lan,reuse,h/hsr_prp_supervision.html
+hsrp,Cisco Hot Standby Router Protocol,1.0.0 to 4.6.10,routing,reuse,h/hsrp.html
+http,Hypertext Transfer Protocol,1.0.0 to 4.6.10,web,reuse,h/http.html
+http2,HyperText Transfer Protocol 2,1.12.0 to 4.6.10,web,reuse,h/http2.html
+http3,Hypertext Transfer Protocol Version 3,3.4.0 to 4.6.10,web,reuse,h/http3.html
+hyperscsi,HyperSCSI,1.0.0 to 4.6.10,storage,application,h/hyperscsi.html
+hzlcst,Hazelcast Wire Protocol,1.8.0 to 4.6.10,database,application,h/hzlcst.html
+i1d3,X-Rite i1 Display Pro (and derivatives) USB protocol,2.4.0 to 4.6.10,peripheral,gateway,i/i1d3.html
+i2c,Inter-Integrated Circuit,1.2.0 to 4.6.10,peripheral,gateway,i/i2c.html
+iap,Information Access Protocol,1.0.0 to 4.6.10,unresolved,defer,i/iap.html
+iapp,Inter-Access-Point Protocol,1.0.0 to 4.6.10,wifi,reuse,i/iapp.html
+iax2,Inter-Asterisk eXchange v2,1.0.0 to 4.6.10,voice,application,i/iax2.html
+ib_sdp,Infiniband Sockets Direct Protocol,1.6.0 to 1.8.15,fabric,historical,i/ib_sdp.html
+ibeacon,Apple iBeacon,2.4.0 to 4.6.10,bluetooth,gateway,i/ibeacon.html
+icall,iCall Communication Protocol,2.4.0 to 4.6.10,voice,application,i/icall.html
+icap,Internet Content Adaptation Protocol,1.0.0 to 4.6.10,web,reuse,i/icap.html
+icep,Internet Communications Engine Protocol,1.0.0 to 4.6.10,enterprise,application,i/icep.html
+icl_rpc,DCE DFS ICL RPC,1.0.0 to 4.6.10,enterprise,application,i/icl_rpc.html
+icmp,Internet Control Message Protocol,1.0.0 to 4.6.10,routing,reuse,i/icmp.html
+icmpv6,Internet Control Message Protocol v6,1.0.0 to 4.6.10,routing,reuse,i/icmpv6.html
+icp,Internet Cache Protocol,1.0.0 to 4.6.10,web,reuse,i/icp.html
+icq,ICQ Protocol,1.0.0 to 4.6.10,collab,application,i/icq.html
+id3v2,ID3v2,4.2.0 to 4.6.10,format,reference,i/id3v2.html
+idmp,X.519 Internet Directly Mapped Protocol,1.6.0 to 4.6.10,enterprise,application,i/idmp.html
+idn,Ilda Digital Network Protocol,3.4.0 to 4.6.10,media,application,i/idn.html
+idp,Internetwork Datagram Protocol,1.0.0 to 4.6.10,legacy,reference,i/idp.html
+idrp,ISO/IEC 10747 (1993): Inter Domain Routing Protocol,1.12.0 to 4.6.10,legacy,reference,i/idrp.html
+iec60870_101,IEC 60870-5-101,3.2.0 to 4.6.10,utilities,gateway,i/iec60870_101.html
+iec60870_104,IEC 60870-5-104,3.2.0 to 4.6.10,utilities,gateway,i/iec60870_104.html
+iec60870_5_103,IEC 60870-5-103,3.6.0 to 4.6.10,utilities,gateway,i/iec60870_5_103.html
+iec60870_asdu,IEC 60870-5-101/104 ASDU,3.2.0 to 4.6.10,utilities,gateway,i/iec60870_asdu.html
+iec61883,IEC 61883 Protocol,"2.4.8 to 2.4.16, 2.6.2 to 4.6.10",media,application,i/iec61883.html
+ieee1609dot2,IEEE1609dot2,3.0.0 to 4.6.10,vehicle,gateway,i/ieee1609dot2.html
+ieee1722,IEEE 1722 Audio Video Transport Protocol (AVTP),1.4.0 to 4.6.10,media,application,i/ieee1722.html
+ieee17221,IEEE 1722.1 Protocol,1.8.0 to 4.6.10,media,application,i/ieee17221.html
+ieee1905,IEEE 1905.1a,2.6.0 to 4.6.10,lan,reuse,i/ieee1905.html
+ieee8021ad,IEEE 802.1ad,1.0.0 to 4.6.10,lan,reuse,i/ieee8021ad.html
+ieee8021ah,IEEE 802.1ah,1.0.0 to 4.6.10,lan,reuse,i/ieee8021ah.html
+ieee8021cb,802.1CB Redundancy Tag,3.4.0 to 4.6.10,lan,reuse,i/ieee8021cb.html
+ieee802a,IEEE802a OUI Extended Ethertype,1.0.0 to 4.6.10,lan,reuse,i/ieee802a.html
+ifcp,iFCP,1.0.0 to 4.6.10,storage,application,i/ifcp.html
+igap,Internet Group membership Authentication Protocol,1.0.0 to 4.6.10,routing,reuse,i/igap.html
+igmp,Internet Group Management Protocol,1.0.0 to 4.6.10,routing,reuse,i/igmp.html
+igrp,Cisco Interior Gateway Routing Protocol,1.0.0 to 4.6.10,routing,reuse,i/igrp.html
+ilnp,Identifier-Locator Network Protocol,4.6.0 to 4.6.10,routing,reuse,i/ilnp.html
+ilp,OMA Internal Location Protocol,1.12.0 to 4.6.10,cellular,reuse,i/ilp.html
+image-gif,Compuserve GIF,1.0.0 to 4.6.10,format,reference,i/image-gif.html
+image-jfif,JPEG File Interchange Format,1.0.0 to 4.6.10,format,reference,i/image-jfif.html
+imap,Internet Message Access Protocol,1.0.0 to 4.6.10,collab,application,i/imap.html
+imf,Internet Message Format,1.0.0 to 4.6.10,collab,application,i/imf.html
+inap,Intelligent Network Application Protocol,1.0.0 to 4.6.10,cellular,reuse,i/inap.html
+infiniband,InfiniBand,1.0.0 to 4.6.10,fabric,reuse,i/infiniband.html
+infiniband_link,InfiniBand Link,1.4.0 to 4.6.10,fabric,reuse,i/infiniband_link.html
+infiniband_sdp,Infiniband Sockets Direct Protocol,1.10.0 to 4.6.10,fabric,reuse,i/infiniband_sdp.html
+initshutdown,Init shutdown service,1.0.0 to 4.6.10,enterprise,application,i/initshutdown.html
+interlink,Interlink Protocol,"1.4.0 to 1.6.16, 1.8.3 to 4.6.10",unresolved,defer,i/interlink.html
+ioraw,TwinCAT IO-RAW,1.0.0 to 4.6.10,industrial,gateway,i/ioraw.html
+ip,Internet Protocol Version 4,1.0.0 to 4.6.10,routing,reuse,i/ip.html
+ipaccess,GSM over IP ip.access CCM sub-protocol,1.4.0 to 4.6.10,cellular,reuse,i/ipaccess.html
+ipcomp,IP Payload Compression,1.0.0 to 4.6.10,overlay,reuse,i/ipcomp.html
+ipcp,PPP IP Control Protocol,1.0.0 to 4.6.10,access,reuse,i/ipcp.html
+ipdc,IP Device Control (SS7 over IP),1.0.0 to 4.6.10,cellular,reuse,i/ipdc.html
+ipdr,IPDR,2.0.0 to 4.6.10,ops,reuse,i/ipdr.html
+ipdum,AUTOSAR I-PDU Multiplexer,4.0.0 to 4.6.10,vehicle,gateway,i/ipdum.html
+iperf2,iPerf2 Packet Data,2.4.0 to 4.6.10,ops,reuse,i/iperf2.html
+iperf3,iPerf3 Speed Test,4.2.0 to 4.6.10,ops,reuse,i/iperf3.html
+ipfc,IP Over FC,1.0.0 to 4.6.10,storage,application,i/ipfc.html
+ipmi,Intelligent Platform Management Interface,1.0.0 to 4.6.10,ops,gateway,i/ipmi.html
+ipmi-session,Intelligent Platform Management Interface (Session Wrapper),1.2.0 to 1.8.15,ops,historical,i/ipmi-session.html
+ipmi-trace,IPMI Trace Data Collection,1.12.0 to 1.12.13,capture,historical,i/ipmi-trace.html
+ipmi.trace,IPMI Trace Data Collection,2.0.0 to 4.6.10,capture,reference,i/ipmi.trace.html
+ipmi_session,Intelligent Platform Management Interface (Session Wrapper),1.10.0 to 4.6.10,ops,gateway,i/ipmi_session.html
+ipnet,Solaris IPNET,1.4.0 to 4.6.10,capture,reference,i/ipnet.html
+ipoib,IP over Infiniband,1.8.0 to 4.6.10,fabric,reuse,i/ipoib.html
+ipos,IPOS Kernel Packet Protocol,2.2.0 to 4.6.10,capture,reference,i/ipos.html
+ipp,Internet Printing Protocol,1.0.0 to 4.6.10,peripheral,gateway,i/ipp.html
+ippusb,Internet Printing Protocol Over USB,3.4.0 to 4.6.10,peripheral,gateway,i/ippusb.html
+ipsictl,IPSICTL,1.2.0 to 4.6.10,voice,application,i/ipsictl.html
+ipv6,Internet Protocol Version 6,1.0.0 to 4.6.10,routing,reuse,i/ipv6.html
+ipv6.dstopts,Destination Options for IPv6,2.0.0 to 4.6.10,routing,reuse,i/ipv6.dstopts.html
+ipv6.fraghdr,Fragment Header for IPv6,2.2.0 to 4.6.10,routing,reuse,i/ipv6.fraghdr.html
+ipv6.hopopts,IPv6 Hop-by-Hop Option,2.0.0 to 4.6.10,routing,reuse,i/ipv6.hopopts.html
+ipv6.routing,Routing Header for IPv6,2.0.0 to 4.6.10,routing,reuse,i/ipv6.routing.html
+ipv6cp,PPP IPv6 Control Protocol,1.0.0 to 4.6.10,access,reuse,i/ipv6cp.html
+ipvs,IP Virtual Services Sync Daemon,1.0.0 to 4.6.10,ops,reuse,i/ipvs.html
+ipx,Internetwork Packet eXchange,1.0.0 to 4.6.10,legacy,reference,i/ipx.html
+ipxmsg,IPX Message,1.0.0 to 4.6.10,legacy,reference,i/ipxmsg.html
+ipxrip,IPX Routing Information Protocol,1.0.0 to 4.6.10,legacy,reference,i/ipxrip.html
+ipxsap,Service Advertisement Protocol,1.0.0 to 4.6.10,legacy,reference,i/ipxsap.html
+ipxwan,IPX WAN,1.0.0 to 4.6.10,legacy,reference,i/ipxwan.html
+irc,Internet Relay Chat,1.0.0 to 4.6.10,collab,application,i/irc.html
+ircomm,IrCOMM Protocol,1.0.0 to 4.6.10,peripheral,gateway,i/ircomm.html
+irdma,IBM i RDMA,4.4.0 to 4.6.10,fabric,reuse,i/irdma.html
+irdma.ep,IBM i RDMA Endpoint,4.4.0 to 4.6.10,fabric,reuse,i/irdma.ep.html
+irdma.link,IBM i RDMA Link,4.4.0 to 4.6.10,fabric,reuse,i/irdma.link.html
+irdma.qp,IBM i RDMA QP,4.4.0 to 4.6.10,fabric,reuse,i/irdma.qp.html
+iremotewinspool,IRemoteWinspool SubSystem,3.4.0 to 4.6.10,enterprise,application,i/iremotewinspool.html
+irlap,IrDA Link Access Protocol,1.0.0 to 4.6.10,peripheral,gateway,i/irlap.html
+irlmp,IrDA Link Management Protocol,1.0.0 to 4.6.10,peripheral,gateway,i/irlmp.html
+isakmp,Internet Security Association and Key Management Protocol,1.0.0 to 4.6.10,overlay,reuse,i/isakmp.html
+iscsi,iSCSI,1.0.0 to 4.6.10,storage,application,i/iscsi.html
+isdn,ISDN,1.0.0 to 4.6.10,cellular,reuse,i/isdn.html
+isdn_sup,ISDN supplementary services,1.10.0 to 4.6.10,cellular,reuse,i/isdn_sup.html
+iser,iSCSI Extensions for RDMA,2.0.0 to 4.6.10,storage,application,i/iser.html
+isi,Intelligent Service Interface,2.2.0 to 4.6.10,cellular,reuse,i/isi.html
+isis,ISO 10589 ISIS InTRA Domain Routeing Information Exchange Protocol,1.0.0 to 4.6.10,routing,reuse,i/isis.html
+isis.csnp,ISO 10589 ISIS Complete Sequence Numbers Protocol Data Unit,1.12.0 to 4.6.10,routing,reuse,i/isis.csnp.html
+isis.hello,ISIS HELLO,1.12.0 to 4.6.10,routing,reuse,i/isis.hello.html
+isis.lsp,ISO 10589 ISIS Link State Protocol Data Unit,1.12.0 to 4.6.10,routing,reuse,i/isis.lsp.html
+isis.psnp,ISO 10589 ISIS Partial Sequence Numbers Protocol Data Unit,1.12.0 to 4.6.10,routing,reuse,i/isis.psnp.html
+isl,Cisco ISL,1.0.0 to 4.6.10,lan,reuse,i/isl.html
+ismacryp,ISMACryp Protocol,1.2.0 to 4.6.10,media,application,i/ismacryp.html
+ismp,InterSwitch Message Protocol,1.0.0 to 4.6.10,lan,reuse,i/ismp.html
+isns,iSNS,1.0.0 to 4.6.10,storage,application,i/isns.html
+iso10681,ISO10681 Protocol,3.6.0 to 4.6.10,vehicle,gateway,i/iso10681.html
+iso14443,ISO/IEC 14443,2.2.0 to 4.6.10,nfc,gateway,i/iso14443.html
+iso15765,ISO15765 Protocol,2.4.0 to 4.6.10,vehicle,gateway,i/iso15765.html
+iso7816,ISO/IEC 7816,1.8.0 to 4.6.10,nfc,gateway,i/iso7816.html
+iso8583,ISO 8583-1,2.2.0 to 4.6.10,finance,application,i/iso8583.html
+isobus,ISObus,2.6.0 to 4.6.10,vehicle,gateway,i/isobus.html
+isobus.vt,ISObus Virtual Terminal,2.6.0 to 4.6.10,vehicle,gateway,i/isobus.vt.html
+isup,ISDN User Part,1.0.0 to 4.6.10,cellular,reuse,i/isup.html
+isup_thin,ISUP Thin Protocol,1.0.0 to 1.2.18,cellular,historical,i/isup_thin.html
+isystemactivator,ISystemActivator ISystemActivator Resolver,1.0.0 to 4.6.10,enterprise,application,i/isystemactivator.html
+itdm,Internal TDM,1.2.0 to 4.6.10,voice,application,i/itdm.html
+its,Intelligent Transport Systems,3.0.0 to 4.6.10,vehicle,gateway,i/its.html
+itunes,iTunes podCast rss elements,1.0.0 to 4.6.10,media,application,i/itunes.html
+iua,ISDN Q.921-User Adaptation Layer,1.0.0 to 4.6.10,cellular,reuse,i/iua.html
+iuup,IuUP,1.0.0 to 4.6.10,cellular,reuse,i/iuup.html
+iwarp_ddp_rdmap,iWARP Direct Data Placement and Remote Direct Memory Access Protocol,1.2.0 to 4.6.10,fabric,reuse,i/iwarp_ddp_rdmap.html
+iwarp_mpa,iWARP Marker Protocol data unit Aligned framing,1.2.0 to 4.6.10,fabric,reuse,i/iwarp_mpa.html
+IWbemLevel1Login,IWBEMLEVEL1LOGIN (pidl),4.2.0 to 4.6.10,enterprise,application,i/IWbemLevel1Login.html
+IWbemLoginClientID,IWBEMLOGINCLIENTID (pidl),4.4.0 to 4.6.10,enterprise,application,i/IWbemLoginClientID.html
+IWbemLoginClientIDEx,IWBEMLOGINCLIENTIDEX (pidl),4.4.0 to 4.6.10,enterprise,application,i/IWbemLoginClientIDEx.html
+IWbemServices,IWBEMSERVICES (pidl),4.4.0 to 4.6.10,enterprise,application,i/IWbemServices.html
+ixiatrailer,Ixia Trailer,1.10.0 to 4.6.10,capture,reference,i/ixiatrailer.html
+ixveriwave,ixveriwave,1.8.0 to 4.6.10,capture,reference,i/ixveriwave.html
+j1939,SAE J1939,1.12.0 to 4.6.10,vehicle,gateway,j/j1939.html
+jabber,Jabber XML Messaging,1.0.0 to 1.6.16,collab,historical,j/jabber.html
+jdwp,Java Debug Wire Protocol,3.4.0 to 4.6.10,enterprise,application,j/jdwp.html
+jmirror,Juniper Packet Mirror,1.4.0 to 4.6.10,capture,reference,j/jmirror.html
+jpeg,RFC 2435 JPEG,1.0.0 to 4.6.10,format,reference,j/jpeg.html
+json,JavaScript Object Notation,1.6.0 to 4.6.10,format,reference,j/json.html
+json.3gpp,JSON 3GPP,4.2.0 to 4.6.10,format,reference,j/json.3gpp.html
+json_3gpp,JSON 3GPP,3.6.0 to 4.0.17,format,historical,j/json_3gpp.html
+juniper,Juniper,1.0.0 to 4.6.10,capture,reference,j/juniper.html
+jxta,JXTA P2P,1.0.0 to 4.6.10,overlay,reuse,j/jxta.html
+k12,K12xx,1.0.0 to 4.6.10,capture,reference,k/k12.html
+kadm5,Kerberos Administration,1.0.0 to 4.6.10,auth,reuse,k/kadm5.html
+kafka,Kafka,1.12.0 to 4.6.10,messaging,gateway,k/kafka.html
+kdp,Kontiki Delivery Protocol,1.2.0 to 4.6.10,file,application,k/kdp.html
+kdsp,Kismet Drone/Server Protocol,1.8.0 to 4.6.10,ops,reuse,k/kdsp.html
+kerberos,Kerberos,1.0.0 to 4.6.10,auth,reuse,k/kerberos.html
+kf,Kingfisher,1.0.0 to 4.6.10,industrial,gateway,k/kf.html
+kif,QNX6 QNET KIF protocol,2.0.0 to 4.6.10,enterprise,application,k/kif.html
+kink,Kerberized Internet Negotiation of Key,1.0.0 to 4.6.10,auth,reuse,k/kink.html
+kip,KNX/IP,3.0.0 to 4.6.10,building,gateway,k/kip.html
+kismet,Kismet Client/Server Protocol,1.0.0 to 4.6.10,ops,reuse,k/kismet.html
+klm,Kernel Lock Manager,1.0.0 to 4.6.10,storage,application,k/klm.html
+knet,kNet Protocol,1.8.0 to 4.6.10,transport,reuse,k/knet.html
+knx,KNXnet/IP,2.0.0 to 2.6.20,building,historical,k/knx.html
+kpasswd,MS Kpasswd,1.0.0 to 4.6.10,auth,reuse,k/kpasswd.html
+kpm-v2,KPM V2,4.2.0 to 4.6.10,cellular,reuse,k/kpm-v2.html
+krb4,Kerberos v4,1.0.0 to 4.6.10,auth,reference,k/krb4.html
+krb5rpc,DCE/RPC Kerberos V,1.0.0 to 4.6.10,auth,reuse,k/krb5rpc.html
+kt,Kyoto Tycoon Protocol,1.12.0 to 4.6.10,database,application,k/kt.html
+l2tp,Layer 2 Tunneling Protocol,1.0.0 to 4.6.10,overlay,reuse,l/l2tp.html
+lacp,Link Aggregation Control Protocol,2.0.0 to 4.6.10,lan,reuse,l/lacp.html
+lanforge,LANforge Traffic Generator,1.2.0 to 4.6.10,ops,reuse,l/lanforge.html
+lanman,Microsoft Windows Lanman Remote API Protocol,1.0.0 to 4.6.10,enterprise,application,l/lanman.html
+lapb,Link Access Procedure Balanced (LAPB),1.0.0 to 4.6.10,access,reuse,l/lapb.html
+lapbether,Link Access Procedure Balanced Ethernet (LAPBETHER),1.0.0 to 4.6.10,access,reuse,l/lapbether.html
+lapd,"Link Access Procedure, Channel D (LAPD)",1.0.0 to 4.6.10,cellular,reuse,l/lapd.html
+lapdm,"Link Access Procedure, Channel Dm (LAPDm)",1.2.0 to 4.6.10,cellular,reuse,l/lapdm.html
+laplink,Laplink,1.0.0 to 4.6.10,remote,application,l/laplink.html
+lapsat,"Link Access Procedure, Satellite channel (LAPSat)",1.8.0 to 4.6.10,cellular,reuse,l/lapsat.html
+lat,Local Area Transport,2.2.0 to 4.6.10,legacy,reference,l/lat.html
+lbmc,LBMC Protocol,1.12.0 to 4.6.10,messaging,gateway,l/lbmc.html
+lbmpdm,LBMPDM Protocol,1.12.0 to 4.6.10,messaging,gateway,l/lbmpdm.html
+lbmpdm_tcp,LBMPDM over TCP Protocol,1.12.0 to 4.6.10,messaging,gateway,l/lbmpdm_tcp.html
+lbmr,LBM Topic Resolution Protocol,1.12.0 to 4.6.10,messaging,gateway,l/lbmr.html
+lbmsrs,LBM Stateful Resolution Service Protocol,3.4.0 to 4.6.10,messaging,gateway,l/lbmsrs.html
+lbtrm,LBT Reliable Multicast Protocol,1.12.0 to 4.6.10,messaging,gateway,l/lbtrm.html
+lbtru,LBT Reliable Unicast Protocol,1.12.0 to 4.6.10,messaging,gateway,l/lbtru.html
+lbttcp,LBT TCP Protocol,1.12.0 to 4.6.10,messaging,gateway,l/lbttcp.html
+lcp,PPP Link Control Protocol,1.0.0 to 4.6.10,access,reuse,l/lcp.html
+lcsap,LCS Application Protocol,1.8.0 to 4.6.10,cellular,reuse,l/lcsap.html
+lct,H.283 Logical Channel Transport,1.0.0 to 4.6.10,voice,application,l/lct.html
+lda_neo_trailer,LDA Neo Device trailer,4.6.0 to 4.6.10,capture,reference,l/lda_neo_trailer.html
+ldac,LDAC Codec,3.2.0 to 4.6.10,media,application,l/ldac.html
+ldap,Lightweight Directory Access Protocol,1.0.0 to 4.6.10,enterprise,application,l/ldap.html
+ldp,Label Distribution Protocol,1.0.0 to 4.6.10,routing,reuse,l/ldp.html
+ldss,Local Download Sharing Service,1.2.0 to 4.6.10,file,application,l/ldss.html
+lg8979,Landis & Gyr Telegyr 8979,1.12.0 to 4.6.10,utilities,gateway,l/lg8979.html
+lge_monitor,LGE Monitor,1.0.0 to 4.6.10,capture,reference,l/lge_monitor.html
+li5g,Lawful Interception 5G,4.4.0 to 4.6.10,cellular,reuse,l/li5g.html
+lin,LIN Protocol,3.6.0 to 4.6.10,vehicle,gateway,l/lin.html
+link16,Link 16,1.12.0 to 4.6.10,fieldradio,application,l/link16.html
+linx,ENEA LINX,1.0.0 to 4.6.10,enterprise,application,l/linx.html
+linxtcp,ENEA LINX over TCP,1.8.0 to 4.6.10,enterprise,application,l/linxtcp.html
+lisp,Locator/ID Separation Protocol,1.6.0 to 4.6.10,overlay,reuse,l/lisp.html
+lisp-data,Locator/ID Separation Protocol (Data),1.6.0 to 4.6.10,overlay,reuse,l/lisp-data.html
+lisp-tcp,Locator/ID Separation Protocol (Reliable Transport),2.0.0 to 4.6.10,overlay,reuse,l/lisp-tcp.html
+list,Event Notification for Resource Lists (RFC 4662),1.0.0 to 4.6.10,collab,application,l/list.html
+lithionics_bms,Lithionics Battery Management System,3.4.0 to 4.6.10,industrial,gateway,l/lithionics_bms.html
+llap,LocalTalk Link Access Protocol,1.0.0 to 4.6.10,legacy,reference,l/llap.html
+llb,DCE/RPC NCS 1.5.1 Local Location Broker,1.0.0 to 4.6.10,enterprise,application,l/llb.html
+llc,Logical-Link Control,1.0.0 to 4.6.10,lan,reuse,l/llc.html
+llc-v1,LLC V1,4.6.0 to 4.6.10,lan,reuse,l/llc-v1.html
+llcgprs,Logical Link Control GPRS,1.0.0 to 4.6.10,cellular,reuse,l/llcgprs.html
+lldp,Link Layer Discovery Protocol,1.0.0 to 4.6.10,lan,reuse,l/lldp.html
+llrp,Low Level Reader Protocol,1.8.0 to 4.6.10,nfc,gateway,l/llrp.html
+lls,ATSC3 Low Level Signalling,4.2.0 to 4.6.10,media,application,l/lls.html
+llt,Veritas Low Latency Transport (LLT),1.0.0 to 4.6.10,transport,reuse,l/llt.html
+lltd,Link Layer Topology Discovery,2.0.0 to 4.6.10,lan,reuse,l/lltd.html
+lmi,Local Management Interface,1.0.0 to 4.6.10,access,reuse,l/lmi.html
+lmp,Link Management Protocol (LMP),1.0.0 to 4.6.10,routing,reuse,l/lmp.html
+lnet,Lustre Network,2.6.0 to 4.6.10,storage,application,l/lnet.html
+lnpdqp,Local Number Portability Database Query,3.0.0 to 4.6.10,cellular,reuse,l/lnpdqp.html
+locamation-im.calibration,Locamation Interface Module CALIBRATION,4.0.0 to 4.6.10,industrial,gateway,l/locamation-im.calibration.html
+locamation-im.ident,Locamation Interface Module IDENT,4.0.0 to 4.6.10,industrial,gateway,l/locamation-im.ident.html
+locamation-im.samples.im1,Locamation Interface Module SAMPLES - IM1,4.0.0 to 4.6.10,industrial,gateway,l/locamation-im.samples.im1.html
+locamation-im.samples.im2r0,Locamation Interface Module SAMPLES - IM2R0,4.0.0 to 4.6.10,industrial,gateway,l/locamation-im.samples.im2r0.html
+log,Log Message,1.0.0 to 4.6.10,capture,reference,l/log.html
+log3gpp,3GPP log packet,3.2.0 to 4.6.10,capture,reference,l/log3gpp.html
+logcat,Android Logcat,1.12.0 to 4.6.10,capture,reference,l/logcat.html
+logcat_text,Android Logcat Text,2.0.0 to 4.6.10,capture,reference,l/logcat_text.html
+logotypecertextn,Logotype Certificate Extensions,1.0.0 to 4.6.10,auth,reuse,l/logotypecertextn.html
+lon,Local Operating Network,1.8.0 to 4.6.10,building,gateway,l/lon.html
+loop,Configuration Test Protocol (loopback),1.0.0 to 4.6.10,lan,reuse,l/loop.html
+loratap,LoRaTap header,2.6.0 to 4.6.10,capture,reference,l/loratap.html
+lorawan,LoRaWAN Protocol,2.6.0 to 4.6.10,lpwan,gateway,l/lorawan.html
+lpd,Line Printer Daemon Protocol,1.0.0 to 4.6.10,peripheral,gateway,l/lpd.html
+lpp,LTE Positioning Protocol (LPP),1.8.0 to 4.6.10,cellular,reuse,l/lpp.html
+lppa,LTE Positioning Protocol A (LPPa),1.8.0 to 4.6.10,cellular,reuse,l/lppa.html
+lppe,LTE Positioning Protocol Extensions (LLPe),1.10.0 to 4.6.10,cellular,reuse,l/lppe.html
+lr,QNX6 QNET LR protocol,2.0.0 to 4.6.10,enterprise,application,l/lr.html
+lsa,Microsoft Local Security Architecture,1.0.0 to 1.0.16,enterprise,historical,l/lsa.html
+lsarpc,Local Security Authority,1.2.0 to 4.6.10,enterprise,application,l/lsarpc.html
+lsc,Pegasus Lightweight Stream Control,1.0.0 to 4.6.10,media,application,l/lsc.html
+lsd,Local Service Discovery,2.4.0 to 4.6.10,discovery,reuse,l/lsd.html
+lsdp,Lenbrook Service Discovery Protocol,4.6.0 to 4.6.10,discovery,reuse,l/lsdp.html
+lte_rrc,LTE Radio Resource Control (RRC) protocol,1.2.0 to 4.6.10,cellular,reuse,l/lte_rrc.html
+ltp,Licklider Transmission Protocol,1.4.0 to 4.6.10,delay,defer,l/ltp.html
+lustre,Lustre,2.6.0 to 4.6.10,storage,application,l/lustre.html
+lwapp,LWAPP Encapsulated Packet,1.0.0 to 4.6.10,wifi,reuse,l/lwapp.html
+lwl4,QNX6 QNET LWL4 protocol,2.0.0 to 4.6.10,enterprise,application,l/lwl4.html
+lwm,Lightweight Mesh (v1.1.1),1.12.0 to 4.6.10,iot,gateway,l/lwm.html
+lwm2mtlv,Lightweight M2M TLV,2.2.0 to 4.6.10,resource,gateway,l/lwm2mtlv.html
+lwres,Light Weight DNS RESolver (BIND9),1.0.0 to 4.6.10,discovery,reuse,l/lwres.html
+m2ap,M2 Application Protocol,2.4.0 to 4.6.10,cellular,reuse,m/m2ap.html
+m2m,WiMax Mac to Mac Packet,1.0.0 to 4.6.10,access,reuse,m/m2m.html
+m2pa,MTP2 Peer Adaptation Layer,1.0.0 to 4.6.10,cellular,reuse,m/m2pa.html
+m2tp,MTP 2 Transparent Proxy,1.0.0 to 4.6.10,cellular,reuse,m/m2tp.html
+m2ua,MTP 2 User Adaptation Layer,1.0.0 to 4.6.10,cellular,reuse,m/m2ua.html
+m3ap,M3 Application Protocol,1.8.0 to 4.6.10,cellular,reuse,m/m3ap.html
+m3ua,MTP 3 User Adaptation Layer,1.0.0 to 4.6.10,cellular,reuse,m/m3ua.html
+maap,IEEE 1722 MAAP Protocol,1.8.0 to 4.6.10,media,application,m/maap.html
+mac,MAC,1.4.0 to 4.6.10,cellular,reuse,m/mac.html
+mac-lte,MAC-LTE,1.2.0 to 4.6.10,cellular,reuse,m/mac-lte.html
+mac-nr,MAC-NR,2.6.0 to 4.6.10,cellular,reuse,m/mac-nr.html
+macc,MAC Control,1.0.0 to 4.6.10,lan,reuse,m/macc.html
+macsec,802.1AE Security Tag,1.12.0 to 4.6.10,auth,reuse,m/macsec.html
+mactelnet,MikroTik MAC-Telnet Protocol,1.6.0 to 4.6.10,remote,application,m/mactelnet.html
+magic,Magic Bullet,2.4.0 to 4.6.10,media,application,m/magic.html
+mailslot,SMB MailSlot Protocol,1.0.0 to 4.6.10,enterprise,application,m/mailslot.html
+manolito,Blubster/Piolet MANOLITO Protocol,1.0.0 to 4.6.10,file,application,m/manolito.html
+mapi,MAPI,1.0.0 to 4.6.10,enterprise,application,m/mapi.html
+marker,Link Aggregation Marker Protocol,2.0.0 to 4.6.10,lan,reuse,m/marker.html
+mate,Meta Analysis Tracing Engine,1.0.0 to 4.6.10,capture,reference,m/mate.html
+matter,Matter,4.2.0 to 4.6.10,matter,gateway,m/matter.html
+mausb,Media Agnostic USB,1.12.0 to 4.6.10,usb,gateway,m/mausb.html
+mbim,Mobile Broadband Interface Model,1.12.0 to 4.6.10,cellular,reuse,m/mbim.html
+mbrtu,Modbus RTU,1.10.0 to 4.6.10,industrial,gateway,m/mbrtu.html
+mbtcp,Modbus/TCP,1.0.0 to 4.6.10,industrial,gateway,m/mbtcp.html
+mc-nmf,.NET Message Framing Protocol,3.4.0 to 4.6.10,enterprise,application,m/mc-nmf.html
+mcp,Miscabling Protocol,3.4.0 to 4.6.10,lan,reuse,m/mcp.html
+mcpe,Minecraft Pocket Edition,2.0.0 to 4.6.10,gaming,application,m/mcpe.html
+mctp,MCTP,4.2.0 to 4.6.10,ops,gateway,m/mctp.html
+mctpc,MCTP Control Protocol,4.2.0 to 4.6.10,ops,gateway,m/mctpc.html
+mdb,Multi-Drop Bus,4.2.0 to 4.6.10,industrial,gateway,m/mdb.html
+mdp,Meraki Discovery Protocol,3.0.0 to 4.6.10,lan,reuse,m/mdp.html
+mdshdr,MDS Header,1.0.0 to 4.6.10,capture,reference,m/mdshdr.html
+mdssvc,Spotlight metadata search service,1.12.0 to 4.6.10,enterprise,application,m/mdssvc.html
+media,Media Type,1.0.0 to 4.6.10,format,reference,m/media.html
+megaco,MEGACO,1.0.0 to 4.6.10,voice,application,m/megaco.html
+memcache,Memcache Protocol,1.2.0 to 4.6.10,database,application,m/memcache.html
+mesh,Mesh Header,1.2.0 to 4.6.10,wifi,reuse,m/mesh.html
+message_analyzer.wfp_capture.auth.v4,Message Analyzer WFP Capture AUTH v4,2.6.0 to 4.6.10,capture,reference,m/message_analyzer.wfp_capture.auth.v4.html
+message_analyzer.wfp_capture.v4,Message Analyzer WFP Capture v4,2.6.0 to 4.6.10,capture,reference,m/message_analyzer.wfp_capture.v4.html
+messenger,Microsoft Messenger Service,1.0.0 to 4.6.10,collab,application,m/messenger.html
+meta,Metadata,1.4.0 to 4.6.10,capture,reference,m/meta.html
+metamako,Metamako ethernet trailer,2.2.0 to 4.6.10,capture,reference,m/metamako.html
+mgcp,Media Gateway Control Protocol,1.0.0 to 4.6.10,voice,application,m/mgcp.html
+mgmt,DCE/RPC Remote Management,1.0.0 to 4.6.10,enterprise,application,m/mgmt.html
+mibs,MIBs,"1.0.3 to 1.0.5, 1.0.9 to 1.0.16, 1.2.1 to 1.2.18",ops,historical,m/mibs.html
+mifare,NXP MiFare,1.8.0 to 4.6.10,nfc,gateway,m/mifare.html
+mih,Media-Independent Handover,1.10.0 to 4.6.10,wifi,reuse,m/mih.html
+mikey,Multimedia Internet KEYing,1.0.0 to 4.6.10,auth,reuse,m/mikey.html
+mime_multipart,MIME Multipart Media Encapsulation,1.0.0 to 4.6.10,format,reference,m/mime_multipart.html
+mint,Media Independent Network Transport,1.12.0 to 4.6.10,wifi,reuse,m/mint.html
+miop,Unreliable Multicast Inter-ORB Protocol,1.2.0 to 4.6.10,enterprise,application,m/miop.html
+mip,Mobile IP,1.0.0 to 4.6.10,routing,reuse,m/mip.html
+mipv6,Mobile IPv6,1.0.0 to 4.6.10,routing,reuse,m/mipv6.html
+misc,MISC (pidl),1.12.0 to 4.6.10,enterprise,application,m/misc.html
+miwi_p2pstar,MiWi P2P Star (v6.4),4.4.0 to 4.6.10,iot,gateway,m/miwi_p2pstar.html
+mka,MACsec Key Agreement,2.0.0 to 4.6.10,auth,reuse,m/mka.html
+mle,Mesh Link Establishment,2.4.0 to 4.6.10,thread,reuse,m/mle.html
+mms,MMS,1.0.0 to 4.6.10,utilities,gateway,m/mms.html
+mmse,MMS Message Encapsulation,1.0.0 to 4.6.10,collab,application,m/mmse.html
+mndp,Mikrotik Neighbor Discovery Protocol,1.6.0 to 4.6.10,lan,reuse,m/mndp.html
+modbus,Modbus,1.8.0 to 4.6.10,industrial,gateway,m/modbus.html
+mojito,Mojito DHT,1.10.0 to 4.6.10,overlay,reuse,m/mojito.html
+moldudp,MoldUDP,1.8.0 to 4.6.10,finance,application,m/moldudp.html
+moldudp64,MoldUDP64,1.8.0 to 4.6.10,finance,application,m/moldudp64.html
+monero,Monero protocol,4.4.0 to 4.6.10,finance,application,m/monero.html
+mongo,Mongo Wire Protocol,1.6.0 to 4.6.10,database,application,m/mongo.html
+mount,Mount Service,1.0.0 to 4.6.10,storage,application,m/mount.html
+mp,PPP Multilink Protocol,1.0.0 to 4.6.10,access,reuse,m/mp.html
+mp2t,ISO/IEC 13818-1,1.0.0 to 4.6.10,media,application,m/mp2t.html
+mp4,MP4 / ISOBMFF file format,1.12.0 to 4.6.10,media,application,m/mp4.html
+mp4v-es,MP4V-ES,1.2.0 to 4.6.10,media,application,m/mp4v-es.html
+mpeg-audio,Moving Picture Experts Group Audio,1.10.0 to 4.6.10,media,application,m/mpeg-audio.html
+mpeg-dsmcc,MPEG DSM-CC,1.8.0 to 1.8.15,media,historical,m/mpeg-dsmcc.html
+mpeg-pes,Packetized Elementary Stream,1.0.0 to 4.6.10,media,application,m/mpeg-pes.html
+mpeg.audio,Moving Picture Experts Group Audio,1.0.0 to 1.8.15,media,historical,m/mpeg.audio.html
+mpeg1,RFC 2250 MPEG1,1.0.0 to 4.6.10,media,application,m/mpeg1.html
+mpeg_ca,MPEG2 Conditional Access Table,1.8.0 to 4.6.10,media,application,m/mpeg_ca.html
+mpeg_descr,MPEG2 Descriptors,1.8.0 to 4.6.10,media,application,m/mpeg_descr.html
+mpeg_dsmcc,MPEG DSM-CC,1.10.0 to 4.6.10,media,application,m/mpeg_dsmcc.html
+mpeg_pat,MPEG2 Program Association Table,1.8.0 to 4.6.10,media,application,m/mpeg_pat.html
+mpeg_pmt,MPEG2 Program Map Table,1.8.0 to 4.6.10,media,application,m/mpeg_pmt.html
+mpeg_sect,MPEG2 Section,1.8.0 to 4.6.10,media,application,m/mpeg_sect.html
+mpls,MultiProtocol Label Switching Header,1.0.0 to 4.6.10,routing,reuse,m/mpls.html
+mpls-echo,Multiprotocol Label Switching Echo,1.0.0 to 4.6.10,routing,reuse,m/mpls-echo.html
+mpls_mac,Media Access Control (MAC) Address Withdrawal over Static Pseudowire,2.6.0 to 4.6.10,routing,reuse,m/mpls_mac.html
+mpls_psc,PSC,1.10.0 to 4.6.10,routing,reuse,m/mpls_psc.html
+mpls_y1711,MPLS ITU-T Y.1711 OAM,1.10.0 to 4.6.10,routing,reuse,m/mpls_y1711.html
+mplspmdlm,MPLS Direct Loss Measurement (DLM),1.8.0 to 4.6.10,routing,reuse,m/mplspmdlm.html
+mplspsc,PSC,1.8.0 to 1.8.15,routing,historical,m/mplspsc.html
+mplspwatm11_or_aal5pdu,MPLS PW ATM One-to-One or AAL5 PDU encapsulation,1.4.0 to 4.6.10,routing,reuse,m/mplspwatm11_or_aal5pdu.html
+mplspwatmaal5sdu,MPLS PW ATM AAL5 CPCS-SDU mode encapsulation,1.4.0 to 4.6.10,routing,reuse,m/mplspwatmaal5sdu.html
+mplspwatmcell,ATM Cell,1.4.0 to 4.6.10,routing,reuse,m/mplspwatmcell.html
+mplspwatmcellheader,MPLS PW ATM Cell Header,1.4.0 to 4.6.10,routing,reuse,m/mplspwatmcellheader.html
+mplspwatmcontrolword,MPLS PW ATM Control Word,1.4.0 to 4.6.10,routing,reuse,m/mplspwatmcontrolword.html
+mplspwatmn1cw,"MPLS PW ATM N-to-One encapsulation, with CW",1.4.0 to 4.6.10,routing,reuse,m/mplspwatmn1cw.html
+mplspwatmn1nocw,"MPLS PW ATM N-to-One encapsulation, no CW",1.4.0 to 4.6.10,routing,reuse,m/mplspwatmn1nocw.html
+mplstp_fm,MPLS-TP Fault-Management,1.10.0 to 4.6.10,routing,reuse,m/mplstp_fm.html
+mplstp_lock,MPLS-TP Lock-Instruct,1.10.0 to 4.6.10,routing,reuse,m/mplstp_lock.html
+mplsy1711,MPLS ITU-T Y.1711 OAM,1.8.0 to 1.8.15,routing,historical,m/mplsy1711.html
+mptcp,Multipath Transmission Control Protocol,2.0.0 to 4.6.10,transport,reuse,m/mptcp.html
+mq,WebSphere MQ,1.0.0 to 4.6.10,messaging,gateway,m/mq.html
+mqpcf,WebSphere MQ Programmable Command Formats,1.0.0 to 4.6.10,messaging,gateway,m/mqpcf.html
+mqtt,MQ Telemetry Transport Protocol,1.12.0 to 4.6.10,messaging,trial-service,m/mqtt.html
+mqttsn,MQ Telemetry Transport Protocol for Sensor Networks,2.0.0 to 4.6.10,messaging,gateway,m/mqttsn.html
+mrcpv2,Media Resource Control Protocol Version 2 (MRCPv2),1.10.0 to 4.6.10,media,application,m/mrcpv2.html
+mrdisc,Multicast Router DISCovery protocol,1.0.0 to 4.6.10,routing,reuse,m/mrdisc.html
+mrp-mmrp,Multiple Mac Registration Protocol,1.6.0 to 4.6.10,lan,reuse,m/mrp-mmrp.html
+mrp-msrp,Multiple Stream Reservation Protocol,1.4.0 to 4.6.10,lan,reuse,m/mrp-msrp.html
+mrp-mvrp,Multiple VLAN Registration Protocol,1.8.0 to 4.6.10,lan,reuse,m/mrp-mvrp.html
+ms-nns,.NET NegotiateStream Protocol,3.4.0 to 4.6.10,enterprise,application,m/ms-nns.html
+mscml,Media Server Control Markup Language - draft 07,1.0.0 to 4.6.10,media,application,m/mscml.html
+msdo,Microsoft Delivery Optimization,4.2.0 to 4.6.10,file,application,m/msdo.html
+msdp,Multicast Source Discovery Protocol,1.0.0 to 4.6.10,routing,reuse,m/msdp.html
+msgpack,Message Pack,3.0.0 to 4.6.10,format,reference,m/msgpack.html
+msmms,Microsoft Media Server,1.0.0 to 4.6.10,media,application,m/msmms.html
+msnip,MSNIP: Multicast Source Notification of Interest Protocol,1.0.0 to 4.6.10,routing,reuse,m/msnip.html
+msnlb,MS Network Load Balancing,1.0.0 to 4.6.10,ops,reuse,m/msnlb.html
+msproxy,MS Proxy Protocol,1.0.0 to 4.6.10,web,reuse,m/msproxy.html
+msrcp,MSRCP Protocol,4.0.0 to 4.6.10,enterprise,application,m/msrcp.html
+msrp,Message Session Relay Protocol,1.0.0 to 4.6.10,collab,application,m/msrp.html
+mstp,BACnet MS/TP,1.2.0 to 4.6.10,building,gateway,m/mstp.html
+mswsp,Windows Search Protocol,2.0.0 to 4.6.10,enterprise,application,m/mswsp.html
+mtp2,Message Transfer Part Level 2,1.0.0 to 4.6.10,cellular,reuse,m/mtp2.html
+mtp3,Message Transfer Part Level 3,1.0.0 to 4.6.10,cellular,reuse,m/mtp3.html
+mtp3mg,Message Transfer Part Level 3 Management,1.0.0 to 4.6.10,cellular,reuse,m/mtp3mg.html
+mudurl,MUDURL,2.4.0 to 4.6.10,discovery,reuse,m/mudurl.html
+mux27010,MUX27010 Protocol,1.6.0 to 4.6.10,access,reuse,m/mux27010.html
+mysql,MySQL Protocol,1.0.0 to 4.6.10,database,application,m/mysql.html
+nan,NAN protocol,3.2.0 to 4.0.17,wifi,historical,n/nan.html
+nano,Nano Cryptocurrency Protocol,2.6.0 to 4.6.10,finance,application,n/nano.html
+nas-5gs,Non-Access-Stratum 5GS (NAS)PDU,2.6.0 to 4.6.10,cellular,reuse,n/nas-5gs.html
+nas-eps,Non-Access-Stratum (NAS)PDU,1.2.0 to 4.6.10,cellular,reuse,n/nas-eps.html
+nasdaq_itch,Nasdaq TotalView-ITCH,1.2.0 to 4.6.10,finance,application,n/nasdaq_itch.html
+nasdaq_soup,Nasdaq-SoupTCP version 2.0,1.2.0 to 4.6.10,finance,application,n/nasdaq_soup.html
+nat-pmp,NAT Port Mapping Protocol,1.2.0 to 4.6.10,traversal,reuse,n/nat-pmp.html
+navitrol,Navitec Systems Navitrol,4.6.0 to 4.6.10,vehicle,gateway,n/navitrol.html
+nb_rtpmux,3GPP Nb Interface RTP Multiplex,1.4.0 to 4.6.10,cellular,reuse,n/nb_rtpmux.html
+nbap,UTRAN Iub interface NBAP signalling,1.0.0 to 4.6.10,cellular,reuse,n/nbap.html
+nbd,Network Block Device,1.0.0 to 4.6.10,storage,application,n/nbd.html
+nbdgm,NetBIOS Datagram Service,1.0.0 to 4.6.10,legacy,reference,n/nbdgm.html
+nbifom,Network-Based IP Flow Mobility,2.2.0 to 4.6.10,cellular,reuse,n/nbifom.html
+nbipx,NetBIOS over IPX,1.0.0 to 4.6.10,legacy,reference,n/nbipx.html
+nbns,NetBIOS Name Service,1.0.0 to 4.6.10,legacy,reference,n/nbns.html
+nbp,Name Binding Protocol,1.0.0 to 4.6.10,legacy,reference,n/nbp.html
+nbss,NetBIOS Session Service,1.0.0 to 4.6.10,legacy,reference,n/nbss.html
+ncp,NetWare Core Protocol,1.0.0 to 4.6.10,legacy,reference,n/ncp.html
+ncs,Novell Cluster Services,1.0.0 to 4.6.10,legacy,reference,n/ncs.html
+ncsi,NCSI,3.2.0 to 4.6.10,ops,gateway,n/ncsi.html
+ndmp,Network Data Management Protocol,1.0.0 to 4.6.10,storage,application,n/ndmp.html
+ndp,Nortel Discovery Protocol,1.6.0 to 4.6.10,lan,reuse,n/ndp.html
+ndps,Novell Distributed Print System,1.0.0 to 4.6.10,peripheral,gateway,n/ndps.html
+negoex,SPNEGO Extended Negotiation Security Mechanism,1.10.0 to 4.6.10,auth,reuse,n/negoex.html
+net_dm,Linux net_dm (network drop monitor) protocol,3.2.0 to 4.6.10,capture,reference,n/net_dm.html
+netanalyzer,netANALYZER,1.8.0 to 4.6.10,capture,reference,n/netanalyzer.html
+netbios,NetBIOS,1.0.0 to 4.6.10,legacy,reference,n/netbios.html
+netdfs,Settings for Microsoft Distributed File System,1.0.0 to 4.6.10,enterprise,application,n/netdfs.html
+netdump,Netdump Protocol,1.2.0 to 4.6.10,capture,reference,n/netdump.html
+netlink,Linux netlink protocol,1.12.0 to 4.6.10,capture,reference,n/netlink.html
+netlink-netfilter,Linux netlink netfilter protocol,1.12.0 to 4.6.10,capture,reference,n/netlink-netfilter.html
+netlink-route,Linux rtnetlink (route netlink) protocol,1.12.0 to 4.6.10,capture,reference,n/netlink-route.html
+netlink-sock_diag,Linux netlink sock diag protocol,1.12.0 to 4.6.10,capture,reference,n/netlink-sock_diag.html
+netmon_802_11,NetMon 802.11 capture header,1.4.0 to 4.6.10,capture,reference,n/netmon_802_11.html
+netmon_event,Network Monitor Event,2.6.0 to 4.6.10,capture,reference,n/netmon_event.html
+netmon_filter,Network Monitor Filter,2.6.0 to 4.6.10,capture,reference,n/netmon_filter.html
+netmon_header,Network Monitor Header,2.6.0 to 4.6.10,capture,reference,n/netmon_header.html
+netmon_network_info,Network Monitor Network Info,2.6.0 to 4.6.10,capture,reference,n/netmon_network_info.html
+netmon_process,Network Monitor Process,2.6.0 to 4.6.10,capture,reference,n/netmon_process.html
+netmon_system_config,Network Monitor System Config,2.6.0 to 4.6.10,capture,reference,n/netmon_system_config.html
+netmon_system_trace,Network Monitor System Trace,2.6.0 to 4.6.10,capture,reference,n/netmon_system_trace.html
+netperfmeter,NetPerfMeter Protocol,3.6.0 to 4.6.10,ops,reuse,n/netperfmeter.html
+netrix,Netrix Communication Protocol,2.4.0 to 4.6.10,medical,application,n/netrix.html
+netrom,Amateur Radio NET/ROM,1.10.0 to 4.6.10,radio,application,n/netrom.html
+netsync,Monotone Netsync,1.0.0 to 4.6.10,file,application,n/netsync.html
+nettl,HP-UX Network Tracing and Logging,1.0.0 to 4.6.10,capture,reference,n/nettl.html
+newmail,Microsoft Exchange New Mail Notification,1.0.0 to 4.6.10,collab,application,n/newmail.html
+nfapi,Nfapi,2.6.0 to 4.6.10,cellular,reuse,n/nfapi.html
+nflog,Linux Netfilter NFLOG,1.8.0 to 4.6.10,capture,reference,n/nflog.html
+nfs,Network File System,1.0.0 to 4.6.10,storage,application,n/nfs.html
+nfsacl,NFSACL,1.0.0 to 4.6.10,storage,application,n/nfsacl.html
+nfsauth,NFSAUTH,1.0.0 to 4.6.10,storage,application,n/nfsauth.html
+ngap,NG Application Protocol,3.0.0 to 4.6.10,cellular,reuse,n/ngap.html
+nge,Netgear Ensemble Protocol,2.4.0 to 4.6.10,wifi,reuse,n/nge.html
+nhrp,NBMA Next Hop Resolution Protocol,1.0.0 to 4.6.10,routing,reuse,n/nhrp.html
+nisplus,NIS+,1.0.0 to 4.6.10,enterprise,application,n/nisplus.html
+nispluscb,NIS+ Callback,1.0.0 to 4.6.10,enterprise,application,n/nispluscb.html
+nist_csor,NIST_CSOR,3.0.0 to 4.6.10,auth,reuse,n/nist_csor.html
+njack,3com Network Jack,1.0.0 to 4.6.10,lan,reuse,n/njack.html
+nl80211,Linux 802.11 Netlink,2.4.0 to 4.6.10,capture,reference,n/nl80211.html
+nlm,Network Lock Manager Protocol,1.0.0 to 4.6.10,storage,application,n/nlm.html
+nlsp,NetWare Link Services Protocol,1.0.0 to 4.6.10,legacy,reference,n/nlsp.html
+nm,Network Management,2.4.0 to 2.6.20,ops,historical,n/nm.html
+nmas,Novell Modular Authentication Service,1.0.0 to 4.6.10,auth,reuse,n/nmas.html
+nmea0183,NMEA 0183 protocol,4.4.0 to 4.6.10,vehicle,gateway,n/nmea0183.html
+nmf,NMF (.NET Message Framing Protocol),4.4.0 to 4.6.10,enterprise,application,n/nmf.html
+nntp,Network News Transfer Protocol,1.0.0 to 4.6.10,collab,application,n/nntp.html
+noe,NOE Protocol,1.8.0 to 4.6.10,voice,application,n/noe.html
+nordic_ble,nRF Sniffer for Bluetooth LE,2.4.0 to 4.6.10,bluetooth,gateway,n/nordic_ble.html
+norm,Negative-acknowledgment Oriented Reliable Multicast,1.0.0 to 4.6.10,transport,reuse,n/norm.html
+novell_pkis,Novell PKIS ASN.1 type,1.12.0 to 4.6.10,auth,reuse,n/novell_pkis.html
+npmp,NetPerfMeter Protocol,1.4.0 to 3.4.16,ops,historical,n/npmp.html
+nr,QNX6 QNET Network Resolver protocol,2.0.0 to 4.6.10,cellular,reuse,n/nr.html
+nr-rrc,NR Radio Resource Control (RRC) protocol,2.6.0 to 4.6.10,cellular,reuse,n/nr-rrc.html
+nrppa,NR Positioning Protocol A (NRPPa),3.2.0 to 4.6.10,cellular,reuse,n/nrppa.html
+nrup,NRUP,3.4.0 to 4.6.10,cellular,reuse,n/nrup.html
+ns,NetScaler Trace,1.4.0 to 4.6.10,capture,reference,n/ns.html
+ns_cert_exts,NetScape Certificate Extensions,1.0.0 to 4.6.10,auth,reuse,n/ns_cert_exts.html
+nsh,Network Service Header,2.2.0 to 4.6.10,overlay,reuse,n/nsh.html
+nsip,Network Service Over IP,1.0.0 to 1.2.18,cellular,historical,n/nsip.html
+nspi,Exchange 5.5 Name Service Provider,1.0.0 to 4.6.10,enterprise,application,n/nspi.html
+nsrp,Juniper Netscreen Redundant Protocol,1.0.0 to 4.6.10,ops,reuse,n/nsrp.html
+nstrace.ha,NetScaler HA Protocol,2.4.0 to 4.6.10,ops,reuse,n/nstrace.ha.html
+nstrace.mep,NetScaler Metric Exchange Protocol,2.4.0 to 4.6.10,ops,reuse,n/nstrace.mep.html
+nstrace.rpc,NetScaler RPC Protocol,2.4.0 to 4.6.10,ops,reuse,n/nstrace.rpc.html
+ntlmssp,NTLM Secure Service Provider,1.0.0 to 4.6.10,auth,reuse,n/ntlmssp.html
+ntp,Network Time Protocol,1.0.0 to 4.6.10,ops,reuse,n/ntp.html
+nts-ke,NTS Key Establishment Protocol,4.6.0 to 4.6.10,ops,reuse,n/nts-ke.html
+ntscf,Non-Time-Synchronous Control Format,3.2.0 to 4.6.10,media,application,n/ntscf.html
+null,Null/Loopback,1.0.0 to 4.6.10,capture,reference,n/null.html
+nvme,NVM Express,2.4.0 to 4.6.10,storage,application,n/nvme.html
+nvme-mi,NVMe-MI,4.2.0 to 4.6.10,storage,application,n/nvme-mi.html
+nvme-rdma,NVM Express Fabrics RDMA,2.4.0 to 4.6.10,storage,application,n/nvme-rdma.html
+nvme-tcp,NVM Express Fabrics TCP,3.2.0 to 4.6.10,storage,application,n/nvme-tcp.html
+nw_mtp,NexusWare C7 MTP,1.4.0 to 4.6.10,cellular,reuse,n/nw_mtp.html
+nw_serial,NetWare Serialization Protocol,1.0.0 to 4.6.10,legacy,reference,n/nw_serial.html
+nwp,Neighborhood Watch Protocol,2.0.0 to 4.6.10,routing,reuse,n/nwp.html
+nxp_802154_sniffer,NXP 802.15.4 Sniffer Protocol,2.6.0 to 4.6.10,capture,reference,n/nxp_802154_sniffer.html
+oampdu,Ethernet OAM PDU,2.0.0 to 4.6.10,lan,reuse,o/oampdu.html
+obd-ii,OBD-II PID,2.4.0 to 4.6.10,vehicle,gateway,o/obd-ii.html
+obex,OBEX Protocol,2.2.0 to 4.6.10,file,application,o/obex.html
+ocfs2,OCFS2 Networking,2.0.0 to 4.6.10,storage,application,o/ocfs2.html
+ocp1,Open Control Protocol (OCP.1/AES70),4.0.0 to 4.6.10,media,application,o/ocp1.html
+ocsp,Online Certificate Status Protocol,1.0.0 to 4.6.10,auth,reuse,o/ocsp.html
+oer,Octet Encoding Rules (ASN.1),3.0.0 to 4.6.10,format,reference,o/oer.html
+oicq,"OICQ - IM software, popular in China",1.0.0 to 4.6.10,collab,application,o/oicq.html
+oipf.ciplus,Open IPTV Forum CSPG-CI+,1.8.0 to 4.6.10,media,application,o/oipf.ciplus.html
+olsr,Optimized Link State Routing Protocol,1.0.0 to 4.6.10,routing,reuse,o/olsr.html
+omapi,ISC Object Management API,1.0.0 to 4.6.10,ops,reuse,o/omapi.html
+omron,OMRON FINS Protocol,1.4.0 to 4.6.10,industrial,gateway,o/omron.html
+opa,Intel Omni-Path,2.2.0 to 4.6.10,fabric,reuse,o/opa.html
+opa.fe,Intel Omni-Path FE Header - Omni-Path Fabric Executive Header,2.2.0 to 4.6.10,fabric,reuse,o/opa.fe.html
+opa.mad,Intel Omni-Path MAD,2.2.0 to 4.6.10,fabric,reuse,o/opa.mad.html
+opa.snc,Intel Omni-Path SnC - Omni-Path Snoop and Capture MetaData Header,2.2.0 to 4.6.10,fabric,reuse,o/opa.snc.html
+opcua,OpcUa Binary Protocol,1.0.0 to 4.6.10,industrial,gateway,o/opcua.html
+openflow,OpenFlow,1.12.0 to 4.6.10,lan,reuse,o/openflow.html
+openflow_v1,OpenFlow 1.0,1.12.0 to 4.6.10,lan,reuse,o/openflow_v1.html
+openflow_v4,OpenFlow 1.3,1.12.0 to 4.6.10,lan,reuse,o/openflow_v4.html
+openflow_v5,OpenFlow 1.4,1.12.0 to 4.6.10,lan,reuse,o/openflow_v5.html
+openflow_v6,OpenFlow 1.5,2.4.0 to 4.6.10,lan,reuse,o/openflow_v6.html
+opensafety,openSAFETY,1.6.0 to 4.6.10,industrial,gateway,o/opensafety.html
+opensafety_udp,openSAFETY over UDP,2.6.0 to 4.6.10,industrial,gateway,o/opensafety_udp.html
+openthread,OpenThread,2.4.0 to 4.6.10,capture,reference,o/openthread.html
+openvpn,OpenVPN Protocol,1.10.0 to 4.6.10,overlay,reuse,o/openvpn.html
+openwire,OpenWire,1.8.0 to 4.6.10,messaging,gateway,o/openwire.html
+opsi,Open Policy Service Interface,1.0.0 to 4.6.10,ops,reuse,o/opsi.html
+optommp,OptoMMP,2.0.0 to 4.6.10,industrial,gateway,o/optommp.html
+opus,Opus Interactive Audio Codec,3.6.0 to 4.6.10,media,application,o/opus.html
+oran_fh_cus,O-RAN Fronthaul CUS,3.6.0 to 4.6.10,cellular,reuse,o/oran_fh_cus.html
+osc,Open Sound Control Encoding,1.12.0 to 4.6.10,media,application,o/osc.html
+oscore,Object Security for Constrained RESTful Environments,2.6.0 to 4.6.10,auth,reuse,o/oscore.html
+osi,OSI,1.0.0 to 4.6.10,legacy,reference,o/osi.html
+osinlcp,PPP OSI Network Layer Control Protocol,1.8.0 to 4.6.10,legacy,reference,o/osinlcp.html
+osmo_trxc,OsmoTRX Control / Clock Protocol,3.2.0 to 4.6.10,cellular,reuse,o/osmo_trxc.html
+osmo_trxd,OsmoTRX Data Protocol,3.2.0 to 4.6.10,cellular,reuse,o/osmo_trxd.html
+osmux,GSM multiplexing for AMR,2.4.0 to 4.6.10,cellular,reuse,o/osmux.html
+ospf,Open Shortest Path First,1.0.0 to 4.6.10,routing,reuse,o/ospf.html
+ossp,Organization Specific Slow Protocol,2.0.0 to 4.6.10,lan,reuse,o/ossp.html
+ouch,OUCH,1.10.0 to 4.6.10,finance,application,o/ouch.html
+oxid,DCOM OXID Resolver,1.0.0 to 4.6.10,enterprise,application,o/oxid.html
+p1,X.411 Message Transfer Service,1.6.0 to 4.6.10,collab,application,p/p1.html
+p22,X.420 Information Object,1.6.0 to 4.6.10,collab,application,p/p22.html
+p7,X.413 Message Store Service,1.0.0 to 4.6.10,collab,application,p/p7.html
+p772,STANAG 4406 Message,1.6.0 to 4.6.10,collab,application,p/p772.html
+p_mul,P_Mul (ACP142),1.0.0 to 4.6.10,transport,reuse,p/p_mul.html
+packetbb,PacketBB Protocol,1.4.0 to 4.6.10,routing,reuse,p/packetbb.html
+packetcable_avps,PacketCable AVPs,1.10.0 to 4.6.10,access,reuse,p/packetcable_avps.html
+packetlogger,PacketLogger,1.2.0 to 4.6.10,capture,reference,p/packetlogger.html
+pagp,Port Aggregation Protocol,1.0.0 to 4.6.10,lan,reuse,p/pagp.html
+paketcable_avps,PacketCable AVPs,1.0.0 to 1.8.15,access,historical,p/paketcable_avps.html
+paltalk,Paltalk Messenger Protocol,1.2.0 to 4.6.10,collab,application,p/paltalk.html
+pana,Protocol for carrying Authentication for Network Access,1.0.0 to 4.6.10,auth,reuse,p/pana.html
+pap,PPP Password Authentication Protocol,1.0.0 to 4.6.10,auth,reuse,p/pap.html
+papi,Aruba PAPI,1.6.0 to 4.6.10,wifi,reuse,p/papi.html
+pathport,Pathport Protocol,1.12.0 to 4.6.10,media,application,p/pathport.html
+pbadv,Bluetooth Mesh PB-ADV,3.2.0 to 4.6.10,bluetooth,gateway,p/pbadv.html
+pcap,UTRAN Iupc interface Positioning Calculation Application Part (PCAP),1.0.0 to 4.6.10,capture,reference,p/pcap.html
+pcap_pktdata,pcap/pcapng packet data,2.2.0 to 4.6.10,capture,reference,p/pcap_pktdata.html
+pcaplog,pcaplog,4.4.0 to 4.6.10,capture,reference,p/pcaplog.html
+pcapng.darwin,PCAPNG Darwin Process Information Block,4.2.0 to 4.6.10,capture,reference,p/pcapng.darwin.html
+pcep,Path Computation Element communication Protocol,1.0.0 to 4.6.10,routing,reuse,p/pcep.html
+pcli,Packet Cable Lawful Intercept,1.0.0 to 4.6.10,access,reuse,p/pcli.html
+pcnfsd,PC NFS,1.0.0 to 4.6.10,storage,application,p/pcnfsd.html
+pcomascii,PCOM ASCII,3.0.0 to 4.6.10,industrial,gateway,p/pcomascii.html
+pcombinary,PCOM BINARY,3.0.0 to 4.6.10,industrial,gateway,p/pcombinary.html
+pcomtcp,PCOM/TCP,3.0.0 to 4.6.10,industrial,gateway,p/pcomtcp.html
+pcp,Performance Co-Pilot,1.8.0 to 4.6.10,ops,reuse,p/pcp.html
+pdc,PDC Protocol,1.12.0 to 4.6.10,aviation,application,p/pdc.html
+pdcp-lte,PDCP-LTE,1.2.0 to 4.6.10,cellular,reuse,p/pdcp-lte.html
+pdcp-nr,PDCP-NR,3.0.0 to 4.6.10,cellular,reuse,p/pdcp-nr.html
+pdu_transport,PDU Transport Protocol,3.6.0 to 4.6.10,vehicle,gateway,p/pdu_transport.html
+peekremote,AiroPeek/OmniPeek encapsulated IEEE 802.11,1.8.0 to 4.6.10,capture,reference,p/peekremote.html
+per,Packed Encoding Rules (ASN.1 X.691),1.0.0 to 4.6.10,format,reference,p/per.html
+pfcp,Packet Forwarding Control Protocol,2.6.0 to 4.6.10,cellular,reuse,p/pfcp.html
+pflog,OpenBSD Packet Filter log file,1.0.0 to 4.6.10,capture,reference,p/pflog.html
+pflog-old,"OpenBSD Packet Filter log file, pre 3.4",1.0.0 to 4.6.10,capture,reference,p/pflog-old.html
+pgm,Pragmatic General Multicast,1.0.0 to 4.6.10,transport,reuse,p/pgm.html
+pgsql,PostgreSQL,1.0.0 to 4.6.10,database,application,p/pgsql.html
+pim,Protocol Independent Multicast,1.0.0 to 4.6.10,routing,reuse,p/pim.html
+pingpongprotocol,Ping Pong Protocol,1.0.0 to 4.6.10,ops,reuse,p/pingpongprotocol.html
+pipe,SMB Pipe Protocol,1.0.0 to 1.10.14,storage,historical,p/pipe.html
+pkcs-1,PKCS#1,1.0.0 to 4.4.20,auth,historical,p/pkcs-1.html
+pkcs10,PKCS10 Certification Request,3.0.0 to 4.6.10,auth,reuse,p/pkcs10.html
+pkcs12,PKCS#12: Personal Information Exchange,1.0.0 to 4.6.10,auth,reuse,p/pkcs12.html
+pkinit,PKINIT,1.0.0 to 4.6.10,auth,reuse,p/pkinit.html
+pkix-cert,PKIX CERT File Format,1.0.0 to 4.6.10,auth,reuse,p/pkix-cert.html
+pkix1explicit,PKIX1Explicit,1.0.0 to 4.6.10,auth,reuse,p/pkix1explicit.html
+pkix1implicit,PKIX1Implicit,1.0.0 to 4.6.10,auth,reuse,p/pkix1implicit.html
+pkixac,PKIX Attribute Certificate,1.4.0 to 4.6.10,auth,reuse,p/pkixac.html
+pkixalgs,PKIX Algorithms,4.6.0 to 4.6.10,auth,reuse,p/pkixalgs.html
+pkixproxy,PKIXProxy (RFC3820),1.0.0 to 4.6.10,auth,reuse,p/pkixproxy.html
+pkixqualified,PKIX Qualified,1.0.0 to 4.6.10,auth,reuse,p/pkixqualified.html
+pkixtsp,PKIX Time Stamp Protocol,1.0.0 to 4.6.10,auth,reuse,p/pkixtsp.html
+pkt_ccc,PacketCable Call Content Connection,1.0.0 to 4.6.10,access,reuse,p/pkt_ccc.html
+pktap,PKTAP packet header,1.12.0 to 4.6.10,capture,reference,p/pktap.html
+pktc,PacketCable,1.0.0 to 4.6.10,access,reuse,p/pktc.html
+pktc.mtafqdn,PacketCable MTA FQDN,2.0.0 to 4.6.10,access,reuse,p/pktc.mtafqdn.html
+pktgen,Linux Kernel Packet Generator,1.0.0 to 4.6.10,ops,reuse,p/pktgen.html
+pldm,PLDM Protocol,4.4.0 to 4.6.10,ops,gateway,p/pldm.html
+ple,Private Line Emulation,4.6.0 to 4.6.10,access,reuse,p/ple.html
+pmproxy,Performance Co-Pilot Proxy,2.0.0 to 4.6.10,ops,reuse,p/pmproxy.html
+pn532,NXP PN532,1.8.0 to 4.6.10,nfc,gateway,p/pn532.html
+pn532_hci,NXP PN532 HCI,1.12.0 to 4.6.10,nfc,gateway,p/pn532_hci.html
+pn_dcp,PROFINET DCP,1.0.0 to 4.6.10,industrial,gateway,p/pn_dcp.html
+pn_io,PROFINET IO,1.0.0 to 4.6.10,industrial,gateway,p/pn_io.html
+pn_mrp,PROFINET MRP,1.0.0 to 4.6.10,industrial,gateway,p/pn_mrp.html
+pn_mrrt,PROFINET MRRT,1.0.0 to 4.6.10,industrial,gateway,p/pn_mrrt.html
+pn_ptcp,PROFINET PTCP,1.0.0 to 4.6.10,industrial,gateway,p/pn_ptcp.html
+pn_rsi,PROFINET RSI,4.6.0 to 4.6.10,industrial,gateway,p/pn_rsi.html
+pn_rt,PROFINET Real-Time Protocol,1.0.0 to 4.6.10,industrial,gateway,p/pn_rt.html
+png,Portable Network Graphics,1.0.0 to 4.6.10,format,reference,p/png.html
+pnp,Microsoft Plug and Play service,1.0.0 to 4.6.10,enterprise,application,p/pnp.html
+pnrp,Peer Name Resolution Protocol,1.4.0 to 4.6.10,discovery,reuse,p/pnrp.html
+poc-settings,poc-settings XML doc (RFC 4354),1.0.0 to 4.6.10,collab,application,p/poc-settings.html
+pop,Post Office Protocol,1.0.0 to 4.6.10,collab,application,p/pop.html
+portcontrol,Port Control Protocol,1.10.0 to 4.6.10,traversal,reuse,p/portcontrol.html
+portmap,Portmap,1.0.0 to 4.6.10,discovery,reuse,p/portmap.html
+ppcap,Proprietary PCAP,1.8.0 to 4.6.10,capture,reference,p/ppcap.html
+ppi,PPI Packet Header,1.0.0 to 4.6.10,capture,reference,p/ppi.html
+ppi_antenna,PPI antenna decoder,1.6.0 to 4.6.10,capture,reference,p/ppi_antenna.html
+ppi_gps,PPI Geotagging GPS tag decoder,1.6.0 to 4.6.10,capture,reference,p/ppi_gps.html
+ppi_sensor,PPI sensor decoder,1.8.0 to 4.6.10,capture,reference,p/ppi_sensor.html
+ppi_vector,PPI vector decoder,1.6.0 to 4.6.10,capture,reference,p/ppi_vector.html
+ppp,Point-to-Point Protocol,1.0.0 to 4.6.10,access,reuse,p/ppp.html
+ppp_hdlc,PPP In HDLC-Like Framing,1.0.0 to 4.6.10,access,reuse,p/ppp_hdlc.html
+pppmux,PPP Multiplexing,1.0.0 to 4.6.10,access,reuse,p/pppmux.html
+pppmuxcp,PPPMux Control Protocol,1.0.0 to 4.6.10,access,reuse,p/pppmuxcp.html
+pppoe,PPP-over-Ethernet,1.2.0 to 4.6.10,access,reuse,p/pppoe.html
+pppoed,PPP-over-Ethernet Discovery,1.0.0 to 4.6.10,access,reuse,p/pppoed.html
+pppoes,PPP-over-Ethernet Session,1.0.0 to 4.6.10,access,reuse,p/pppoes.html
+pptp,Point-to-Point Tunnelling Protocol,1.0.0 to 4.6.10,overlay,reference,p/pptp.html
+prap,Printer Access Protocol,1.10.0 to 4.6.10,peripheral,gateway,p/prap.html
+pres,ISO 8823 OSI Presentation Protocol,1.0.0 to 4.6.10,legacy,reference,p/pres.html
+presence,presence XML doc (RFC 3863),1.0.0 to 4.6.10,collab,application,p/presence.html
+prism,Prism capture header,1.0.0 to 4.6.10,capture,reference,p/prism.html
+protobuf,Protocol Buffers,2.6.0 to 4.6.10,format,reference,p/protobuf.html
+protobuf_json,Protocol Buffers (as JSON Mapping View),4.0.0 to 4.6.10,format,reference,p/protobuf_json.html
+provideclassinfo,DCOM IProvideClassInfo,3.2.0 to 4.6.10,enterprise,application,p/provideclassinfo.html
+provisioning,Bluetooth Mesh Provisioning PDU,3.2.0 to 4.6.10,bluetooth,gateway,p/provisioning.html
+proxy,PROXY Protocol,3.0.0 to 4.6.10,web,reuse,p/proxy.html
+prp,Parallel Redundancy Protocol (IEC62439 Part 3),1.0.0 to 4.6.10,lan,reuse,p/prp.html
+psample,Linux psample protocol,3.6.0 to 4.6.10,capture,reference,p/psample.html
+ptp,Precision Time Protocol (IEEE1588),1.0.0 to 4.6.10,ops,reuse,p/ptp.html
+ptpip,Picture Transfer Protocol Over IP,1.12.0 to 4.6.10,peripheral,gateway,p/ptpip.html
+pulse,PULSE protocol for Linux Virtual Server redundancy,1.10.0 to 4.6.10,ops,reuse,p/pulse.html
+pvfs,Parallel Virtual File System,1.0.0 to 4.6.10,storage,application,p/pvfs.html
+pw.padding,Pseudowire Padding,2.0.0 to 4.6.10,routing,reuse,p/pw.padding.html
+pw_atm_n2o_cw,"ATM PW, N-to-one Cell Mode Control Word",1.2.0 to 1.2.18,routing,historical,p/pw_atm_n2o_cw.html
+pw_hdlc_nocw_fr,"HDLC PW, FR port mode (no CW)",1.2.0 to 4.6.10,routing,reuse,p/pw_hdlc_nocw_fr.html
+pw_oam,Pseudo-Wire OAM,1.10.0 to 4.6.10,routing,reuse,p/pw_oam.html
+pwcesopsn,CESoPSN basic NxDS0 mode (no RTP support),1.2.0 to 4.6.10,routing,reuse,p/pwcesopsn.html
+pwethcw,PW Ethernet Control Word,1.2.0 to 4.6.10,routing,reuse,p/pwethcw.html
+pwfr,PW Frame Relay DLCI Control Word,1.2.0 to 4.6.10,routing,reuse,p/pwfr.html
+pwpadding,Pseudowire Padding,1.4.0 to 1.12.13,routing,historical,p/pwpadding.html
+pwsatopcw,SAToP,1.2.0 to 4.6.10,routing,reuse,p/pwsatopcw.html
+q2931,Q.2931,1.0.0 to 4.6.10,access,reuse,q/q2931.html
+q708,ITU-T Q.708 ISPC Analysis,1.4.0 to 4.6.10,cellular,reuse,q/q708.html
+q931,Q.931,1.0.0 to 4.6.10,cellular,reuse,q/q931.html
+q932,Q.932,1.0.0 to 4.6.10,cellular,reuse,q/q932.html
+q932.ros,Q.932 Operations Service Element,1.0.0 to 4.6.10,cellular,reuse,q/q932.ros.html
+q933,Q.933,1.0.0 to 4.6.10,cellular,reuse,q/q933.html
+qllc,Qualified Logical Link Control,1.0.0 to 4.6.10,legacy,reference,q/qllc.html
+qos,QNX6 QNET QOS protocol,2.0.0 to 4.6.10,enterprise,application,q/qos.html
+qsig,QSIG,1.0.0 to 4.6.10,voice,application,q/qsig.html
+quake,Quake Network Protocol,1.0.0 to 4.6.10,gaming,application,q/quake.html
+quake2,Quake II Network Protocol,1.0.0 to 4.6.10,gaming,application,q/quake2.html
+quake3,Quake III Arena Network Protocol,1.0.0 to 4.6.10,gaming,application,q/quake3.html
+quakeworld,QuakeWorld Network Protocol,1.0.0 to 4.6.10,gaming,application,q/quakeworld.html
+quic,QUIC IETF,1.12.0 to 4.6.10,transport,existing-link,q/quic.html
+r-stp,Retix Spanning Tree Protocol,1.0.0 to 4.6.10,lan,reuse,r/r-stp.html
+r09,R09.x,3.6.0 to 4.6.10,vehicle,gateway,r/r09.html
+r3,Assa Abloy R3,1.4.0 to 4.6.10,iot,gateway,r/r3.html
+radio,802.11 radio information,1.0.0 to 1.12.13,wifi,historical,r/radio.html
+radiotap,IEEE 802.11 Radiotap Capture header,1.0.0 to 4.6.10,capture,reference,r/radiotap.html
+radius,RADIUS Protocol,1.0.0 to 4.6.10,auth,reuse,r/radius.html
+raknet,RakNet game networking protocol,2.0.0 to 4.6.10,gaming,application,r/raknet.html
+ranap,Radio Access Network Application Part,1.0.0 to 4.6.10,cellular,reuse,r/ranap.html
+raw_sip,Session Initiation Protocol (SIP as raw text),1.0.0 to 4.6.10,voice,application,r/raw_sip.html
+rbm,Ruby Marshal Object,3.0.0 to 4.6.10,format,reference,r/rbm.html
+rc-v3,RC V3,4.6.0 to 4.6.10,cellular,reuse,r/rc-v3.html
+rcg,RCG (pidl),4.6.0 to 4.6.10,enterprise,application,r/rcg.html
+rdaclif,DCE/RPC Directory Acl Interface,1.0.0 to 4.6.10,enterprise,application,r/rdaclif.html
+rdc,H.282 Remote Device Control,1.0.0 to 4.6.10,voice,application,r/rdc.html
+rdm,Remote Device Management,1.0.0 to 4.6.10,media,application,r/rdm.html
+rdmnet,RDMnet,3.4.0 to 4.6.10,media,application,r/rdmnet.html
+rdp,Remote Desktop Protocol,1.8.0 to 4.6.10,remote,application,r/rdp.html
+rdp_cliprdr,RDP clipboard redirection channel Protocol,4.2.0 to 4.6.10,remote,application,r/rdp_cliprdr.html
+rdp_drdynvc,RDP Dynamic Channel Protocol,3.6.0 to 4.6.10,remote,application,r/rdp_drdynvc.html
+rdp_ear,RDP authentication redirection virtual channel Protocol,4.4.0 to 4.6.10,remote,application,r/rdp_ear.html
+rdp_egfx,RDP Graphic pipeline channel Protocol,3.6.0 to 4.6.10,remote,application,r/rdp_egfx.html
+rdp_rail,RDP Program virtual channel Protocol,4.2.0 to 4.6.10,remote,application,r/rdp_rail.html
+rdp_snd,RDP audio output virtual channel Protocol,4.2.0 to 4.6.10,remote,application,r/rdp_snd.html
+rdpdr,RDP disk redirection virtual channel Protocol,4.6.0 to 4.6.10,remote,application,r/rdpdr.html
+rdpmt,Remote Desktop Protocol Multi-transport,3.6.0 to 4.6.10,remote,application,r/rdpmt.html
+rdpudp,UDP Remote Desktop Protocol,3.6.0 to 4.6.10,remote,application,r/rdpudp.html
+rdt,Real Data Transport,1.0.0 to 4.6.10,media,application,r/rdt.html
+realtek,Realtek Layer 2 Protocols,4.0.0 to 4.6.10,lan,reuse,r/realtek.html
+redback,Redback,1.0.0 to 4.6.10,capture,reference,r/redback.html
+redbackli,Redback Lawful Intercept,1.0.0 to 4.6.10,cellular,reuse,r/redbackli.html
+reginfo,Reginfo XML doc (RFC 3680),1.0.0 to 4.6.10,collab,application,r/reginfo.html
+reload,REsource LOcation And Discovery,1.6.0 to 4.6.10,overlay,reuse,r/reload.html
+reload-framing,REsource LOcation And Discovery Framing,1.6.0 to 4.6.10,overlay,reuse,r/reload-framing.html
+remact,DCOM IRemoteActivation,1.0.0 to 4.6.10,enterprise,application,r/remact.html
+remunk,IRemUnknown,1.0.0 to 4.6.10,enterprise,application,r/remunk.html
+rep_proc,DCE DFS Replication Server,1.0.0 to 4.6.10,enterprise,application,r/rep_proc.html
+resp,REdis Serialization Protocol,4.0.0 to 4.6.10,messaging,gateway,r/resp.html
+rf4ce_nwk,RF4CE Network Layer,4.4.0 to 4.6.10,zigbee,gateway,r/rf4ce_nwk.html
+rf4ce_profile,RF4CE Profile,4.4.0 to 4.6.10,zigbee,gateway,r/rf4ce_profile.html
+rfc2190,H.263 RTP Payload header (RFC2190),1.2.0 to 4.6.10,voice,application,r/rfc2190.html
+rfc7468,RFC 7468 file format,3.0.0 to 4.6.10,format,reference,r/rfc7468.html
+rfr,Exchange 2003 Directory Request For Response,1.2.0 to 4.6.10,enterprise,application,r/rfr.html
+rftap,RFtap Protocol,2.4.0 to 4.6.10,capture,reference,r/rftap.html
+rgmp,Router-port Group Management Protocol,1.0.0 to 4.6.10,routing,reuse,r/rgmp.html
+riemann,Riemann,2.0.0 to 4.6.10,ops,reuse,r/riemann.html
+riff,Resource Interchange File Format,4.6.0 to 4.6.10,format,reference,r/riff.html
+rip,Routing Information Protocol,1.0.0 to 4.6.10,routing,reuse,r/rip.html
+ripng,RIPng,1.0.0 to 4.6.10,routing,reuse,r/ripng.html
+rk512,SICK RK512,4.4.0 to 4.6.10,industrial,gateway,r/rk512.html
+rlc,Radio Link Control,1.4.0 to 4.6.10,cellular,reuse,r/rlc.html
+rlc-lte,RLC-LTE,1.2.0 to 4.6.10,cellular,reuse,r/rlc-lte.html
+rlc-nr,RLC-NR,2.6.0 to 4.6.10,cellular,reuse,r/rlc-nr.html
+rlm,Redundant Link Management Protocol,1.0.0 to 4.6.10,unresolved,defer,r/rlm.html
+rlogin,Rlogin Protocol,1.0.0 to 4.6.10,remote,reference,r/rlogin.html
+rmcp,Remote Management Control Protocol,1.0.0 to 4.6.10,ops,gateway,r/rmcp.html
+rmi,Java RMI,1.0.0 to 4.6.10,enterprise,application,r/rmi.html
+rmp,HP Remote Maintenance Protocol,1.0.0 to 4.6.10,ops,reuse,r/rmp.html
+rmt-fec,Forward Error Correction (FEC),1.12.0 to 4.6.10,transport,reuse,r/rmt-fec.html
+rmt-lct,Layered Coding Transport,1.12.0 to 4.6.10,transport,reuse,r/rmt-lct.html
+rnsap,UTRAN Iur interface Radio Network Subsystem Application Part,1.0.0 to 4.6.10,cellular,reuse,r/rnsap.html
+rohc,RObust Header Compression (ROHC),1.6.0 to 4.6.10,routing,reuse,r/rohc.html
+roofnet,Roofnet Protocol,1.0.0 to 4.6.10,wifi,reuse,r/roofnet.html
+roon_disco,Roon Discovery,4.0.0 to 4.6.10,discovery,reuse,r/roon_disco.html
+ros,X.880 OSI Remote Operations Service,1.0.0 to 4.6.10,legacy,reference,r/ros.html
+roughtime,Roughtime,4.6.0 to 4.6.10,ops,reuse,r/roughtime.html
+roverride,Remote Override interface,1.0.0 to 4.6.10,enterprise,application,r/roverride.html
+rpc,Remote Procedure Call,1.0.0 to 4.6.10,enterprise,application,r/rpc.html
+rpc_browser,RPC Browser,1.0.0 to 4.6.10,enterprise,application,r/rpc_browser.html
+rpc_netlogon,Microsoft Network Logon,1.0.0 to 4.6.10,enterprise,application,r/rpc_netlogon.html
+rpcap,Remote Packet Capture,1.2.0 to 4.6.10,capture,reference,r/rpcap.html
+rpcordma,RPC over RDMA,2.0.0 to 4.6.10,storage,application,r/rpcordma.html
+rpkirtr,RPKI-Router Protocol,1.10.0 to 4.6.10,routing,reuse,r/rpkirtr.html
+rpl,Remote Program Load,1.0.0 to 4.6.10,routing,reuse,r/rpl.html
+rpriv,Privilege Server operations,1.0.0 to 4.6.10,enterprise,application,r/rpriv.html
+rquota,Remote Quota,1.0.0 to 4.6.10,storage,application,r/rquota.html
+rras,Microsoft Routing and Remote Access Service,1.0.0 to 4.6.10,enterprise,application,r/rras.html
+rrc,Radio Resource Control (RRC) protocol,1.0.0 to 4.6.10,cellular,reuse,r/rrc.html
+rrcp,Realtek Remote Control Protocol,4.0.0 to 4.6.10,lan,reuse,r/rrcp.html
+rrlp,Radio Resource LCS Protocol (RRLP),1.0.0 to 4.6.10,cellular,reuse,r/rrlp.html
+rs_acct,DCE/RPC RS_ACCT,1.0.0 to 4.6.10,enterprise,application,r/rs_acct.html
+rs_attr,Registry Server Attributes Manipulation Interface,1.0.0 to 4.6.10,enterprise,application,r/rs_attr.html
+rs_attr_schema,DCE/RPC Registry Server Attributes Schema,1.0.0 to 4.6.10,enterprise,application,r/rs_attr_schema.html
+rs_bind,DCE/RPC RS_BIND,1.0.0 to 4.6.10,enterprise,application,r/rs_bind.html
+rs_misc,DCE/RPC RS_MISC,1.0.0 to 4.6.10,enterprise,application,r/rs_misc.html
+rs_pgo,DCE Name Service,1.0.0 to 4.6.10,enterprise,application,r/rs_pgo.html
+rs_plcy,RS Interface properties,1.0.0 to 4.6.10,enterprise,application,r/rs_plcy.html
+rs_prop_acct,DCE/RPC RS_PROP_ACCT,1.0.0 to 4.6.10,enterprise,application,r/rs_prop_acct.html
+rs_prop_acl,DCE/RPC Registry server propagation interface - ACLs,1.0.0 to 4.6.10,enterprise,application,r/rs_prop_acl.html
+rs_prop_attr,DCE/RPC Prop Attr,1.0.0 to 4.6.10,enterprise,application,r/rs_prop_attr.html
+rs_prop_pgo,DCE/RPC Registry server propagation interface - PGO items,1.0.0 to 4.6.10,enterprise,application,r/rs_prop_pgo.html
+rs_prop_plcy,DCE/RPC Registry server propagation interface - properties and policies,1.0.0 to 4.6.10,enterprise,application,r/rs_prop_plcy.html
+rs_pwd_mgmt,DCE/RPC Registry Password Management,1.0.0 to 4.6.10,enterprise,application,r/rs_pwd_mgmt.html
+rs_repadm,Registry server administration operations.,1.0.0 to 4.6.10,enterprise,application,r/rs_repadm.html
+rs_replist,DCE/RPC Repserver Calls,1.0.0 to 4.6.10,enterprise,application,r/rs_replist.html
+rs_repmgr,DCE/RPC Operations between registry server replicas,1.0.0 to 4.6.10,enterprise,application,r/rs_repmgr.html
+rs_unix,DCE/RPC RS_UNIX,1.0.0 to 4.6.10,enterprise,application,r/rs_unix.html
+rsec_login,Remote sec_login preauth interface.,1.0.0 to 4.6.10,enterprise,application,r/rsec_login.html
+rsh,Remote Shell,1.0.0 to 4.6.10,remote,reference,r/rsh.html
+rsip,Realm Specific IP Protocol,1.6.0 to 4.6.10,overlay,reuse,r/rsip.html
+rsl,Radio Signalling Link (RSL),1.0.0 to 1.8.15,cellular,historical,r/rsl.html
+rsp,RMCP Security-extensions Protocol,1.0.0 to 4.6.10,ops,gateway,r/rsp.html
+rss,rss,1.0.0 to 4.6.10,collab,application,r/rss.html
+rstat,RSTAT,1.0.0 to 4.6.10,ops,reuse,r/rstat.html
+rsvd,Remote Shared Virtual Disk,2.0.0 to 4.6.10,storage,application,r/rsvd.html
+rsvp,Resource ReserVation Protocol (RSVP),1.0.0 to 4.6.10,routing,reuse,r/rsvp.html
+rsync,RSYNC File Synchroniser,1.0.0 to 4.6.10,file,application,r/rsync.html
+rtacser,RTAC Serial,1.12.0 to 4.6.10,industrial,gateway,r/rtacser.html
+rtag,802.1cb R-TAG,4.2.0 to 4.6.10,routing,reuse,r/rtag.html
+rtcdc,WebRTC Datachannel Protocol,1.10.0 to 4.6.10,webrtc,existing-link,r/rtcdc.html
+rtcfg,RTcfg,1.0.0 to 4.6.10,industrial,gateway,r/rtcfg.html
+rtcp,Real-time Transport Control Protocol,1.0.0 to 4.6.10,voice,application,r/rtcp.html
+rtitcp,RTI TCP Transport Protocol,2.2.0 to 4.6.10,messaging,gateway,r/rtitcp.html
+rtls,Real Time Location System,2.2.0 to 4.6.10,iot,gateway,r/rtls.html
+rtmac,Real-Time Media Access Control,1.0.0 to 4.6.10,industrial,gateway,r/rtmac.html
+rtmp,Routing Table Maintenance Protocol,1.0.0 to 4.6.10,media,application,r/rtmp.html
+rtmpt,Real Time Messaging Protocol,1.0.0 to 4.6.10,media,application,r/rtmpt.html
+rtp,Real-Time Transport Protocol,1.0.0 to 4.6.10,voice,application,r/rtp.html
+rtp.ext.ed137,Real-Time Transport Protocol ED137 Extensions,3.0.0 to 4.6.10,voice,application,r/rtp.ext.ed137.html
+rtpdump,RTPDump file format,4.2.0 to 4.6.10,capture,reference,r/rtpdump.html
+rtpevent,RFC 2833 RTP Event,1.0.0 to 4.6.10,voice,application,r/rtpevent.html
+rtpmidi,RFC 4695/6295 RTP-MIDI,1.8.0 to 4.6.10,voice,application,r/rtpmidi.html
+rtpproxy,Sippy RTPproxy Protocol,1.12.0 to 4.6.10,voice,application,r/rtpproxy.html
+rtps,Real-Time Publish-Subscribe Wire Protocol,1.0.0 to 4.6.10,messaging,gateway,r/rtps.html
+rtps2,Real-Time Publish-Subscribe Wire Protocol 2.x,1.2.0 to 1.8.15,messaging,historical,r/rtps2.html
+rtpsproc,Real-Time Publish-Subscribe Wire Protocol (processed),3.6.0 to 4.6.10,messaging,gateway,r/rtpsproc.html
+rtpsvt,Real-Time Publish-Subscribe Virtual Transport,3.6.0 to 4.6.10,messaging,gateway,r/rtpsvt.html
+rtse,X.228 OSI Reliable Transfer Service,1.0.0 to 4.6.10,legacy,reference,r/rtse.html
+rtsp,Real Time Streaming Protocol,1.0.0 to 4.6.10,media,application,r/rtsp.html
+rua,UTRAN Iuh interface RUA signalling,1.4.0 to 4.6.10,cellular,reuse,r/rua.html
+rudp,Reliable UDP,1.0.0 to 4.6.10,transport,reuse,r/rudp.html
+rwall,Remote Wall protocol,1.0.0 to 4.6.10,enterprise,application,r/rwall.html
+rx,RX Protocol,1.0.0 to 4.6.10,transport,reuse,r/rx.html
+s101,S101,3.0.0 to 4.6.10,media,application,s/s101.html
+s1ap,S1 Application Protocol,1.0.0 to 4.6.10,cellular,reuse,s/s1ap.html
+s4406,STANAG 4406 Message,1.0.0 to 1.4.15,collab,historical,s/s4406.html
+s4607,STANAG 4607 (GMTI Format),1.12.2 to 4.6.10,fieldradio,application,s/s4607.html
+s5066,STANAG 5066 (SIS layer),1.0.0 to 1.10.14,fieldradio,historical,s/s5066.html
+s5066dts,STANAG 5066(DTS layer),1.12.0 to 4.6.10,fieldradio,application,s/s5066dts.html
+s5066sis,STANAG 5066 (SIS layer),1.12.0 to 4.6.10,fieldradio,application,s/s5066sis.html
+s7comm,S7 Communication,2.0.0 to 4.6.10,industrial,gateway,s/s7comm.html
+sabp,UTRAN IuBC interface SABP signaling,1.0.0 to 4.6.10,cellular,reuse,s/sabp.html
+sadmind,SADMIND,1.0.0 to 4.6.10,enterprise,application,s/sadmind.html
+sametime,Sametime Protocol,1.6.0 to 4.6.10,collab,application,s/sametime.html
+samr,SAMR (pidl),1.0.0 to 4.6.10,enterprise,application,s/samr.html
+sane,Scanner Access Now Easy,4.4.0 to 4.6.10,peripheral,gateway,s/sane.html
+sap,Session Announcement Protocol,1.0.0 to 4.6.10,discovery,reuse,s/sap.html
+sapdiag,SAP Diag Protocol,4.2.0 to 4.6.10,enterprise,application,s/sapdiag.html
+sapenqueue,SAP Enqueue Protocol,4.2.0 to 4.6.10,enterprise,application,s/sapenqueue.html
+saphdb,SAP HANA SQL Command Network Protocol,4.2.0 to 4.6.10,enterprise,application,s/saphdb.html
+sapigs,SAP Internet Graphic Server,4.2.0 to 4.6.10,enterprise,application,s/sapigs.html
+sapms,SAP Message Server Protocol,4.2.0 to 4.6.10,enterprise,application,s/sapms.html
+sapni,SAP NI Protocol,4.2.0 to 4.6.10,enterprise,application,s/sapni.html
+saprfc,SAP RFC Protocol,4.4.0 to 4.6.10,enterprise,application,s/saprfc.html
+saprouter,SAP Router Protocol,4.2.0 to 4.6.10,enterprise,application,s/saprouter.html
+sapsnc,SAP SNC Protocol,4.2.0 to 4.6.10,enterprise,application,s/sapsnc.html
+sasp,Server/Application State Protocol,1.4.0 to 4.6.10,ops,reuse,s/sasp.html
+sb3,Fibre Channel Single Byte Command,1.0.0 to 1.8.15,storage,historical,s/sb3.html
+sbas_l1,SBAS L1 Navigation Message,4.2.0 to 4.6.10,aviation,application,s/sbas_l1.html
+sbas_l5,SBAS L5 Navigation Message,4.6.0 to 4.6.10,aviation,application,s/sbas_l5.html
+sbc,Bluetooth SBC Codec,1.10.0 to 4.6.10,media,application,s/sbc.html
+sbcap,SBc Application Part,1.8.0 to 4.6.10,cellular,reuse,s/sbcap.html
+sbus,SAIA S-Bus,1.0.0 to 4.6.10,industrial,gateway,s/sbus.html
+sccp,Signalling Connection Control Part,1.0.0 to 4.6.10,cellular,reuse,s/sccp.html
+sccpmg,Signalling Connection Control Part Management,1.0.0 to 4.6.10,cellular,reuse,s/sccpmg.html
+scop,ZigBee SCoP,1.6.0 to 4.6.10,zigbee,gateway,s/scop.html
+scsi,SCSI,1.0.0 to 4.6.10,storage,application,s/scsi.html
+scsi_mmc,SCSI_MMC,1.0.0 to 4.6.10,storage,application,s/scsi_mmc.html
+scsi_osd,SCSI_OSD,1.0.0 to 4.6.10,storage,application,s/scsi_osd.html
+scsi_sbc,SCSI_SBC,1.0.0 to 4.6.10,storage,application,s/scsi_sbc.html
+scsi_smc,SCSI_SMC,1.0.0 to 4.6.10,storage,application,s/scsi_smc.html
+scsi_ssc,SCSI_SSC,1.0.0 to 4.6.10,storage,application,s/scsi_ssc.html
+scte35,SCTE-35 Splice Information,2.4.0 to 4.6.10,media,application,s/scte35.html
+scte35_private_command,SCTE-35 Private Command,2.4.0 to 4.6.10,media,application,s/scte35_private_command.html
+scte35_si,SCTE-35 Splice Insert,2.4.0 to 4.6.10,media,application,s/scte35_si.html
+scte35_splice_schedule,SCTE-35 Splice Schedule,2.4.0 to 4.6.10,media,application,s/scte35_splice_schedule.html
+scte35_time,SCTE-35 Time Signal,2.4.0 to 4.6.10,media,application,s/scte35_time.html
+sctp,Stream Control Transmission Protocol,1.0.0 to 4.6.10,transport,reuse,s/sctp.html
+scylla,Scylla RPC protocol,3.4.0 to 4.6.10,database,application,s/scylla.html
+sdap,SDAP,3.0.0 to 4.6.10,cellular,reuse,s/sdap.html
+sdh,SDH/SONET Protocol,1.8.0 to 4.6.10,access,reuse,s/sdh.html
+sdlc,Synchronous Data Link Control (SDLC),1.0.0 to 4.6.10,access,reuse,s/sdlc.html
+sdp,Session Description Protocol,1.0.0 to 4.6.10,voice,application,s/sdp.html
+sebek,SEBEK - Kernel Data Capture,1.0.0 to 4.6.10,capture,reference,s/sebek.html
+secidmap,DCE Security ID Mapper,1.0.0 to 4.6.10,enterprise,application,s/secidmap.html
+selfm,SEL Protocol,1.10.0 to 4.6.10,industrial,gateway,s/selfm.html
+sercosiii,SERCOS III V1.1,1.2.0 to 1.6.16,industrial,historical,s/sercosiii.html
+ses,ISO 8327-1 OSI Session Protocol,1.0.0 to 4.6.10,legacy,reference,s/ses.html
+sflow,InMon sFlow,1.0.0 to 4.6.10,ops,reuse,s/sflow.html
+sftp,SSH File Transfer Protocol,4.0.0 to 4.6.10,file,application,s/sftp.html
+sgp22,SGP.22 GSMA Remote SIM Provisioning (RSP),4.6.0 to 4.6.10,cellular,reuse,s/sgp22.html
+sgp32,SGP.32 GSMA Remote SIM Provisioning (RSP),4.6.0 to 4.6.10,cellular,reuse,s/sgp32.html
+sgsap,SGs Application Part (SGsAP),1.6.0 to 4.6.10,cellular,reuse,s/sgsap.html
+shicp,Secure Host IP Configuration Protocol,4.0.0 to 4.6.10,industrial,gateway,s/shicp.html
+shim6,Shim6 Protocol,2.2.0 to 4.6.10,routing,reuse,s/shim6.html
+sick_cola.ascii,SICK CoLA A,4.6.0 to 4.6.10,industrial,gateway,s/sick_cola.ascii.html
+sigcomp,Signaling Compression,1.0.0 to 4.6.10,voice,application,s/sigcomp.html
+signal_pdu,Signal PDU,3.6.0 to 4.6.10,vehicle,gateway,s/signal_pdu.html
+siii,SERCOS III V1.1,1.8.0 to 4.6.10,industrial,gateway,s/siii.html
+silabs-dch,Silabs Debug Channel,4.6.0 to 4.6.10,capture,reference,s/silabs-dch.html
+simple,Standard Interface for Multiple Platform Link Evaluation,2.2.0 to 4.6.10,fieldradio,application,s/simple.html
+simulcrypt,SIMULCRYPT Protocol,1.2.0 to 4.6.10,media,application,s/simulcrypt.html
+sinecap,SINEC AP Telegram,4.2.0 to 4.6.10,industrial,gateway,s/sinecap.html
+sip,Session Initiation Protocol,1.0.0 to 4.6.10,voice,application,s/sip.html
+sipfrag,Sipfrag,1.0.0 to 4.6.10,voice,application,s/sipfrag.html
+sir,Serial Infrared,1.0.0 to 4.6.10,peripheral,gateway,s/sir.html
+sita,Societe Internationale de Telecommunications Aeronautiques,1.0.0 to 4.6.10,aviation,application,s/sita.html
+skinny,Skinny Client Control Protocol,1.0.0 to 4.6.10,voice,application,s/skinny.html
+skype,SKYPE,1.10.0 to 4.6.10,voice,application,s/skype.html
+slarp,Cisco SLARP,1.0.0 to 4.6.10,routing,reuse,s/slarp.html
+slimp3,SliMP3 Communication Protocol,1.0.0 to 4.6.10,media,application,s/slimp3.html
+sll,Linux cooked-mode capture,1.0.0 to 4.6.10,capture,reference,s/sll.html
+slow,802.3 Slow protocols,1.0.0 to 4.6.10,lan,reuse,s/slow.html
+slsk,SoulSeek Protocol,1.0.0 to 4.6.10,file,application,s/slsk.html
+sm,Cisco Session Management,1.0.0 to 4.6.10,cellular,reuse,s/sm.html
+smb,SMB (Server Message Block Protocol),1.0.0 to 4.6.10,storage,application,s/smb.html
+smb2,SMB2 (Server Message Block Protocol version 2),1.0.0 to 4.6.10,storage,application,s/smb2.html
+smb_direct,SMB-Direct (SMB RDMA Transport),1.12.0 to 4.6.10,storage,application,s/smb_direct.html
+smb_netlogon,Microsoft Windows Logon Protocol (Old),1.0.0 to 4.6.10,storage,application,s/smb_netlogon.html
+smb_pipe,SMB Pipe Protocol,1.12.0 to 4.6.10,storage,application,s/smb_pipe.html
+smc,Shared Memory Communications,3.6.0 to 4.6.10,transport,reuse,s/smc.html
+smcr,Shared Memory Communications - RDMA,2.0.0 to 3.4.16,fabric,historical,s/smcr.html
+smil,Synchronized Multimedia Integration Language,1.0.0 to 4.6.10,media,application,s/smil.html
+sml,Smart Message Language,1.10.0 to 4.6.10,utilities,gateway,s/sml.html
+smp,Session Multiplex Protocol,2.6.0 to 4.6.10,transport,reuse,s/smp.html
+smpp,Short Message Peer to Peer,1.0.0 to 4.6.10,collab,application,s/smpp.html
+smrse,Short Message Relaying Service,1.0.0 to 4.6.10,cellular,reuse,s/smrse.html
+smtp,Simple Mail Transfer Protocol,1.0.0 to 4.6.10,collab,application,s/smtp.html
+smux,SNMP Multiplex Protocol,1.0.0 to 4.6.10,ops,reuse,s/smux.html
+sna,Systems Network Architecture,1.0.0 to 4.6.10,legacy,reference,s/sna.html
+snaeth,SNA-over-Ethernet,1.0.0 to 4.6.10,legacy,reference,s/snaeth.html
+sndcp,Subnetwork Dependent Convergence Protocol,1.0.0 to 4.6.10,cellular,reuse,s/sndcp.html
+sndcpxid,Subnetwork Dependent Convergence Protocol XID,1.2.0 to 4.6.10,cellular,reuse,s/sndcpxid.html
+snmp,Simple Network Management Protocol,1.0.0 to 4.6.10,ops,reuse,s/snmp.html
+snort,Snort Alerts,2.4.0 to 4.6.10,ops,reuse,s/snort.html
+socks,Socks Protocol,1.0.0 to 4.6.10,remote,application,s/socks.html
+solaredge,SolarEdge monitoring protocol,2.6.0 to 4.6.10,utilities,gateway,s/solaredge.html
+someip,SOME/IP Protocol,3.2.0 to 4.6.10,vehicle,gateway,s/someip.html
+someipsd,SOME/IP Service Discovery Protocol,3.2.0 to 4.6.10,vehicle,gateway,s/someipsd.html
+sonmp,Nortel SONMP,1.0.0 to 1.4.15,lan,historical,s/sonmp.html
+soupbintcp,SoupBinTCP,1.10.0 to 4.6.10,finance,application,s/soupbintcp.html
+sparkplugb,SparkplugB,3.6.0 to 4.6.10,messaging,gateway,s/sparkplugb.html
+spdy,SPDY,1.12.0 to 4.6.10,web,reference,s/spdy.html
+spice,Spice protocol,1.8.0 to 4.6.10,remote,application,s/spice.html
+spnego,Simple Protected Negotiation,1.0.0 to 4.6.10,auth,reuse,s/spnego.html
+spoolss,Microsoft Spool Subsystem,1.0.0 to 4.6.10,enterprise,application,s/spoolss.html
+spp,Sequenced Packet Protocol,1.0.0 to 4.6.10,legacy,reference,s/spp.html
+spray,SPRAY,1.0.0 to 4.6.10,ops,reuse,s/spray.html
+sprt,Simple Packet Relay Transport,1.10.0 to 4.6.10,transport,reuse,s/sprt.html
+spx,Sequenced Packet eXchange,1.0.0 to 4.6.10,legacy,reference,s/spx.html
+srp,H.324/SRP,1.0.0 to 4.6.10,voice,application,s/srp.html
+srt,SRT Protocol,3.0.0 to 4.6.10,media,application,s/srt.html
+srvloc,Service Location Protocol,1.0.0 to 4.6.10,discovery,reuse,s/srvloc.html
+srvsvc,Server Service,1.0.0 to 4.6.10,enterprise,application,s/srvsvc.html
+sscf-nni,SSCF-NNI,1.0.0 to 4.6.10,access,reuse,s/sscf-nni.html
+sscop,SSCOP,1.0.0 to 4.6.10,access,reuse,s/sscop.html
+ssh,SSH Protocol,1.0.0 to 4.6.10,remote,existing-link,s/ssh.html
+ssl,Secure Sockets Layer,1.0.0 to 2.6.20,auth,historical,s/ssl.html
+ssp,Scripting Service Protocol,1.0.0 to 4.6.10,enterprise,application,s/ssp.html
+sss,Novell SecretStore Services,1.0.0 to 4.6.10,legacy,reference,s/sss.html
+sstp,Secure Socket Tunneling Protocol,2.0.0 to 4.6.10,overlay,reuse,s/sstp.html
+ssyncp,State Synchronization Protocol,3.6.0 to 4.6.10,ops,reuse,s/ssyncp.html
+st2110_20,SMPTE ST2110-20 (Uncompressed Active Video),4.2.0 to 4.6.10,media,application,s/st2110_20.html
+starteam,StarTeam,1.0.0 to 4.6.10,enterprise,application,s/starteam.html
+stat,Network Status Monitor Protocol,1.0.0 to 4.6.10,ops,reuse,s/stat.html
+statnotify,Network Status Monitor CallBack Protocol,1.0.0 to 4.6.10,ops,reuse,s/statnotify.html
+stcsig,Spirent Test Center Signature,3.0.0 to 4.6.10,capture,reference,s/stcsig.html
+steam_ihs_discovery,Steam In-Home Streaming Discovery Protocol,2.6.0 to 4.6.10,discovery,reuse,s/steam_ihs_discovery.html
+stp,Spanning Tree Protocol,1.0.0 to 4.6.10,lan,reuse,s/stp.html
+stt,Stateless Transport Tunneling,2.0.0 to 4.6.10,overlay,reuse,s/stt.html
+stun,Session Traversal Utilities for NAT,1.0.0 to 4.6.10,traversal,reuse,s/stun.html
+stun2,Session Traversal Utilities for NAT,1.0.0 to 1.2.18,traversal,historical,s/stun2.html
+sua,SS7 SCCP-User Adaptation Layer,1.0.0 to 4.6.10,cellular,reuse,s/sua.html
+sv,IEC61850 Sampled Values,1.4.0 to 4.6.10,utilities,gateway,s/sv.html
+svcctl,Service Control,1.0.0 to 4.6.10,enterprise,application,s/svcctl.html
+swils,Fibre Channel SW_ILS,1.0.0 to 4.6.10,storage,application,s/swils.html
+swipe,swIPe IP Security Protocol,1.12.0 to 4.6.10,overlay,reuse,s/swipe.html
+symantec,Symantec Enterprise Firewall,1.0.0 to 4.6.10,ops,reuse,s/symantec.html
+sync,MBMS synchronisation protocol,1.8.0 to 4.6.10,cellular,reuse,s/sync.html
+synergy,Synergy,1.0.0 to 4.6.10,remote,application,s/synergy.html
+synphasor,IEEE C37.118 Synchrophasor Protocol,1.2.0 to 4.6.10,utilities,gateway,s/synphasor.html
+sysdig,Sysdig Event,2.0.0 to 4.6.10,capture,reference,s/sysdig.html
+sysex,MIDI System Exclusive,1.10.0 to 4.6.10,media,application,s/sysex.html
+sysex_digitech,MIDI System Exclusive DigiTech,3.2.0 to 4.6.10,media,application,s/sysex_digitech.html
+syslog,Syslog Message,1.0.0 to 4.6.10,ops,reuse,s/syslog.html
+systemd_journal,systemd Journal Entry,3.0.0 to 4.6.10,capture,reference,s/systemd_journal.html
+t124,GENERIC-CONFERENCE-CONTROL T.124,1.8.0 to 4.6.10,voice,application,t/t124.html
+t125,MULTIPOINT-COMMUNICATION-SERVICE T.125,1.0.0 to 4.6.10,voice,application,t/t125.html
+t30,T.30,1.0.0 to 4.6.10,voice,application,t/t30.html
+t38,T.38,1.0.0 to 4.6.10,voice,application,t/t38.html
+tacacs,TACACS,1.0.0 to 4.6.10,auth,reuse,t/tacacs.html
+tacplus,TACACS+,1.0.0 to 4.6.10,auth,reuse,t/tacplus.html
+tali,"Transport Adapter Layer Interface v1.0, RFC 3094",1.0.0 to 4.6.10,cellular,reuse,t/tali.html
+tapa,Trapeze Access Point Access Protocol,1.0.0 to 4.6.10,wifi,reuse,t/tapa.html
+tapi,Microsoft Telephony API Service,1.0.0 to 4.6.10,voice,application,t/tapi.html
+taskschedulerservice,Microsoft Task Scheduler Service,3.6.0 to 4.6.10,enterprise,application,t/taskschedulerservice.html
+tc_nv,TwinCAT NV,1.0.0 to 4.6.10,industrial,gateway,t/tc_nv.html
+tcap,Transaction Capabilities Application Part,1.0.0 to 4.6.10,cellular,reuse,t/tcap.html
+tcg_cp_oids,TCG_CP_OIDS,3.0.0 to 4.6.10,auth,reuse,t/tcg_cp_oids.html
+tcp,Transmission Control Protocol,1.0.0 to 4.6.10,transport,existing-link,t/tcp.html
+tcpcl,DTN TCP Convergence Layer Protocol,1.4.0 to 4.6.10,delay,defer,t/tcpcl.html
+tcpencap,TCP Encapsulation of IPsec Packets,1.0.0 to 4.6.10,overlay,reuse,t/tcpencap.html
+tcpros,TCP based Robot Operating System protocol (TCPROS),2.0.0 to 4.6.10,industrial,gateway,t/tcpros.html
+tdmoe,Digium TDMoE Protocol,1.6.0 to 4.6.10,voice,application,t/tdmoe.html
+tdmop,TDMoP protocol,2.0.0 to 4.6.10,voice,application,t/tdmop.html
+tds,Tabular Data Stream,1.0.0 to 4.6.10,database,application,t/tds.html
+teap,Tunnel Extensible Authentication Protocol,3.4.0 to 4.6.10,auth,reuse,t/teap.html
+tecmp,Technically Enhanced Capture Module Protocol,3.4.0 to 4.6.10,vehicle,gateway,t/tecmp.html
+tecmp.payload,Technically Enhanced Capture Module Protocol Payload,3.4.0 to 4.6.10,vehicle,gateway,t/tecmp.payload.html
+tei_management,"TEI Management Procedure, Channel D (LAPD)",1.0.0 to 4.6.10,cellular,reuse,t/tei_management.html
+teklink,TEKLINK,1.6.0 to 4.6.10,instrument,gateway,t/teklink.html
+telkonet,Telkonet powerline,1.0.0 to 4.6.10,access,reuse,t/telkonet.html
+telnet,Telnet,1.0.0 to 4.6.10,remote,reference,t/telnet.html
+teredo,Teredo IPv6 over UDP tunneling,1.0.0 to 4.6.10,overlay,reuse,t/teredo.html
+tetra,TETRA Protocol,1.6.0 to 4.6.10,cellular,reuse,t/tetra.html
+tfp,Tinkerforge Protocol,1.12.0 to 4.6.10,industrial,gateway,t/tfp.html
+tftp,Trivial File Transfer Protocol,1.0.0 to 4.6.10,file,application,t/tftp.html
+thread_address,Thread Address,2.4.0 to 4.6.10,thread,reuse,t/thread_address.html
+thread_bcn,Thread Beacon,2.4.0 to 4.6.10,thread,reuse,t/thread_bcn.html
+thread_bl,Thread Backbone Link,4.4.0 to 4.6.10,thread,reuse,t/thread_bl.html
+thread_diagnostic,Thread Diagnostics,2.4.0 to 4.6.10,thread,reuse,t/thread_diagnostic.html
+thread_meshcop,Thread MeshCoP,2.4.0 to 4.6.10,thread,reuse,t/thread_meshcop.html
+thread_nm,Thread Network Management,4.4.0 to 4.6.10,thread,reuse,t/thread_nm.html
+thread_nwd,Thread Network Data,2.4.0 to 4.6.10,thread,reuse,t/thread_nwd.html
+thrift,Thrift Protocol,2.0.0 to 4.6.10,enterprise,application,t/thrift.html
+tibia,Tibia Protocol,2.6.0 to 4.6.10,gaming,application,t/tibia.html
+tiff,Tagged Image File Format,3.6.0 to 4.6.10,format,reference,t/tiff.html
+time,Time Protocol,1.0.0 to 4.6.10,ops,reuse,t/time.html
+tipc,Transparent Inter Process Communication(TIPC),1.0.0 to 4.6.10,enterprise,application,t/tipc.html
+tivoconnect,TiVoConnect Discovery Protocol,1.0.0 to 4.6.10,discovery,reuse,t/tivoconnect.html
+tkn4int,DCE DFS Token Server,1.0.0 to 4.6.10,enterprise,application,t/tkn4int.html
+tls,Transport Layer Security,3.0.0 to 4.6.10,auth,reuse,t/tls.html
+tn3270,TN3270 Protocol,1.4.0 to 4.6.10,remote,application,t/tn3270.html
+tn5250,TN5250 Protocol,1.4.0 to 4.6.10,remote,application,t/tn5250.html
+tnef,Transport-Neutral Encapsulation Format,1.0.0 to 4.6.10,format,reference,t/tnef.html
+tns,Transparent Network Substrate Protocol,1.0.0 to 4.6.10,database,application,t/tns.html
+tpcp,Alteon - Transparent Proxy Cache Protocol,1.0.0 to 4.6.10,web,reuse,t/tpcp.html
+tpkt,TPKT - ISO on TCP - RFC1006,1.0.0 to 4.6.10,transport,reuse,t/tpkt.html
+tplink-smarthome,TP-Link Smart Home Protocol,3.6.0 to 4.6.10,iot,gateway,t/tplink-smarthome.html
+tpm,TPM2.0 Protocol,3.0.0 to 4.6.10,auth,reuse,t/tpm.html
+tpncp,TPNCP (TrunkPack Network Control Protocol),1.0.0 to 4.6.10,voice,application,t/tpncp.html
+tr,Token-Ring,1.0.0 to 4.6.10,legacy,reference,t/tr.html
+transum,TRANSUM RTE Data,2.4.0 to 4.6.10,capture,reference,t/transum.html
+trdp,Train Realtime Data Protocol,4.2.0 to 4.6.10,industrial,gateway,t/trdp.html
+trel,TREL Protocol,4.4.0 to 4.6.10,thread,reuse,t/trel.html
+trill,TRILL,1.4.0 to 4.6.10,lan,reuse,t/trill.html
+trksvr,Microsoft Distributed Link Tracking Server Service,1.0.0 to 4.6.10,enterprise,application,t/trksvr.html
+trmac,Token-Ring Media Access Control,1.0.0 to 4.6.10,legacy,reference,t/trmac.html
+ts2,Teamspeak2 Protocol,1.2.0 to 4.6.10,voice,application,t/ts2.html
+tscf,Time-Synchronous Control Format,3.2.0 to 4.6.10,media,application,t/tscf.html
+tsdns,TeamSpeak3 DNS,3.0.0 to 4.6.10,discovery,reuse,t/tsdns.html
+tsp,Time Synchronization Protocol,1.0.0 to 4.6.10,ops,reuse,t/tsp.html
+ttag,Cisco ttag,2.2.0 to 4.6.10,capture,reference,t/ttag.html
+tte,TTEthernet,1.2.0 to 4.6.10,lan,reuse,t/tte.html
+tte_pcf,TTEthernet Protocol Control Frame,1.2.0 to 4.6.10,lan,reuse,t/tte_pcf.html
+ttp,Tiny Transport Protocol,1.0.0 to 4.6.10,peripheral,gateway,t/ttp.html
+turbocell,Turbocell Header,1.2.0 to 4.6.10,wifi,reuse,t/turbocell.html
+turbocell_aggregate,Turbocell Aggregate Data,1.2.0 to 4.6.10,wifi,reuse,t/turbocell_aggregate.html
+turnchannel,TURN Channel,1.2.0 to 4.6.10,traversal,reuse,t/turnchannel.html
+tuxedo,BEA Tuxedo,1.0.0 to 4.6.10,enterprise,application,t/tuxedo.html
+twamp.control,TwoWay Active Measurement Control Protocol,2.6.0 to 4.6.10,ops,reuse,t/twamp.control.html
+twamp.test,TwoWay Active Measurement Test Protocol,2.6.0 to 4.6.10,ops,reuse,t/twamp.test.html
+typeinfo,DCOM ITypeInfo,3.2.0 to 4.6.10,enterprise,application,t/typeinfo.html
+tzsp,Tazmen Sniffer Protocol,1.0.0 to 4.6.10,capture,reference,t/tzsp.html
+u3v,USB 3 Vision,2.2.0 to 4.6.10,usb,gateway,u/u3v.html
+ua3g,UA3G Message,1.8.0 to 4.6.10,voice,application,u/ua3g.html
+uasip,UA/SIP Protocol,1.8.0 to 4.6.10,voice,application,u/uasip.html
+uasp,USB Attached SCSI,4.0.0 to 4.6.10,storage,application,u/uasp.html
+uaudp,UA/UDP Encapsulation Protocol,1.8.0 to 4.6.10,voice,application,u/uaudp.html
+uavcan_can,UAVCAN/CAN,3.6.0 to 4.6.10,vehicle,gateway,u/uavcan_can.html
+uavcan_dsdl,UAVCAN DSDL,3.6.0 to 4.6.10,vehicle,gateway,u/uavcan_dsdl.html
+ubdp,Ubiquiti Discovery Protocol,3.0.0 to 4.6.10,discovery,reuse,u/ubdp.html
+ubertooth,Ubertooth,1.12.0 to 4.6.10,bluetooth,gateway,u/ubertooth.html
+ubikdisk,DCE DFS FLDB UBIK TRANSFER,1.0.0 to 4.6.10,enterprise,application,u/ubikdisk.html
+ubikvote,DCE DFS FLDB UBIKVOTE,1.0.0 to 4.6.10,enterprise,application,u/ubikvote.html
+ubt,Aruba UBT,4.2.0 to 4.6.10,overlay,reuse,u/ubt.html
+ubx,UBX Protocol,4.2.0 to 4.6.10,aviation,application,u/ubx.html
+uci,UWB UCI Protocol,4.2.0 to 4.6.10,iot,gateway,u/uci.html
+ucp,Universal Computer Protocol,1.0.0 to 4.6.10,collab,application,u/ucp.html
+udld,Unidirectional Link Detection,1.0.0 to 4.6.10,lan,reuse,u/udld.html
+udp,User Datagram Protocol,1.0.0 to 4.6.10,transport,trial-service,u/udp.html
+udpcp,UDPCP,3.4.0 to 4.6.10,cellular,reuse,u/udpcp.html
+udpencap,UDP Encapsulation of IPsec Packets,1.0.0 to 4.6.10,overlay,reuse,u/udpencap.html
+udplite,Lightweight User Datagram Protocol,1.0.0 to 4.6.10,transport,reuse,u/udplite.html
+uds,Unified Diagnostic Services,2.4.0 to 4.6.10,vehicle,gateway,u/uds.html
+udt,UDT Protocol,1.12.0 to 4.6.10,transport,reuse,u/udt.html
+uftp,UDP based FTP w/ multicast,2.2.0 to 4.6.10,file,application,u/uftp.html
+uftp4,UDP based FTP w/ multicast V4,2.2.0 to 4.6.10,file,application,u/uftp4.html
+uftp5,UDP based FTP w/ multicast V5,3.4.0 to 4.6.10,file,application,u/uftp5.html
+uhd,UHD,1.10.0 to 4.6.10,radio,application,u/uhd.html
+ulp,OMA UserPlane Location Protocol,1.0.0 to 4.6.10,cellular,reuse,u/ulp.html
+uma,Unlicensed Mobile Access,1.0.0 to 4.6.10,cellular,reuse,u/uma.html
+unistim,UNISTIM Protocol,1.0.0 to 4.6.10,voice,application,u/unistim.html
+urlencoded-form,HTML Form URL Encoded,1.12.0 to 4.6.10,format,reference,u/urlencoded-form.html
+usb,USB,1.0.0 to 4.6.10,usb,reuse,u/usb.html
+usb-ptp,USB Picture Transfer Protocol,4.6.0 to 4.6.10,usb,gateway,u/usb-ptp.html
+usbaudio,USB Audio,1.10.0 to 4.6.10,usb,gateway,u/usbaudio.html
+usbccid,USB CCID,1.8.0 to 4.6.10,usb,gateway,u/usbccid.html
+usbcom,USB Communications and CDC Control,1.12.0 to 4.6.10,usb,gateway,u/usbcom.html
+usbdfu,USB Device Firmware Upgrade,1.12.0 to 4.6.10,usb,gateway,u/usbdfu.html
+usbhid,USB HID,1.4.0 to 4.6.10,usb,gateway,u/usbhid.html
+usbhub,USB HUB,1.4.0 to 4.6.10,usb,gateway,u/usbhub.html
+usbip,USBIP Protocol,2.2.0 to 4.6.10,usb,gateway,u/usbip.html
+usbll,USB Link Layer,3.2.0 to 4.6.10,usb,gateway,u/usbll.html
+usbms,USB Mass Storage,1.0.0 to 4.6.10,usb,gateway,u/usbms.html
+usbport,USBPort,2.6.0 to 4.6.10,usb,gateway,u/usbport.html
+usbprinter,USB Printer,3.4.0 to 4.6.10,usb,gateway,u/usbprinter.html
+usbvideo,USB Video,1.10.0 to 4.6.10,usb,gateway,u/usbvideo.html
+user_dlt,DLT User,1.0.0 to 4.6.10,capture,reference,u/user_dlt.html
+userlog,UserLog Protocol,2.2.0 to 4.6.10,ops,reuse,u/userlog.html
+uts,Unisys Transmittal System,1.0.0 to 4.6.10,legacy,reference,u/uts.html
+v120,Async data over ISDN (V.120),1.0.0 to 4.6.10,cellular,reuse,v/v120.html
+v150fw,V.150.1 State Signaling Event,1.10.0 to 4.6.10,voice,application,v/v150fw.html
+v52,V5.2,1.4.0 to 4.6.10,cellular,reuse,v/v52.html
+v5dl,V5 Data Link Layer,1.8.0 to 4.6.10,cellular,reuse,v/v5dl.html
+v5ef,V5 Envelope Function (v5ef),1.8.0 to 4.6.10,cellular,reuse,v/v5ef.html
+v5ua,V5.2-User Adaptation Layer,1.0.0 to 4.6.10,cellular,reuse,v/v5ua.html
+vcdu,VCDU,1.2.0 to 4.6.10,delay,defer,v/vcdu.html
+vdp21,VSI protocol,2.2.0 to 4.6.10,lan,reuse,v/vdp21.html
+vicp,LeCroy VICP,1.2.0 to 4.6.10,instrument,gateway,v/vicp.html
+vines_arp,Banyan Vines ARP,1.0.0 to 4.6.10,legacy,reference,v/vines_arp.html
+vines_echo,Banyan Vines Echo,1.0.0 to 4.6.10,legacy,reference,v/vines_echo.html
+vines_frp,Banyan Vines Fragmentation Protocol,1.0.0 to 4.6.10,legacy,reference,v/vines_frp.html
+vines_icp,Banyan Vines ICP,1.0.0 to 4.6.10,legacy,reference,v/vines_icp.html
+vines_ip,Banyan Vines IP,1.0.0 to 4.6.10,legacy,reference,v/vines_ip.html
+vines_ipc,Banyan Vines IPC,1.0.0 to 4.6.10,legacy,reference,v/vines_ipc.html
+vines_llc,Banyan Vines LLC,1.0.0 to 4.6.10,legacy,reference,v/vines_llc.html
+vines_rtp,Banyan Vines RTP,1.0.0 to 4.6.10,legacy,reference,v/vines_rtp.html
+vines_spp,Banyan Vines SPP,1.0.0 to 4.6.10,legacy,reference,v/vines_spp.html
+vj,PPP VJ Compression,1.0.0 to 1.10.14,access,historical,v/vj.html
+vjc,Van Jacobson PPP compression,3.6.0 to 4.6.10,access,reuse,v/vjc.html
+vlan,802.1Q Virtual LAN,"1.0.0 to 1.4.15, 1.6.3 to 4.6.10",lan,reuse,v/vlan.html
+vlp16_data,VLP-16 Data Protocol,4.6.0 to 4.6.10,vehicle,gateway,v/vlp16_data.html
+vlp16_position,VLP-16 Position Protocol,4.6.0 to 4.6.10,vehicle,gateway,v/vlp16_position.html
+vmlab,VMware Lab Manager,1.4.0 to 4.6.10,ops,reuse,v/vmlab.html
+vmware_hb,VMware - HeartBeat,4.2.0 to 4.6.10,ops,reuse,v/vmware_hb.html
+vnc,Virtual Network Computing,1.0.0 to 4.6.10,remote,application,v/vnc.html
+vntag,VN-Tag,1.10.0 to 4.6.10,overlay,reuse,v/vntag.html
+vp8,VP8,1.12.0 to 4.6.10,media,application,v/vp8.html
+vp9,VP9,4.2.0 to 4.6.10,media,application,v/vp9.html
+vpp,VPP Dispatch Trace,3.0.0 to 4.6.10,capture,reference,v/vpp.html
+vpp-metadata,VPP Buffer Metadata,3.0.0 to 4.6.10,capture,reference,v/vpp-metadata.html
+vpp-opaque,VPP Buffer Opaque,3.0.0 to 4.6.10,capture,reference,v/vpp-opaque.html
+vpp-opaque2,VPP Buffer Opaque2,3.0.0 to 4.6.10,capture,reference,v/vpp-opaque2.html
+vpp-trace,VPP Buffer Trace,3.0.0 to 4.6.10,capture,reference,v/vpp-trace.html
+vrrp,Virtual Router Redundancy Protocol,1.0.0 to 4.6.10,routing,reuse,v/vrrp.html
+vrt,VITA 49 radio transport protocol,1.10.0 to 4.6.10,radio,application,v/vrt.html
+vsip,Video Services over IP,2.0.0 to 4.6.10,media,application,v/vsip.html
+vsncp,Vendor Specific Control Protocol,1.4.0 to 4.6.10,access,reuse,v/vsncp.html
+vsnp,Vendor Specific Network Protocol,1.4.0 to 4.6.10,access,reuse,v/vsnp.html
+vsock,vSocket,2.4.0 to 4.6.10,transport,reuse,v/vsock.html
+vsomeip,vSomeIP,4.6.0 to 4.6.10,vehicle,gateway,v/vsomeip.html
+vssmonitoring,VSS Monitoring Ethernet trailer,1.8.0 to 4.6.10,capture,reference,v/vssmonitoring.html
+vtp,VLAN Trunking Protocol,1.0.0 to 4.6.10,lan,reuse,v/vtp.html
+vuze-dht,Vuze DHT Protocol,1.8.0 to 4.6.10,file,application,v/vuze-dht.html
+vxi11_async,VXI-11 Asynchronous Abort,1.10.0 to 4.6.10,instrument,gateway,v/vxi11_async.html
+vxi11_core,VXI-11 Core Protocol,1.10.0 to 4.6.10,instrument,gateway,v/vxi11_core.html
+vxi11_intr,VXI-11 Interrupt,1.10.0 to 4.6.10,instrument,gateway,v/vxi11_intr.html
+vxi11async,VXI-11 Asynchronous Abort,1.4.0 to 1.8.15,instrument,historical,v/vxi11async.html
+vxi11core,VXI-11 Core Protocol,1.4.0 to 1.8.15,instrument,historical,v/vxi11core.html
+vxi11intr,VXI-11 Interrupt,1.4.0 to 1.8.15,instrument,historical,v/vxi11intr.html
+vxlan,Virtual eXtensible Local Area Network,1.8.0 to 4.6.10,overlay,reuse,v/vxlan.html
+wai,WAI Protocol,1.6.0 to 4.6.10,auth,reuse,w/wai.html
+wap-sir,WAP Session Initiation Request,1.0.0 to 4.6.10,cellular,reuse,w/wap-sir.html
+wassp,Wireless Access Station Session Protocol,1.2.0 to 4.6.10,wifi,reuse,w/wassp.html
+watcherinfo,watcherinfo XML doc (RFC 3858),1.0.0 to 4.6.10,collab,application,w/watcherinfo.html
+waveagent,WaveAgent,1.8.0 to 4.6.10,ops,reuse,w/waveagent.html
+wbxml,WAP Binary XML,1.0.0 to 4.6.10,format,reference,w/wbxml.html
+wccp,Web Cache Communication Protocol,1.0.0 to 4.6.10,web,reuse,w/wccp.html
+wcp,Wellfleet Compression,1.0.0 to 4.6.10,access,reuse,w/wcp.html
+websocket,WebSocket,1.8.0 to 4.6.10,web,existing-link,w/websocket.html
+wg,WireGuard Protocol,3.0.0 to 4.6.10,overlay,reuse,w/wg.html
+whdlc,Wellfleet HDLC,1.0.0 to 4.6.10,access,reuse,w/whdlc.html
+who,Who,1.0.0 to 4.6.10,ops,reuse,w/who.html
+whois,whois,1.12.0 to 4.6.10,ops,reuse,w/whois.html
+wifi_display,Wi-Fi Display,1.12.0 to 4.6.10,wifi,reuse,w/wifi_display.html
+wifi_nan,Wi-Fi Neighbor Awareness Networking (NAN),4.2.0 to 4.6.10,wifi,reuse,w/wifi_nan.html
+wifi_p2p,Wi-Fi Peer-to-Peer,1.6.0 to 4.6.10,wifi,reuse,w/wifi_p2p.html
+wimaxasncp,WiMAX ASN Control Plane Protocol,1.0.0 to 4.6.10,access,reuse,w/wimaxasncp.html
+wimaxmacphy,WiMAX MAC-PHY over Ethernet,1.10.0 to 4.6.10,access,reuse,w/wimaxmacphy.html
+winreg,Remote Registry Service,1.0.0 to 4.6.10,enterprise,application,w/winreg.html
+winsrepl,WINS (Windows Internet Name Service) Replication,1.0.0 to 4.6.10,enterprise,application,w/winsrepl.html
+wisun,Wi-SUN Field Area Network,2.6.0 to 4.6.10,pan,reuse,w/wisun.html
+witness,SMB Witness Service,2.2.0 to 4.6.10,storage,application,w/witness.html
+wkssvc,Workstation Service,1.0.0 to 4.6.10,enterprise,application,w/wkssvc.html
+wlan,IEEE 802.11 wireless LAN,1.0.0 to 4.6.10,wifi,reuse,w/wlan.html
+wlan_aggregate,IEEE 802.11 wireless LAN aggregate frame,1.0.0 to 4.6.10,wifi,reuse,w/wlan_aggregate.html
+wlan_mgt,IEEE 802.11 wireless LAN management frame,1.0.0 to 2.2.17,wifi,historical,w/wlan_mgt.html
+wlan_radio,802.11 radio information,2.0.0 to 4.6.10,wifi,reuse,w/wlan_radio.html
+wlan_rsna_eapol,IEEE 802.11 RSNA EAPOL key,1.12.0 to 4.6.10,wifi,reuse,w/wlan_rsna_eapol.html
+wlancap,AVS WLAN Capture header,1.0.0 to 4.6.10,capture,reference,w/wlancap.html
+wlancertextn,Wlan Certificate Extension,1.0.0 to 4.6.10,wifi,reuse,w/wlancertextn.html
+wlccp,Cisco Wireless LAN Context Control Protocol,1.0.0 to 4.6.10,wifi,reuse,w/wlccp.html
+WMIO,WMIO,4.4.0 to 4.6.10,enterprise,application,w/WMIO.html
+wmx,WiMax Protocol,1.0.0 to 4.6.10,access,reuse,w/wmx.html
+wmx.aas,WiMax AAS-FEEDBACK Messages,1.0.0 to 4.6.10,access,reuse,w/wmx.aas.html
+wmx.aas_beam,WiMax AAS-BEAM Messages,1.12.0 to 4.6.10,access,reuse,w/wmx.aas_beam.html
+wmx.arq,WiMax ARQ Feedback/Discard/Reset Messages,1.0.0 to 4.6.10,access,reuse,w/wmx.arq.html
+wmx.cd,WiMax DCD/UCD Messages,1.0.0 to 1.10.14,access,historical,w/wmx.cd.html
+wmx.cdma,WiMax CDMA Code Attribute,1.12.0 to 4.6.10,access,reuse,w/wmx.cdma.html
+wmx.clk,WiMax CLK-CMP Message,1.0.0 to 4.6.10,access,reuse,w/wmx.clk.html
+wmx.dcd,WiMax DCD Messages,1.12.0 to 4.6.10,access,reuse,w/wmx.dcd.html
+wmx.dlmap,WiMax DLMAP Messages,1.12.0 to 4.6.10,access,reuse,w/wmx.dlmap.html
+wmx.dreg,WiMax DREG-REQ/CMD Messages,1.0.0 to 1.10.14,access,historical,w/wmx.dreg.html
+wmx.dreg_req,WiMax DREG-REQ Messages,1.12.0 to 4.6.10,access,reuse,w/wmx.dreg_req.html
+wmx.ds,WiMax DSA/C/D Messages,1.0.0 to 1.10.14,access,historical,w/wmx.ds.html
+wmx.dsa,WiMax DSA Messages,1.12.0 to 4.6.10,access,reuse,w/wmx.dsa.html
+wmx.dsc,WiMax DSC Messages,1.12.0 to 4.6.10,access,reuse,w/wmx.dsc.html
+wmx.dsd,WiMax DSD Messages,1.12.0 to 4.6.10,access,reuse,w/wmx.dsd.html
+wmx.dsx,WiMax DSX-RVD Message,1.0.0 to 1.10.14,access,historical,w/wmx.dsx.html
+wmx.dsx_rvd,WiMax DSX-RVD Message,1.12.0 to 4.6.10,access,reuse,w/wmx.dsx_rvd.html
+wmx.fpc,WiMax FPC Message,1.0.0 to 4.6.10,access,reuse,w/wmx.fpc.html
+wmx.hdr,WiMax Generic/Type1/Type2 MAC Header Messages,1.0.0 to 4.6.10,access,reuse,w/wmx.hdr.html
+wmx.map,WiMax DLMAP/ULMAP Messages,1.0.0 to 1.10.14,access,historical,w/wmx.map.html
+wmx.mgmt,WiMax MAC Management Message,1.12.0 to 4.6.10,access,reuse,w/wmx.mgmt.html
+wmx.pkm,WiMax PKM-REQ/RSP Messages,1.0.0 to 4.6.10,access,reuse,w/wmx.pkm.html
+wmx.pmc,WiMax PMC-REQ/RSP Messages,1.0.0 to 1.10.14,access,historical,w/wmx.pmc.html
+wmx.pmc_req,WiMax PMC-REQ Messages,1.12.0 to 4.6.10,access,reuse,w/wmx.pmc_req.html
+wmx.prc,WiMax PRC-LT-CTRL Message,1.0.0 to 4.0.17,access,historical,w/wmx.prc.html
+wmx.prc_lt_ctrl,WiMax PRC-LT-CTRL Message,4.2.0 to 4.6.10,access,reuse,w/wmx.prc_lt_ctrl.html
+wmx.reg,WiMax REG-REQ/RSP Messages,1.0.0 to 1.10.14,access,historical,w/wmx.reg.html
+wmx.reg_req,WiMax REG-REQ Messages,1.12.0 to 4.6.10,access,reuse,w/wmx.reg_req.html
+wmx.reg_rsp,WiMax REG-RSP Messages,1.12.0 to 4.6.10,access,reuse,w/wmx.reg_rsp.html
+wmx.rep,WiMax REP-REQ/RSP Messages,1.0.0 to 4.6.10,access,reuse,w/wmx.rep.html
+wmx.res,WiMax RES-CMD Message,1.0.0 to 4.6.10,access,reuse,w/wmx.res.html
+wmx.rng,WiMax RNG-REQ/RSP Messages,1.0.0 to 1.10.14,access,historical,w/wmx.rng.html
+wmx.rng_req,WiMax RNG-REQ Messages,1.12.0 to 4.6.10,access,reuse,w/wmx.rng_req.html
+wmx.rng_rsp,WiMax RNG-RSP Messages,1.12.0 to 4.6.10,access,reuse,w/wmx.rng_rsp.html
+wmx.sbc,WiMax SBC-REQ/RSP Messages,1.0.0 to 4.6.10,access,reuse,w/wmx.sbc.html
+wmx.sub,WiMax Sub-TLV Messages,1.0.0 to 4.6.10,access,reuse,w/wmx.sub.html
+wmx.ucd,WiMax UCD Messages,1.12.0 to 4.6.10,access,reuse,w/wmx.ucd.html
+wmx.ulmap,WiMax ULMAP Messages,1.12.0 to 4.6.10,access,reuse,w/wmx.ulmap.html
+wol,Wake On LAN,1.0.0 to 4.6.10,lan,reuse,w/wol.html
+wow,World of Warcraft,1.2.0 to 4.6.10,gaming,application,w/wow.html
+woww,World of Warcraft World,3.6.0 to 4.6.10,gaming,application,w/woww.html
+wpan,IEEE 802.15.4 Low-Rate Wireless PAN,1.0.0 to 4.6.10,pan,reuse,w/wpan.html
+wps,Wifi Protected Setup,1.0.0 to 4.6.10,wifi,reuse,w/wps.html
+wreth,WSE remote ethernet,1.8.0 to 4.6.10,industrial,gateway,w/wreth.html
+wsmp,Wave Short Message Protocol(IEEE P1609.3),1.2.0 to 4.6.10,vehicle,gateway,w/wsmp.html
+wsp,Wireless Session Protocol,1.0.0 to 4.6.10,cellular,reuse,w/wsp.html
+wtls,Wireless Transport Layer Security,1.0.0 to 4.6.10,auth,reuse,w/wtls.html
+wtp,Wireless Transaction Protocol,1.0.0 to 4.6.10,cellular,reuse,w/wtp.html
+wzcsvc,Wireless Configuration Service,1.0.0 to 4.6.10,enterprise,application,w/wzcsvc.html
+x.25,X.25,1.0.0 to 1.0.16,legacy,historical,x/x.25.html
+x.29,X.29,1.0.0 to 1.0.16,legacy,historical,x/x.29.html
+x11,X11,1.0.0 to 4.6.10,remote,application,x/x11.html
+x224,ITU-T Rec X.224,1.0.0 to 2.0.16,legacy,historical,x/x224.html
+x25,X.25,1.2.0 to 4.6.10,legacy,reference,x/x25.html
+x29,X.29,1.2.0 to 4.6.10,legacy,reference,x/x29.html
+x2ap,EUTRAN X2 Application Protocol (X2AP),1.0.0 to 4.6.10,cellular,reuse,x/x2ap.html
+x411,X.411 Message Transfer Service,1.0.0 to 1.4.15,collab,historical,x/x411.html
+x420,X.420 Information Object,1.0.0 to 1.4.15,collab,historical,x/x420.html
+x509af,X.509 Authentication Framework,1.0.0 to 4.6.10,auth,reuse,x/x509af.html
+x509ce,X.509 Certificate Extensions,1.0.0 to 4.6.10,auth,reuse,x/x509ce.html
+x509if,X.509 Information Framework,1.0.0 to 4.6.10,auth,reuse,x/x509if.html
+x509sat,X.509 Selected Attribute Types,1.0.0 to 4.6.10,auth,reuse,x/x509sat.html
+x75,Async data over ISDN (X.75),4.2.0 to 4.6.10,cellular,reuse,x/x75.html
+xcap-caps,XML Configuration Access Protocol Server Capabilities,1.0.0 to 4.6.10,collab,application,x/xcap-caps.html
+xcap-error,XCAP Error XML doc (RFC 4825),1.0.0 to 4.6.10,collab,application,x/xcap-error.html
+xcp,Universal Measurement and Calibration Protocol (XCP),4.6.0 to 4.6.10,industrial,gateway,x/xcp.html
+xcsl,Call Specification Language (Xcsl),1.0.0 to 4.6.10,voice,application,x/xcsl.html
+xdmcp,X Display Manager Control Protocol,1.0.0 to 4.6.10,remote,application,x/xdmcp.html
+xip,eXpressive Internet Protocol,2.0.0 to 4.6.10,routing,reuse,x/xip.html
+xipserval,XIP Serval,2.0.0 to 4.6.10,routing,reuse,x/xipserval.html
+xiri,X2 xIRI payload,3.6.0 to 4.6.10,cellular,reuse,x/xiri.html
+xmcp,eXtensible Messaging Client Protocol,1.8.0 to 4.6.10,messaging,gateway,x/xmcp.html
+xml,eXtensible Markup Language,1.0.0 to 4.6.10,format,reference,x/xml.html
+xmpp,XMPP Protocol,1.8.0 to 4.6.10,collab,application,x/xmpp.html
+xnap,NG-RAN Xn Application Protocol (XnAP),3.0.0 to 4.6.10,cellular,reuse,x/xnap.html
+xot,X.25 over TCP,1.0.0 to 4.6.10,legacy,reference,x/xot.html
+xra,Excentis XRA Header,2.6.0 to 4.6.10,capture,reference,x/xra.html
+xti,Enhanced Cash Trading Interface 10.0,4.0.0 to 4.6.10,finance,application,x/xti.html
+xtp,Xpress Transport Protocol,1.2.0 to 4.6.10,transport,reuse,x/xtp.html
+xyplex,Xyplex,1.0.0 to 4.6.10,file,application,x/xyplex.html
+yami,YAMI Protocol,1.8.0 to 4.6.10,messaging,gateway,y/yami.html
+yhoo,Yahoo Messenger Protocol,1.0.0 to 4.6.10,collab,application,y/yhoo.html
+ymsg,Yahoo YMSG Messenger Protocol,1.0.0 to 4.6.10,collab,application,y/ymsg.html
+ypbind,Yellow Pages Bind,1.0.0 to 4.6.10,enterprise,application,y/ypbind.html
+yppasswd,Yellow Pages Passwd,1.0.0 to 4.6.10,enterprise,application,y/yppasswd.html
+ypserv,Yellow Pages Service,1.0.0 to 4.6.10,enterprise,application,y/ypserv.html
+ypxfr,Yellow Pages Transfer,1.0.0 to 4.6.10,enterprise,application,y/ypxfr.html
+z21,Z21 LAN Protocol,4.2.0 to 4.6.10,industrial,gateway,z/z21.html
+z3950,Z39.50 Protocol,3.0.0 to 4.6.10,enterprise,application,z/z3950.html
+zabbix,Zabbix Protocol,4.2.0 to 4.6.10,ops,reuse,z/zabbix.html
+zbd,ZigBee Direct,4.2.0 to 4.6.10,zigbee,gateway,z/zbd.html
+zbee.apf,ZigBee Application Framework,1.2.0 to 1.8.15,zigbee,historical,z/zbee.apf.html
+zbee.aps,ZigBee Application Support Layer,1.2.0 to 1.8.15,zigbee,historical,z/zbee.aps.html
+zbee.nwk,ZigBee Network Layer,1.2.0 to 1.8.15,zigbee,historical,z/zbee.nwk.html
+zbee.zcl,ZigBee Cluster Library,1.4.0 to 1.8.15,zigbee,historical,z/zbee.zcl.html
+zbee.zdp,ZigBee Device Profile,1.2.0 to 1.8.15,zigbee,historical,z/zbee.zdp.html
+zbee_apf,ZigBee Application Framework,1.10.0 to 4.6.10,zigbee,gateway,z/zbee_apf.html
+zbee_aps,ZigBee Application Support Layer,1.10.0 to 4.6.10,zigbee,gateway,z/zbee_aps.html
+zbee_nwk,ZigBee Network Layer,1.10.0 to 4.6.10,zigbee,gateway,z/zbee_nwk.html
+zbee_nwk_gp,ZigBee Green Power Profile,1.12.0 to 4.6.10,zigbee,gateway,z/zbee_nwk_gp.html
+zbee_tlv,Zigbee TLV,4.2.0 to 4.6.10,zigbee,gateway,z/zbee_tlv.html
+zbee_zcl,ZigBee Cluster Library,1.10.0 to 4.6.10,zigbee,gateway,z/zbee_zcl.html
+zbee_zcl_closures.door_lock,ZigBee ZCL Door Lock,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_closures.door_lock.html
+zbee_zcl_closures.shade_config,ZigBee ZCL Shade Configuration,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_closures.shade_config.html
+zbee_zcl_closures.window_covering,ZigBee ZCL Window Covering,4.4.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_closures.window_covering.html
+zbee_zcl_general.alarms,ZigBee ZCL Alarms,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.alarms.html
+zbee_zcl_general.analog.input.basic,ZigBee ZCL Analog Input Basic,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.analog.input.basic.html
+zbee_zcl_general.analog.output.basic,ZigBee ZCL Analog Output Basic,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.analog.output.basic.html
+zbee_zcl_general.analog.value.basic,ZigBee ZCL Analog Value Basic,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.analog.value.basic.html
+zbee_zcl_general.applctrl,ZigBee ZCL Appliance Control,1.12.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.applctrl.html
+zbee_zcl_general.basic,ZigBee ZCL Basic,1.12.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.basic.html
+zbee_zcl_general.binary_input_basic,ZigBee ZCL Binary Input Basic,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.binary_input_basic.html
+zbee_zcl_general.binary_output_basic,ZigBee ZCL Binary Output Basic,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.binary_output_basic.html
+zbee_zcl_general.binary_value_basic,ZigBee ZCL Binary Value Basic,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.binary_value_basic.html
+zbee_zcl_general.commissioning,ZigBee ZCL Commissioning,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.commissioning.html
+zbee_zcl_general.device_temperature_config,ZigBee ZCL Device Temperature Configuration,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.device_temperature_config.html
+zbee_zcl_general.gp,ZigBee ZCL Green Power,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.gp.html
+zbee_zcl_general.groups,ZigBee ZCL Groups,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.groups.html
+zbee_zcl_general.identify,ZigBee ZCL Identify,1.12.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.identify.html
+zbee_zcl_general.level_control,ZigBee ZCL Level Control,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.level_control.html
+zbee_zcl_general.multistate.input.basic,ZigBee ZCL Multistate Input Basic,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.multistate.input.basic.html
+zbee_zcl_general.multistate.output.basic,ZigBee ZCL Multistate Output Basic,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.multistate.output.basic.html
+zbee_zcl_general.multistate.value.basic,ZigBee ZCL Multistate Value Basic,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.multistate.value.basic.html
+zbee_zcl_general.onoff,ZigBee ZCL OnOff,1.12.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.onoff.html
+zbee_zcl_general.onoff.switch.configuration,ZigBee ZCL OnOff Switch Configuration,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.onoff.switch.configuration.html
+zbee_zcl_general.ota,ZigBee ZCL OTA,1.12.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.ota.html
+zbee_zcl_general.part,ZigBee ZCL Partition,1.12.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.part.html
+zbee_zcl_general.poll,ZigBee ZCL Poll Control,2.0.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.poll.html
+zbee_zcl_general.power_config,ZigBee ZCL Power Configuration,2.0.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.power_config.html
+zbee_zcl_general.pwrprof,ZigBee ZCL Power Profile,1.12.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.pwrprof.html
+zbee_zcl_general.rssi_location,ZigBee ZCL RSSI Location,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.rssi_location.html
+zbee_zcl_general.scenes,ZigBee ZCL Scenes,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.scenes.html
+zbee_zcl_general.time,ZigBee ZCL Time,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.time.html
+zbee_zcl_general.touchlink,ZigBee ZCL Touchlink,2.6.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_general.touchlink.html
+zbee_zcl_ha.applevtalt,ZigBee ZCL Appliance Events & Alert,1.12.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_ha.applevtalt.html
+zbee_zcl_ha.applident,ZigBee ZCL Appliance Identification,1.12.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_ha.applident.html
+zbee_zcl_ha.applstats,ZigBee ZCL Appliance Statistics,1.12.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_ha.applstats.html
+zbee_zcl_ha.diagnostics,ZigBee ZCL Diagnostics,4.6.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_ha.diagnostics.html
+zbee_zcl_ha.metidt,ZigBee ZCL Meter Identification,1.12.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_ha.metidt.html
+zbee_zcl_hvac.dehum_ctrl,ZigBee ZCL Dehumidification Control,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_hvac.dehum_ctrl.html
+zbee_zcl_hvac.fan_ctrl,ZigBee ZCL Fan Control,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_hvac.fan_ctrl.html
+zbee_zcl_hvac.pump_config_ctrl,ZigBee ZCL Pump Configuration and Control,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_hvac.pump_config_ctrl.html
+zbee_zcl_hvac.thermo_ui_config,ZigBee ZCL Thermostat User Interface Configuration,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_hvac.thermo_ui_config.html
+zbee_zcl_hvac.thermostat,ZigBee ZCL Thermostat,2.0.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_hvac.thermostat.html
+zbee_zcl_ias.ace,ZigBee ZCL IAS ACE,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_ias.ace.html
+zbee_zcl_ias.wd,ZigBee ZCL IAS WD,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_ias.wd.html
+zbee_zcl_ias.zone,ZigBee ZCL IAS Zone,2.0.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_ias.zone.html
+zbee_zcl_lighting.ballast_ctrl,ZigBee ZCL Ballast Configuration,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_lighting.ballast_ctrl.html
+zbee_zcl_lighting.color_ctrl,ZigBee ZCL Color Control,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_lighting.color_ctrl.html
+zbee_zcl_meas_sensing.elecmes,ZigBee ZCL Electrical Measurement,3.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_meas_sensing.elecmes.html
+zbee_zcl_meas_sensing.flowmeas,ZigBee ZCL Flow Meas.,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_meas_sensing.flowmeas.html
+zbee_zcl_meas_sensing.illumlevelsen,ZigBee ZCL Illuminance Level Sensing,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_meas_sensing.illumlevelsen.html
+zbee_zcl_meas_sensing.illummeas,ZigBee ZCL Illuminance Meas.,1.12.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_meas_sensing.illummeas.html
+zbee_zcl_meas_sensing.occsen,ZigBee ZCL Occupancy Sensing,2.2.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_meas_sensing.occsen.html
+zbee_zcl_meas_sensing.pressmeas,ZigBee ZCL Pressure Meas.,1.12.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_meas_sensing.pressmeas.html
+zbee_zcl_meas_sensing.relhummeas,ZigBee ZCL Rel. Humidity Meas.,1.12.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_meas_sensing.relhummeas.html
+zbee_zcl_meas_sensing.tempmeas,ZigBee ZCL Temperature Meas.,1.12.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_meas_sensing.tempmeas.html
+zbee_zcl_se.calendar,ZigBee ZCL Calendar,2.6.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_se.calendar.html
+zbee_zcl_se.daily_schedule,ZigBee ZCL Daily Schedule,3.0.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_se.daily_schedule.html
+zbee_zcl_se.dm,ZigBee ZCL Device Management,2.6.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_se.dm.html
+zbee_zcl_se.drlc,ZigBee ZCL DLRC,2.6.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_se.drlc.html
+zbee_zcl_se.em,ZigBee ZCL Energy Management,2.6.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_se.em.html
+zbee_zcl_se.events,ZigBee ZCL Events,2.4.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_se.events.html
+zbee_zcl_se.ke,ZigBee ZCL Key Establishment,2.0.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_se.ke.html
+zbee_zcl_se.keep_alive,ZigBee ZCL Keep-Alive,2.6.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_se.keep_alive.html
+zbee_zcl_se.mdu_pairing,ZigBee ZCL MDU Pairing,2.6.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_se.mdu_pairing.html
+zbee_zcl_se.met,ZigBee ZCL Metering,2.4.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_se.met.html
+zbee_zcl_se.msg,ZigBee ZCL Messaging,1.12.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_se.msg.html
+zbee_zcl_se.pp,ZigBee ZCL Prepayment,2.4.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_se.pp.html
+zbee_zcl_se.price,ZigBee ZCL Price,2.6.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_se.price.html
+zbee_zcl_se.sub_ghz,ZigBee ZCL Sub-Ghz,2.6.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_se.sub_ghz.html
+zbee_zcl_se.tun,ZigBee ZCL Tunneling,2.0.0 to 4.6.10,zigbee,gateway,z/zbee_zcl_se.tun.html
+zbee_zdp,ZigBee Device Profile,1.10.0 to 4.6.10,zigbee,gateway,z/zbee_zdp.html
+zbncp,ZBOSS Network Coprocessor product,4.0.0 to 4.6.10,zigbee,gateway,z/zbncp.html
+zebra,Zebra Protocol,1.0.0 to 4.6.10,routing,reuse,z/zebra.html
+zep,ZigBee Encapsulation Protocol,1.2.0 to 4.6.10,zigbee,gateway,z/zep.html
+ziop,Zipped Inter-ORB Protocol,1.2.0 to 4.6.10,enterprise,application,z/ziop.html
+zip,Zone Information Protocol,1.0.0 to 4.6.10,legacy,reference,z/zip.html
+zmtp,ZeroMQ Message Transport Protocol,4.4.0 to 4.6.10,messaging,gateway,z/zmtp.html
+zrtp,ZRTP,1.2.0 to 4.6.10,voice,application,z/zrtp.html
+zvt,ZVT Kassenschnittstelle,2.0.0 to 4.6.10,finance,application,z/zvt.html
