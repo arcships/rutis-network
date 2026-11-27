@@ -55,6 +55,8 @@ The implementation baseline is rutis 0.23.0. This repository already has Go plug
 
 ## 4. General data networks, cloud and overlays
 
+For a device that exposes a UDP socket, compare [raw UDP and lightweight datagram protocols](communication-protocols.en.md#6-raw-udp-and-lightweight-datagram-protocols) to identify the guarantees required for telemetry, discovery and media.
+
 | Family or profile | Handoff and constraints | rutis integration |
 | --- | --- | --- |
 | Ethernet · Wi-Fi · Wi-Fi Direct/Aware/HaLow · Li-Fi | Ethernet and infrastructure Wi-Fi usually expose IP through the OS. Wi-Fi Direct forms groups, Aware can discover nearby services, and HaLow provides sub-GHz access. Optical wireless can also present a network interface. | Reuse the OS interface, addresses and transport. Track discovery, association and peer admission separately. For a discovery-only interface, locate a data channel first. [IEEE 802.11](https://www.ieee802.org/11/) |

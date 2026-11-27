@@ -55,6 +55,8 @@
 
 ## 4. 通用数据网、云和覆盖网络
 
+若设备交付的是 UDP socket，可对照[裸 UDP 与轻量报文协议](communication-protocols.md#6-裸-udp-与轻量报文协议)，从遥测、发现和媒体逐项判断需要哪些额外保证。
+
 | 协议族或配置 | 交接点与限制 | rutis 的接法 |
 | --- | --- | --- |
 | Ethernet · Wi-Fi · Wi-Fi Direct/Aware/HaLow · Li-Fi | 以太网和常规 Wi-Fi 常由系统交付 IP。Wi-Fi Direct 建组，Aware 可以发现邻近服务，HaLow 用于亚 GHz 接入。光无线也可交付网络接口。 | 复用系统网卡、地址和现有传输。发现、关联与端点准入分别记录。若接口只暴露邻近发现，则先寻找数据通道。 [IEEE 802.11](https://www.ieee802.org/11/) |

@@ -75,3 +75,22 @@
 2. **晚加入。** 连续发布三个 retained 状态，新客户端普通订阅应得到最近的保留值。重新订阅命令主题时，应当没有历史命令触发采样。
 3. **业务完成后确认丢失。** 在采样已写入、消费确认或应用回复尚未送达时中断。允许调用方超时或工作项重投，再用原请求 ID 查询结果。分别核对执行次数和收到的回复数。
 4. **群发与分工。** 两个普通订阅者和一组有两个成员的共享订阅同时接收带唯一 ID 的测试事件。在无故障的单次投递下，两个独立订阅各收一份，共享组内一个成员接收。再中断成员并单独记录重投。
+
+## 6. 裸 UDP 与轻量报文协议
+
+这里的“裸 UDP”指用普通 UDP socket 收发应用自行定义的数据报。操作系统处理 IP 和 UDP 首部，插件定义载荷。一个数据报即一个消息边界。发送调用成功只能说明本地协议栈接受了这次发送。UDP 自身没有建连握手、交付确认、顺序、去重或对端关闭通知，也不验证发送者身份。单播面向一个地址和端口，IPv4 广播与 IP 组播可面向多个接收者。加入组播组也不会产生一份应用可依赖的在线成员名单。[UDP](https://datatracker.ietf.org/doc/html/rfc768) · [UDP 使用指南](https://datatracker.ietf.org/doc/html/rfc8085) · [IP 组播](https://datatracker.ietf.org/doc/html/rfc1112)
+
+| 协议或用法 | 在 UDP 上增加了什么 | rutis 插件能据此报告什么 |
+| --- | --- | --- |
+| 自定义遥测、心跳、局域网通告 | 最小实现可只发一个样本。若设备协议有启动代次、序号和采集时间，就能在接收端识别重复、迟到和序号缺口。 | 报告收到的样本、来源和最后所见时间。缺口是观测结果，原因可能是网络丢包、接收端丢弃或发送方跳号。 |
+| DNS / mDNS | DNS 关联查询与响应，必要时可改用 TCP。mDNS 允许在本地链路组播查询并缓存有 TTL 的记录。 | 导出候选名称、地址、接口和过期时间。解析成功后还需独立验证目标服务和对端身份。[DNS](https://datatracker.ietf.org/doc/html/rfc1035) · [mDNS](https://datatracker.ietf.org/doc/html/rfc6762) |
+| DHCPv4 / NTP | DHCPv4 通过多条报文协商地址租约。NTP 客户端利用一次请求应答中的时间戳估计时钟偏差与往返时延。 | 前者表明网络配置及其有效期，后者提供具备误差条件的时钟观测。任一服务的响应都无法证明设备业务正常。[DHCPv4](https://datatracker.ietf.org/doc/html/rfc2131) · [NTP](https://datatracker.ietf.org/doc/html/rfc5905) |
+| Syslog over UDP / SNMP Trap、Inform | UDP Syslog 和 Trap 单向发送。SNMP Inform 有对应响应，发起方可以在超时后重试。 | 区分“已发送”“采集器已收到”和“对端代理已响应”。告警是否被人或业务系统处理，要由后者确认。[UDP Syslog](https://datatracker.ietf.org/doc/html/rfc5426) · [SNMP 操作](https://datatracker.ietf.org/doc/html/rfc3416) |
+| CoAP over UDP / TFTP | CoAP 把可确认消息的 ACK 与资源响应区分开。基本 TFTP 按数据块编号与 ACK 推进传输，支持超时重发。 | CoAP 插件可报告请求结果，TFTP 插件可报告文件传输进度。一个块或一条消息获确认，只覆盖对应协议步骤。[CoAP](https://datatracker.ietf.org/doc/html/rfc7252) · [TFTP](https://datatracker.ietf.org/doc/html/rfc1350) |
+| RTP/RTCP · OSC over UDP | RTP 用序号与时间戳表示媒体顺序和时间，RTCP 可报告接收质量。OSC 可发送带地址和参数的消息或带时间标签的 bundle。 | 媒体和控制插件按时间消费数据，对迟到帧、过期控制值和丢包分别处理。基础报文没有自动可靠交付。[RTP/RTCP](https://datatracker.ietf.org/doc/html/rfc3550) · [OSC](https://opensoundcontrol.stanford.edu/spec-1_0.html) |
+| KCP / ENet | KCP 提供基于确认和重传的可靠传输，底层 I/O 与时钟更新由集成方提供。ENet 可选择可靠或不可靠交付。 | 用作会话前验证所选模式的双向性、顺序、准入、背压与关闭。使用某个库本身不能证明所选通道满足整个契约。[KCP](https://github.com/skywind3000/kcp) · [ENet](https://github.com/lsalzman/enet) |
+| DTLS / QUIC stream / QUIC DATAGRAM | DTLS 保护报文的机密性和完整性，应用报文仍可能丢失或乱序。QUIC 双向 stream 提供可靠有序的字节流。QUIC DATAGRAM 共用连接保护和拥塞控制，丢失的数据报不会由 QUIC 重传。 | 有期限的安全遥测可选择受保护的数据报。需要完整 rutis 会话时，可选择已准入的 QUIC 双向 stream 并增加消息分帧。[DTLS 1.3](https://datatracker.ietf.org/doc/html/rfc9147) · [QUIC](https://datatracker.ietf.org/doc/html/rfc9000) · [QUIC DATAGRAM](https://datatracker.ietf.org/doc/html/rfc9221) |
+
+**Go 接入与验收。** 采集插件可以用 `net.UDPConn` 保留每个数据报及观察到的源地址，限制报文大小、发送速率和接收队列。根据路径 MTU 和封装开销选择载荷预算，避免依赖 IP 分片。NAT 映射可能过期或变化，所以地址端口用作本次路径观察，稳定设备身份另行验证。需要每条消息可靠有序且能感知会话结束时，优先使用已有传输提供这些保证，再调用 `rutis/sessions.open(far)`。[Go net](https://pkg.go.dev/net#UDPConn) · [路径 MTU](https://datatracker.ietf.org/doc/html/rfc8899) · [NAT 映射](https://datatracker.ietf.org/doc/html/rfc4787) · [链接插件契约](../design/01-link-plugin-contract.md)
+
+建议用带启动代次与序号的本地测试传感器，依次交付 `1、3、3、2`，再让传感器停止发送。实时状态视图应保持在样本 3，重复样本的副作用只生效一次，迟到的 2 可以修正先前观测到的缺口。超时后显示最后所见与样本年龄。再让同一组里的两个接收者各漏掉不同的包，验证发布者无法从一次成功发送推断全组收齐。这些是建议的报文插件验收场景。
