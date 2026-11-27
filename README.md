@@ -9,7 +9,7 @@ rutis itself knows only the session side: a connection plugin opens a channel an
 The plugins target rutis 0.23.0 (session protocol 5, plugin API 3). Upgrade both hosts and their language runtimes together. 0.19.3 renamed the service to `rutis/sessions`; 0.20 changed unload order and gave a session its own writer thread; 0.21 made received functions asynchronous and changed error texts.
 
 For networks that span several nodes or administrative domains, see [the research on discovery, network formation and service boundaries](docs/research/network-groups.en.md).
-For device integration, the [network stack survey](docs/research/network-stacks.en.md) identifies the interfaces that IoT, industrial and general-purpose protocols expose to a plugin.
+For device integration, the [network stack survey](docs/research/network-stacks.en.md) identifies the interfaces that IoT, industrial and general-purpose protocols expose to a plugin. The [communication protocol survey](docs/research/communication-protocols.en.md) compares subscriptions, acknowledgments, offline delivery and replay, with MQTT as a worked example.
 
 ## Status
 

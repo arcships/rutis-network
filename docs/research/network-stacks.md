@@ -71,6 +71,8 @@
 
 ## 5. 设备模型、应用协议与消息中间件
 
+各协议如何寻址、确认与补收，见[通信协议研究](communication-protocols.md)，其中用 MQTT 贯穿设备状态、离线恢复与请求结果。
+
 | 协议族或配置 | 交接点与限制 | rutis 的接法 |
 | --- | --- | --- |
 | CoAP · Observe · Block-Wise · DTLS/OSCORE | CoAP 交换资源请求与响应。Confirmable 消息可获 ACK，Observe 订阅资源变化，分块用于资源传输。 | 导出读写、观察、状态码和时限。空 ACK 只能确认报文到达，业务结果要看响应及应用语义。 [RFC 7252](https://datatracker.ietf.org/doc/html/rfc7252) · [Observe](https://datatracker.ietf.org/doc/html/rfc7641) |

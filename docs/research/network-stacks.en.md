@@ -71,6 +71,8 @@ The implementation baseline is rutis 0.23.0. This repository already has Go plug
 
 ## 5. Device models, application protocols and messaging middleware
 
+The [communication protocol survey](communication-protocols.en.md) compares addressing, acknowledgments and recovery, using MQTT to trace device state, offline subscriptions and request outcomes.
+
 | Family or profile | Handoff and constraints | rutis integration |
 | --- | --- | --- |
 | CoAP · Observe · Block-Wise · DTLS/OSCORE | CoAP exchanges resource requests and responses. Confirmable messages can be acknowledged, Observe tracks changes and block-wise transfers move resources. | Expose operations, observations, status codes and deadlines. An empty ACK confirms message receipt. Interpret a separate response and application semantics for the outcome. [RFC 7252](https://datatracker.ietf.org/doc/html/rfc7252) · [Observe](https://datatracker.ietf.org/doc/html/rfc7641) |
