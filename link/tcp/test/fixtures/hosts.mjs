@@ -66,13 +66,13 @@ export function row(id, name, config) {
   return { id, name: name.startsWith('go:') ? name : join(project, name), config }
 }
 
-export async function startHost(env, id, rows) {
+export async function startHost(env, id, rows, options = {}) {
   const directory = join(env.dir, id)
   await mkdir(directory)
   const path = join(directory, 'rutis.json')
   const config = rows => JSON.stringify({ id, runtimes: { go: { dir: env.goDir }, node: { project } }, rows })
   await writeFile(path, config(rows))
-  const proc = processFor(env, process.execPath, [host, 'run', path])
+  const proc = processFor(env, process.execPath, [host, 'run', path], options)
   async function reload(next) {
     await writeFile(path + '.tmp', config(next))
     await rename(path + '.tmp', path)

@@ -22,8 +22,9 @@ const maxDelay = 30 * time.Second
 
 var errCredentials = errors.New("invalid-credentials")
 
-func (e config) credentials() (*tls.Config, error) {
-	pem, err := os.ReadFile(e.CA)
+// LoadTLSCredentials reads the trust roots and identity for one mTLS admission attempt.
+func LoadTLSCredentials(ca, cert, key string) (*tls.Config, error) {
+	pem, err := os.ReadFile(ca)
 	if err != nil {
 		return nil, fmt.Errorf("%w: CA: %w", errCredentials, err)
 	}
@@ -31,11 +32,14 @@ func (e config) credentials() (*tls.Config, error) {
 	if !pool.AppendCertsFromPEM(pem) {
 		return nil, fmt.Errorf("%w: no CA certificate", errCredentials)
 	}
-	pair, err := tls.LoadX509KeyPair(e.Cert, e.Key)
+	pair, err := tls.LoadX509KeyPair(cert, key)
 	if err != nil {
 		return nil, fmt.Errorf("%w: key pair: %w", errCredentials, err)
 	}
-	return &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: pool, ClientCAs: pool, Certificates: []tls.Certificate{pair}}, nil
+	return &tls.Config{
+		MinVersion: tls.VersionTLS12, Certificates: []tls.Certificate{pair},
+		RootCAs: pool, ClientCAs: pool, ClientAuth: tls.RequireAndVerifyClientCert,
+	}, nil
 }
 
 // The TCP TLS implementation exposes remote alerts inside net.OpError. Use
@@ -53,7 +57,8 @@ func remoteAlert(err error, numbers ...tls.AlertError) bool {
 	return false
 }
 
-func errorCode(err error) string {
+// TransportErrorCode classifies socket, mTLS and frame errors for link status.
+func TransportErrorCode(err error) string {
 	var cert *tls.CertificateVerificationError
 	var header tls.RecordHeaderError
 	var dns *net.DNSError
@@ -116,7 +121,7 @@ func retryDelay(code string, backoff time.Duration) time.Duration {
 // openDial admits a fresh socket and attaches it to the row's session service.
 func (c *control) openDial(ctx context.Context, dest target) (<-chan error, error) {
 	c.phase("dialing")
-	identity, err := c.config.credentials()
+	identity, err := LoadTLSCredentials(c.config.CA, c.config.Cert, c.config.Key)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +142,7 @@ func (c *control) openDial(ctx context.Context, dest target) (<-chan error, erro
 		raw.Close()
 		return nil, err
 	}
-	done, err := openStream(ctx, c.row, secure, c.sessions)
+	done, err := OpenManaged(ctx, c.row, secure, c.sessions)
 	if err == nil {
 		c.phase("connected")
 	}
@@ -158,7 +163,7 @@ func (c *control) dialLoop(ctx context.Context, dest target) {
 		if ctx.Err() != nil {
 			return
 		}
-		code := errorCode(err)
+		code := TransportErrorCode(err)
 		delay := retryDelay(code, backoff)
 		c.mu.Lock()
 		retry := c.state.Config.Reconnect && delay > 0
@@ -189,11 +194,10 @@ func (c *control) dialLoop(ctx context.Context, dest target) {
 
 func (c *control) bind(ctx context.Context, dest target) (net.Listener, *tls.Config, error) {
 	c.phase("starting")
-	identity, err := c.config.credentials()
+	identity, err := LoadTLSCredentials(c.config.CA, c.config.Cert, c.config.Key)
 	if err != nil {
 		return nil, nil, err
 	}
-	identity.ClientAuth = tls.RequireAndVerifyClientCert
 	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp4", dest.address())
 	if err != nil {
 		return nil, nil, err
@@ -208,11 +212,20 @@ func (c *control) bind(ctx context.Context, dest target) (net.Listener, *tls.Con
 	return listener, identity, nil
 }
 
-func admit(ctx context.Context, conn net.Conn, identity *tls.Config) (*tls.Conn, error) {
+// AdmitTLS requires a verified client certificate and closes the stream on failure.
+func AdmitTLS(ctx context.Context, conn net.Conn, identity *tls.Config) (*tls.Conn, error) {
+	if identity == nil || identity.ClientCAs == nil || identity.ClientAuth != tls.RequireAndVerifyClientCert {
+		conn.Close()
+		return nil, errCredentials
+	}
 	secure := tls.Server(conn, identity)
 	handshake, cancel := context.WithTimeout(ctx, handshakeTimeout)
 	err := secure.HandshakeContext(handshake)
 	cancel()
+	// GetConfigForClient can replace the configuration during the handshake.
+	if err == nil && len(secure.ConnectionState().VerifiedChains) == 0 {
+		err = errCredentials
+	}
 	if err != nil {
 		conn.Close()
 		return nil, err
@@ -221,7 +234,7 @@ func admit(ctx context.Context, conn net.Conn, identity *tls.Config) (*tls.Conn,
 }
 
 func (c *control) serveConn(ctx context.Context, secure *tls.Conn) error {
-	done, err := openStream(ctx, c.row, secure, c.sessions)
+	done, err := OpenManaged(ctx, c.row, secure, c.sessions)
 	if err != nil {
 		return err
 	}
@@ -250,7 +263,7 @@ func (c *control) accept(ctx context.Context, listener net.Listener, identity *t
 			if ctx.Err() != nil {
 				break
 			}
-			code := errorCode(err)
+			code := TransportErrorCode(err)
 			c.update(func(s *snapshot) {
 				s.Phase = "retrying"
 				s.LastError = code
@@ -269,13 +282,13 @@ func (c *control) accept(ctx context.Context, listener net.Listener, identity *t
 		clients.Add(1)
 		go func() {
 			defer clients.Done()
-			secure, err := admit(ctx, conn, identity)
+			secure, err := AdmitTLS(ctx, conn, identity)
 			<-slots
 			if err == nil {
 				err = c.serveConn(ctx, secure)
 			}
 			if err != nil && ctx.Err() == nil {
-				code := errorCode(err)
+				code := TransportErrorCode(err)
 				c.update(func(s *snapshot) { s.LastError = code })
 				fmt.Fprintf(os.Stderr, "link/tcp listen %s %s\n", listener.Addr(), code)
 			}
@@ -336,11 +349,11 @@ func apply(row *rutis.Ctx, cfg config, dial bool) error {
 	if !reconnect {
 		done, err := c.openDial(row, dest)
 		if err != nil {
-			return fmt.Errorf("link/tcp %s %s", dest.address(), errorCode(err))
+			return fmt.Errorf("link/tcp %s %s", dest.address(), TransportErrorCode(err))
 		}
 		row.Go(func(ctx context.Context) error {
 			if err := <-done; err != nil && ctx.Err() == nil {
-				return fmt.Errorf("link/tcp %s %s", dest.address(), errorCode(err))
+				return fmt.Errorf("link/tcp %s %s", dest.address(), TransportErrorCode(err))
 			}
 			return nil
 		})
