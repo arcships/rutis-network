@@ -6,7 +6,7 @@
     "dev": "node --watch ../example/server.mjs --dev",
     "typecheck": "tsc -p tsconfig.browser.json --noEmit && tsc -p tsconfig.node.json",
     "build": "npm run typecheck && tsdown && tsc -p tsconfig.browser.json --emitDeclarationOnly",
-    "prepack": "npm run build",
+    "prepack": "npm run build 1>&2",
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "vitest run",
     "pretest:integration": "npm run build",

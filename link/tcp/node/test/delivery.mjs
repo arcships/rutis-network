@@ -128,8 +128,8 @@ test('Go and Node source reload and installation of the packed TCP plugin', asyn
   const consumer = join(env.dir, 'consumer')
   await mkdir(consumer)
   await writeFile(join(consumer, 'package.json'), '{"private":true,"type":"module"}')
-  const { stdout } = await exec('npm', ['pack', '--silent', '--pack-destination', consumer], { cwd: node })
-  const tarball = stdout.trim().split('\n').at(-1)
+  const { stdout } = await exec('npm', ['pack', '--json', '--pack-destination', consumer], { cwd: node })
+  const [{ filename: tarball }] = JSON.parse(stdout)
   await exec(
     'npm',
     [

@@ -11,7 +11,7 @@
     "dev:peer": "rutis-host run ../.rutis/peer.json",
     "typecheck": "tsc --noEmit",
     "build": "npm run typecheck && tsdown",
-    "prepack": "npm run build",
+    "prepack": "npm run build 1>&2",
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "vitest run",
     "test:integration": "node --test test/*.test.mjs",
