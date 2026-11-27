@@ -31,12 +31,28 @@
 
 ## 安装 Go 插件
 
-在仓库根目录使用 Go 1.24 或更高版本编译 TCP 插件。将生成的二进制放到两端宿主的 `rutis.json` 旁的 `plugins/go` 目录。只有构建机器需要 Go 工具链。
+TCP 首个版本为 `v0.1.0`。Linux/amd64 宿主可以直接下载预编译归档。以下命令在新建目录中校验并解压，配置对应 rutis-host 0.23.0、会话协议 5 和插件 API 3。[TCP v0.1.0 Release](https://github.com/arcships/rutis-network/releases/tag/link%2Ftcp%2Fv0.1.0)
+
+```sh
+mkdir tcp-v0.1.0 && cd tcp-v0.1.0
+gh release download link/tcp/v0.1.0 --repo arcships/rutis-network \
+  --pattern 'link-tcp-v0.1.0-linux-amd64.tar.gz' --pattern SHA256SUMS
+sha256sum -c SHA256SUMS
+tar -xzf link-tcp-v0.1.0-linux-amd64.tar.gz
+```
+
+将 `plugins/go/link-tcp` 放入两端宿主的 `runtimes.go.dir`。归档中的 `rutis.json` 是最小拨号示例，将对端和 mTLS 文件路径改为实际值，再执行 `rutis-host run rutis.json`。已有宿主可以将示例行并入现有配置。
+
+使用 Go 1.24 或更高版本时，可以在仓库外按版本安装到同一插件目录。在自己的 Go 模块中执行 `go get github.com/arcships/rutis-network/link/tcp@v0.1.0` 即可导入 bridge。
 
 ```sh
 mkdir -p plugins/go
-go -C link/tcp build -o ../../plugins/go/link-tcp ./cmd/link-tcp
+GOWORK=off GOBIN="$PWD/plugins/go" go install github.com/arcships/rutis-network/link/tcp/cmd/link-tcp@v0.1.0
 ```
+
+从源码构建时，可在仓库根目录执行 `go -C link/tcp build -o ../../plugins/go/link-tcp ./cmd/link-tcp`。
+
+维护者在通过 CI 的 `main` 提交上推送子模块标签（例如 `link/tcp/v0.1.0`）。PR 会用临时标签演练消费者安装。正式标签触发相同的安装和 RPC 测试，发布归档和校验和，再从公开的 Release 下载并通过两个原版宿主执行远端 echo。[发布工作流](../../.github/workflows/release-tcp.yml)
 
 在拨号宿主配置监听端口、用于验证服务端的 CA 和本机的客户端证书与私钥。默认只拨号一次。
 

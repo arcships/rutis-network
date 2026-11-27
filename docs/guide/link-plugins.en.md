@@ -30,13 +30,28 @@ Pages can call rutis services on another page or a native host in both direction
 `go:link-libp2p` connects to one pinned peer over direct QUIC or a configured Circuit Relay v2 and mounts its stream as a session. Use Go 1.26 and rutis-host 0.23.0. [Build, configure and control the plugin](../design/09-p2p-plugins.en.md)
 
 ## Install the Go plugins
+TCP v0.1.0 provides a prebuilt archive for Linux/amd64. Verify and extract it in a new directory using the commands below. The example targets rutis-host 0.23.0, session protocol 5 and plugin API 3. [TCP v0.1.0 release](https://github.com/arcships/rutis-network/releases/tag/link%2Ftcp%2Fv0.1.0)
 
-From the repository root, build the TCP plugin binary with Go 1.24 or newer. Place it in `plugins/go` beside your `rutis.json` on each host. Only the build machine needs Go.
+```sh
+mkdir tcp-v0.1.0 && cd tcp-v0.1.0
+gh release download link/tcp/v0.1.0 --repo arcships/rutis-network \
+  --pattern 'link-tcp-v0.1.0-linux-amd64.tar.gz' --pattern SHA256SUMS
+sha256sum -c SHA256SUMS
+tar -xzf link-tcp-v0.1.0-linux-amd64.tar.gz
+```
+
+Place `plugins/go/link-tcp` in each host’s `runtimes.go.dir`. The archive includes a minimal dialer `rutis.json`. Set the address and mTLS file paths, then run `rutis-host run rutis.json`. For an existing host, merge the example row into its configuration.
+
+With Go 1.24 or newer, install the same version outside the checkout. To use the bridge library, run `go get github.com/arcships/rutis-network/link/tcp@v0.1.0` inside your own Go module.
 
 ```sh
 mkdir -p plugins/go
-go -C link/tcp build -o ../../plugins/go/link-tcp ./cmd/link-tcp
+GOWORK=off GOBIN="$PWD/plugins/go" go install github.com/arcships/rutis-network/link/tcp/cmd/link-tcp@v0.1.0
 ```
+
+To build from a checkout, run `go -C link/tcp build -o ../../plugins/go/link-tcp ./cmd/link-tcp` from the repository root.
+
+Maintainers push a submodule tag (such as `link/tcp/v0.1.0`) on a tested `main` commit. PRs rehearse consumer installation with a temporary tag. Public tags run the same installation and RPC tests, publish the archive and checksum, then download the public release and call remote echo through two stock hosts. [Release workflow](../../.github/workflows/release-tcp.yml)
 
 Configure the dialing host with the listener’s port, its trusted CA and a client identity. The default is one connection attempt.
 

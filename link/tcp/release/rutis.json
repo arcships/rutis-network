@@ -1,0 +1,17 @@
+{
+  "runtimes": { "go": { "dir": "plugins/go" } },
+  "rows": [
+    {
+      "id": "wire",
+      "name": "go:link-tcp-dial",
+      "config": {
+        "host": "127.0.0.1",
+        "servername": "localhost",
+        "port": 7443,
+        "ca": "/etc/link/peer-ca.pem",
+        "cert": "/etc/link/client.pem",
+        "key": "/etc/link/client.key"
+      }
+    }
+  ]
+}
