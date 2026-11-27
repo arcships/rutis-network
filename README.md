@@ -1,21 +1,45 @@
-# rutis-network
+# ![rutis-network](assets/network.svg)
 
-[中文](README.zh-CN.md)
+[![Quick checks](https://github.com/arcships/rutis-network/actions/workflows/checks.yml/badge.svg?branch=main)](https://github.com/arcships/rutis-network/actions/workflows/checks.yml) [![Latest release](https://img.shields.io/github/v/release/arcships/rutis-network?display_name=release&label=release)](https://github.com/arcships/rutis-network/releases/latest) [![MIT license](https://img.shields.io/github/license/arcships/rutis-network)](LICENSE)
 
-Link plugins for [rutis](https://github.com/arcships/rutis): plugins that reach another machine, device or cloud (SSH, Tailscale, Cloudflare Tunnel, TCP and reverse tunnels, gRPC, mobile devices, P2P), and hand each connection to rutis as a session.
+[Get started](#get-started) · [Choose a connection](#choose-a-connection) · [中文](README.zh-CN.md)
 
-rutis itself knows only the session side: a connection plugin opens a channel and gives it to the `rutis/sessions` service (`rutis/sessions.open(far)`, or `Session::new(channel)` in Rust). Everything about the network — reaching the far end, admission and authentication, framing, heartbeats, reconnecting, taking over a listen slot — is the link plugin's job, and lives here. See [rutis: your own connection](https://github.com/arcships/rutis/blob/main/docs/guide/plugin-api.en.md#your-own-connection-rutissessionsopen) and [Connecting nodes](https://github.com/arcships/rutis/blob/main/docs/guide/nodes.en.md).
+When you first deploy an application, you may not know every program it will need to work with. Some programs have to stay where the data is collected. Others run only while someone has a browser tab open. Some will be written after the application ships. If adding a capability means editing configuration in several places, those deployment files end up deciding which programs can work together.
 
-The plugins target rutis 0.23.0 (session protocol 5, plugin API 3). Upgrade both hosts and their language runtimes together. 0.19.3 renamed the service to `rutis/sessions`; 0.20 changed unload order and gave a session its own writer thread; 0.21 made received functions asynchronous and changed error texts.
+rutis-network provides connection plugins for [rutis](https://github.com/arcships/rutis). They let an application establish, manage, and close connections while it runs. An application can start as a single process, then bring in another process in the same container, a remote compute service, or a program in a browser as the work requires. Each part keeps running where it belongs. The application can change which parts work together and grow into a cluster.
 
-For networks that span several nodes or administrative domains, see [the research on discovery, network formation and service boundaries](docs/research/network-groups.en.md).
-For device integration, the [network stack survey](docs/research/network-stacks.en.md) identifies the interfaces that IoT, industrial and general-purpose protocols expose to a plugin. The [communication protocol survey](docs/research/communication-protocols.en.md) compares subscriptions, acknowledgments, offline delivery and replay, with MQTT as a worked example.
+## How an application manages connections
 
-[Security, reliability and trustworthiness](docs/research/network-assurance.en.md) follows a device-to-cloud path through admission, failure recovery and data provenance.
+Choose a connection plugin and configure which peers may connect. The application can load the plugin at startup or use `rutis/loader` to create and remove plugin instances at runtime. The plugin connects to the peer over the chosen network. Rutis opens a session over that connection, and the application can call the peer’s services by name. [Rutis sessions](https://github.com/arcships/rutis/blob/v0.23.0/docs/guide/nodes.en.md) · [Connection plugin guide](docs/guide/link-plugins.en.md)
 
-The [Wireshark protocol family survey](docs/research/wireshark-support.en.md) evaluates the display filter index across 50 groups and proposes four further plugin capabilities to validate.
+Take a group of compute workers that will come online at different times. With Tailscale, you can decide up front which workers may join. Configure the host to discover nodes tagged `tag:rutis-worker` and each worker to accept hosts tagged `tag:rutis-controller`. Once the plugins are installed and the tailnet policy allows access, the host opens a separate session for each new worker it discovers. Renaming a worker preserves its connection. Removing its worker tag closes its session.
 
-## Development checks
+The operator maintains one admission rule. The application decides which service should handle each task. It can also turn on discovery when a task begins and remove that group of connections when the task ends. [Configure both ends and manage Tailscale connections](docs/design/04-link-tailscale.en.md)
+
+## Choose a connection
+
+| Your environment | How to connect |
+| --- | --- |
+| Nodes already share a tailnet | Discover workers by tag or connect to one node by name. [Tailscale](docs/design/04-link-tailscale.en.md) |
+| You have SSH access, or both ends can log in to the same VPS | Use the existing SSH endpoint or set up a reverse connection through the VPS. [SSH](docs/design/03-link-ssh.en.md) |
+| Part of the application runs in a browser | Make calls in both directions between a page and a native host or another page. [WebRTC](docs/design/08-link-webrtc.en.md) |
+| A Go cloud service already exposes a gRPC endpoint | Embed the plugin in the service and reuse its listener. [gRPC](docs/design/07-link-grpc.en.md) |
+| An internal service already uses Cloudflare Tunnel | Connect through the existing named tunnel and Cloudflare Access. [Cloudflare Tunnel](docs/design/05-cloudflare-plugin-control.en.md) |
+| Each peer identifies the other by Peer ID | Use Go libp2p over a direct QUIC connection or a designated relay. [libp2p](docs/design/09-p2p-plugins.en.md) |
+| You want to connect two local hosts or use an existing TCP forward | Connect with mutual TLS. [TCP](docs/design/06-link-tcp-integration.en.md) |
+
+If you don’t know a peer’s address on the local network, use the DNS-SD/mDNS plugin to discover a service once its listener is ready. The connection plugin then verifies the peer and opens the session. [Discover and connect with mutual TLS](discovery/mdns/README.md) · [Discovery and network formation](docs/research/network-groups.en.md)
+
+## Get started
+
+To try rutis locally, run two hosts and call a service in one process from the other. If you already have a tailnet, try adding a worker and then removing it. To connect a different environment, use the connection plugin contract to build an adapter. [Two-host example](docs/design/06-link-tcp-integration.en.md#develop-and-load-the-tcp-plugins) · [Worker discovery](docs/design/04-link-tailscale.en.md#discover-workers-by-tag) · [Connection plugin contract](docs/design/01-link-plugin-contract.en.md)
+
+The plugins target **rutis 0.23.0**, session protocol 5, and plugin API 3. Use matching hosts and language runtimes on both ends. A prebuilt TCP plugin is available for Linux/amd64. [Install the TCP release](docs/guide/link-plugins.en.md#install-the-go-plugins)
+
+To work on the repository, run `make setup` at the root to install development dependencies, then `make check` for formatting, static checks, and fast tests.
+
+<details>
+<summary>Development checks</summary>
 
 From the repository root, use Git, Make, Go with toolchain selection enabled, and a supported Node.js version (`^22.18.0 || ^24.11.0 || >=26.0.0`). Run `make setup` after checkout or a lockfile change to install the pinned formatter and the TypeScript packages' development dependencies.
 
@@ -33,25 +57,4 @@ After `make setup`, run `link/webrtc/web/node_modules/.bin/playwright install --
 
 On PRs, TCP and WebRTC changes select their respective suites. Changes to the shared Go TCP package, the host fixtures WebRTC imports, or common toolchain and CI configuration select both. Docs-only PRs skip the integration jobs. Every push to `main` runs both suites. [Integration workflow](.github/workflows/integration.yml)
 
-## Status
-
-The Go DNS-SD/mDNS plugin advertises ordinary endpoints and versioned public connection descriptions. The TCP example discovers a ready listener and connects using local mTLS credentials. [Configuration and Go API](discovery/mdns/README.md)
-
-Browsers can connect to each other or to a native rutis host over a WebRTC DataChannel, directly or via authenticated TURN. [WebRTC setup and example](docs/design/08-link-webrtc.en.md)
-
-The [Go SSH plugins](docs/design/03-link-ssh.en.md) dial rutis peers, accept sessions through a VPS, and reverse-forward streams to an existing TCP service.
-
-The [Cloudflare Tunnel Go plugin](docs/design/05-cloudflare-plugin-control.en.md) connects two rutis 0.23 hosts. The guide includes both configurations, a working Go service example and the local control API.
-
-The [connection plugin guide](docs/guide/link-plugins.en.md) includes the Go TCP bridge and its managed dial and loopback listen plugins, the TypeScript interoperability reference, tested frp and OpenSSH forwarding configurations, and a runnable Rust listener example. The roadmap is tracked in these issues.
-
-1. [#1](https://github.com/arcships/rutis-network/issues/1) — the link plugin contract: what a link plugin does and does not do, admission vs identity, framing, lifecycle, and one reference bridge.
-2. [#2](https://github.com/arcships/rutis-network/issues/2) — the landscape of ways to link and the scenarios that set the priorities.
-3. [#3](https://github.com/arcships/rutis-network/issues/3)–[#9](https://github.com/arcships/rutis-network/issues/9) — the links themselves (SSH, Tailscale, Cloudflare Tunnel, TCP bridge, gRPC, mobile devices, iroh). [#6](https://github.com/arcships/rutis-network/issues/6), the TCP bridge, is the foundation the TCP-shaped adapters share.
-4. [#10](https://github.com/arcships/rutis-network/issues/10) — the ecosystem: language templates, the executable conformance suite, a catalogue of adapters, CI and the license.
-
-The [Go Tailscale plugin guide](docs/design/04-link-tailscale.en.md) covers tag-based worker discovery and single-node connections using the system daemon or an embedded tsnet node.
-
-The [Go libp2p plugin guide](docs/design/09-p2p-plugins.en.md) gives the dial and listen configurations and the control methods for a single link.
-
-The drafts these issues were written from are in [docs/issue-drafts/link-plugins](docs/issue-drafts/link-plugins/README.md); the design drafts are in the draft PRs for each issue (they land in `docs/design/` when merged); the guide for coding agents is [.agents/skills/rutis-link-plugin](.agents/skills/rutis-link-plugin/SKILL.md).
+</details>
