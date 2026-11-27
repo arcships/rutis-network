@@ -3,7 +3,7 @@ module github.com/arcships/rutis-network/link/grpc
 go 1.26.0
 
 require (
-	github.com/arcships/rutis-network/link/tcp v0.0.0-20261126163821-50690b617e8c
+	github.com/arcships/rutis-network/link/tcp v0.1.0
 	github.com/arcships/rutis/go/rutis v0.23.0
 	google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf v1.36.12

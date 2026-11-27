@@ -1,3 +1,5 @@
+github.com/arcships/rutis-network/link/tcp v0.1.0 h1:syDwa6hBAjpdy65C8bjT6/G2efZkDS9YFDqdA4Dm40U=
+github.com/arcships/rutis-network/link/tcp v0.1.0/go.mod h1:0CEOEP3y2KTdMG+gzLoZ00l9hbgZTRdmgRTy35mViow=
 github.com/arcships/rutis/go/rutis v0.23.0 h1:K9m6tbHbrHowIR3GIU8s/sP7UClJf0cAviZtlqX+wxw=
 github.com/arcships/rutis/go/rutis v0.23.0/go.mod h1:JLxW7fPIlGfD7O0VeBXIQd+Mdya5ZYprMhBIAUSQ258=
 github.com/skeema/knownhosts v1.3.3 h1:tiFvsjIW+xqP5cqVsod7atn/xm57OY6v9KwxB1xWUyA=
