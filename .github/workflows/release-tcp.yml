@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   package:
-    name: Install version, build archive and test RPC
+    name: Install version and build the archive
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     outputs:
@@ -33,9 +33,6 @@ jobs:
         with:
           go-version-file: .go-version
           cache-dependency-path: link/tcp/go.sum
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: '22.18.0'
       - name: Select the public tag or tag a local PR mirror
         id: version
         shell: bash
@@ -64,29 +61,45 @@ jobs:
         run: |
           scripts/package-tcp.sh "$VERSION" "$RUNNER_TEMP/assets"
           echo "sha256=$(cut -d' ' -f1 "$RUNNER_TEMP/assets/SHA256SUMS")" >> "$GITHUB_OUTPUT"
-      - name: Load the candidate archive in stock hosts
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          npm ci --prefix link/tcp/node
-          scripts/test-tcp-archive.sh "$RUNNER_TEMP/assets" "$VERSION"
-      - if: github.event_name == 'push'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: tcp-release
           path: ${{ runner.temp }}/assets/
           if-no-files-found: error
           retention-days: 7
 
+  test-archive:
+    name: Load the staged archive in stock hosts
+    needs: package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22.18.0'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: tcp-release
+          path: ${{ runner.temp }}/staged
+      - name: Call remote echo using the staged binary
+        env:
+          VERSION: ${{ needs.package.outputs.version }}
+        run: |
+          npm ci --prefix link/tcp/node
+          scripts/test-tcp-archive.sh "$RUNNER_TEMP/staged" "$VERSION"
+
   publish:
     name: Publish the tested files
-    needs: package
+    needs: [package, test-archive]
     if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: tcp-release
           path: assets

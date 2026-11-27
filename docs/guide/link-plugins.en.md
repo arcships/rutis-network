@@ -30,6 +30,7 @@ Pages can call rutis services on another page or a native host in both direction
 `go:link-libp2p` connects to one pinned peer over direct QUIC or a configured Circuit Relay v2 and mounts its stream as a session. Use Go 1.26 and rutis-host 0.23.0. [Build, configure and control the plugin](../design/09-p2p-plugins.en.md)
 
 ## Install the Go plugins
+
 TCP v0.1.0 provides a prebuilt archive for Linux/amd64. Verify and extract it in a new directory using the commands below. The example targets rutis-host 0.23.0, session protocol 5 and plugin API 3. [TCP v0.1.0 release](https://github.com/arcships/rutis-network/releases/tag/link%2Ftcp%2Fv0.1.0)
 
 ```sh

@@ -3,7 +3,7 @@ module github.com/arcships/rutis-network/link/webrtc
 go 1.26.0
 
 require (
-	github.com/arcships/rutis-network/link/tcp v0.0.0-20261126163821-50690b617e8c
+	github.com/arcships/rutis-network/link/tcp v0.1.0
 	github.com/arcships/rutis/go/rutis v0.23.0
 	github.com/pion/turn/v5 v5.1.3
 	github.com/pion/webrtc/v4 v4.2.29
