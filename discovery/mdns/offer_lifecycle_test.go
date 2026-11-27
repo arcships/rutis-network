@@ -108,6 +108,24 @@ func TestMalformedAndDuplicateOffersAreIsolated(t *testing.T) {
 }
 
 func TestMalformedSnapshotKeepsLastViewUntilExplicitWithdrawal(t *testing.T) {
+	wireEmpty := map[string]any{"cursor": "3", "offers": []any{}}
+	for _, tc := range []struct {
+		name             string
+		malformed, empty any
+	}{
+		{"native null", SourceSnapshot{Cursor: "2"}, SourceSnapshot{Cursor: "3", Offers: []Description{}}},
+		{"wire null", map[string]any{"cursor": "2", "offers": nil}, wireEmpty},
+		{"typed nil list", map[string]any{"cursor": "2", "offers": []any(nil)}, wireEmpty},
+		{"wrong type", map[string]any{"cursor": "2", "offers": "malformed"}, wireEmpty},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			checkSnapshotRecovery(t, tc.malformed, tc.empty)
+		})
+	}
+}
+
+func checkSnapshotRecovery(t *testing.T, malformed, empty any) {
+	t.Helper()
 	synctest.Test(t, func(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
@@ -118,11 +136,11 @@ func TestMalformedSnapshotKeepsLastViewUntilExplicitWithdrawal(t *testing.T) {
 				if calls == 1 {
 					return SourceSnapshot{Cursor: "1", Offers: []Description{{ID: "keep"}}}, nil
 				}
-				return SourceSnapshot{Cursor: "3", Offers: []Description{}}, nil
+				return empty, nil
 			},
 			WaitForChange: func(ctx context.Context, cursor string) (any, error) {
 				if cursor == "1" {
-					return map[string]any{"cursor": "2", "offers": "malformed"}, nil
+					return malformed, nil
 				}
 				<-ctx.Done()
 				return nil, ctx.Err()

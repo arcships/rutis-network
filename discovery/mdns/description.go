@@ -30,6 +30,7 @@ type Description struct {
 }
 
 // SourceSnapshot is the return type of a local source's snapshot and waitForChange.
+// Return a non-nil empty Offers slice to withdraw all descriptions.
 type SourceSnapshot struct {
 	Cursor string        `json:"cursor"`
 	Offers []Description `json:"offers"`
@@ -57,11 +58,12 @@ func object(data []byte) bool {
 	return len(data) <= maxParams && len(trim) > 0 && trim[0] == '{' && utf8.Valid(data) && json.Valid(trim)
 }
 
-func (e envelope) decode(data []byte) (*Description, error) {
-	if digest(data) != e.rev || !object(data) {
-		return nil, errors.New("invalid offer data or revision")
-	}
-	return &Description{ID: e.id, Kind: e.kind, Version: e.version, Params: json.RawMessage(data)}, nil
+func (e envelope) validParams(data []byte) bool {
+	return object(data) && digest(data) == e.rev
+}
+
+func (e envelope) description(data []byte) *Description {
+	return &Description{ID: e.id, Kind: e.kind, Version: e.version, Params: json.RawMessage(data)}
 }
 
 type encodedOffer struct {
@@ -140,7 +142,8 @@ func parseEnvelope(txt string) (*envelope, bool) {
 		}
 		e.listenIP = e.listenIP.Unmap()
 	}
-	if _, ok := fields["p"]; ok && e.inline == "" {
+	// Validate inline data before the cache accepts this sequence or refreshes its lease.
+	if _, present := fields["p"]; present && !e.validParams([]byte(e.inline)) {
 		return nil, false
 	}
 	return &e, true

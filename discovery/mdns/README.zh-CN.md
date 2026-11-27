@@ -36,7 +36,7 @@ mkdir -p plugins/go
 (cd link/tcp && go build -o ../../plugins/go/link-tcp ./cmd/link-tcp)
 ```
 
-集成其他协议时，实现本地说明来源的 `snapshot()` 和 `waitForChange(cursor)`。两者均返回 `{"cursor":"…","offers":[…]}`，空数组表示撤回全部说明。一行订阅一个来源，每份快照最多 128 条，单条 `params` 为不超过 64 KiB 的公开 JSON 对象。新的协议只需提供两端的字段映射。mDNS 保留类型、版本及参数，浏览和 HTTP 外取都按观察到的网卡执行。接收方校验参数摘要，链接器根据本地信任配置验证对端身份。[通用连接说明设计](../../docs/design/connection-descriptions.md)
+集成其他协议时，实现本地说明来源的 `snapshot()` 和 `waitForChange(cursor)`。两者均返回 `{"cursor":"…","offers":[…]}`，其中 `offers: []` 表示撤回全部说明。如果缺少 `offers` 或它的值为 `null`，发布端会保留上次接受的说明并重新读取快照。一行订阅一个来源，每份快照最多 128 条，单条 `params` 为不超过 64 KiB 的公开 JSON 对象。新的协议只需提供两端的字段映射。mDNS 保留类型、版本及参数，浏览和 HTTP 外取都按观察到的网卡执行。接收方校验参数摘要，链接器根据本地信任配置验证对端身份。[通用连接说明设计](../../docs/design/connection-descriptions.md)
 
 发布端在所选网卡可用的 IPv4、IPv6 地址族上用同一端口提供长说明。如需绑定单一地址，可在发布端设置 `offers.listenIP`。浏览端会在三秒总期限内尝试其他获准地址。只要实际提供说明的地址继续有效，新增地址时就能继续使用已校验的说明。
 

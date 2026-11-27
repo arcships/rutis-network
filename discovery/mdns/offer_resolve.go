@@ -50,7 +50,7 @@ func (r *offerResolver) resolve(ctx context.Context, list []Candidate, now time.
 		header := c.wire
 		c.wire = nil
 		if header.inline != "" {
-			c.Description, _ = header.decode([]byte(header.inline))
+			c.Description = header.description([]byte(header.inline))
 		} else {
 			key := fetchKey{c.Instance, c.srvTarget, c.Port, *header}
 			seen[key] = true
@@ -179,9 +179,8 @@ func fetchParams(ctx context.Context, client *http.Client, u *url.URL, e envelop
 		return nil
 	}
 	body, err := io.ReadAll(io.LimitReader(res.Body, maxParams+1))
-	if err != nil || len(body) > maxParams {
+	if err != nil || !e.validParams(body) {
 		return nil
 	}
-	desc, _ := e.decode(body)
-	return desc
+	return e.description(body)
 }

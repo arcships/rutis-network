@@ -76,21 +76,53 @@ func TestGenericTXTLease(t *testing.T) {
 	if len(got) != 1 || !bytes.Equal(got[0].Description.Params, e.body) {
 		t.Fatal(got)
 	}
+	cfg.Offers.Accept["example.custom"] = []int{1}
+	if list, _ := cache.view(now); len(list) != 0 {
+		t.Fatal("unsupported version")
+	}
+	cfg.Offers.Accept["example.custom"] = []int{7}
 	if next, _ := cache.view(now.Add(4 * time.Second)); len(next) != 0 {
 		t.Fatal("expired TXT survived")
 	}
-	cache.ingest(response(offerTXT(t, instance, e.txt, 30)), now)
-	damaged := bytes.Replace(e.txt, []byte("seq=1"), []byte("seq=2"), 1)
-	damaged[len(damaged)-3] ^= 1
-	cache.ingest(response(offerTXT(t, instance, damaged, 20)), now.Add(time.Second))
-	list, _ = cache.view(now.Add(time.Second))
-	if got := r.resolve(t.Context(), list, now); len(got) != 0 {
-		t.Fatal("corrupt revision replaced valid data")
+}
+
+func TestInlineOfferRecoversOnSameSequenceRetransmission(t *testing.T) {
+	now := time.Now()
+	cfg := config{Domain: "local.", Browse: offerType, Offers: &offerConfig{Accept: map[string][]int{"example.custom": {7}}}}
+	c := newCache("browser", cfg)
+	instance := "test." + c.fqdn
+	first := makeOffer(t, "test", "first")
+	next, err := encodeOffer(Description{"test", "example.custom", 7, json.RawMessage(`{"value":"later"}`)}, 2, netip.Addr{})
+	if err != nil {
+		t.Fatal(err)
 	}
-	cache.ingest(response(offerTXT(t, instance, bytes.Replace(e.txt, []byte("seq=1"), []byte("seq=3"), 1), 30)), now.Add(2*time.Second))
-	cfg.Offers.Accept["example.custom"] = []int{1}
-	if list, _ := cache.view(now.Add(2 * time.Second)); len(list) != 0 {
-		t.Fatal("unsupported version")
+	c.ingest(response(
+		&dns.PTR{Hdr: header(c.fqdn, dns.TypePTR, 120), Ptr: instance},
+		&dns.SRV{Hdr: header(instance, dns.TypeSRV, 120), Port: 1234, Target: host},
+		addr("192.0.2.8", 120), offerTXT(t, instance, first.txt, 5),
+	), now)
+	r := newResolver(nil, nil)
+	view := func(at time.Time) []Candidate {
+		list, _ := c.view(at)
+		return r.resolve(t.Context(), list, at)
+	}
+
+	// Only the inline body differs. The revision and sequence are identical
+	// to the valid retransmission below.
+	corrupt := bytes.Replace(next.txt, next.body, first.body, 1)
+	at := now.Add(time.Second)
+	c.ingest(response(offerTXT(t, instance, corrupt, 90)), at)
+	if got := view(at); len(got) != 1 || !bytes.Equal(got[0].Description.Params, first.body) ||
+		got[0].ExpiresAt != now.Add(5*time.Second).UTC().Format(time.RFC3339Nano) {
+		t.Error("corrupt update changed the last accepted offer or its expiry")
+	}
+	at = now.Add(6 * time.Second)
+	if got := view(at); len(got) != 0 {
+		t.Fatal("previous offer outlived its original lease")
+	}
+	c.ingest(response(offerTXT(t, instance, next.txt, 30)), at)
+	if got := view(at); len(got) != 1 || !bytes.Equal(got[0].Description.Params, next.body) {
+		t.Fatal("valid retransmission at the same sequence did not restore the new offer")
 	}
 }
 

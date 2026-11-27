@@ -194,11 +194,14 @@ func (c *cache) ingest(msg *dns.Msg, now time.Time) {
 			life := time.Duration(h.Ttl) * time.Second
 			var wire *envelope
 			if k.kind == dns.TypeTXT {
-				wire, _ = parseEnvelope(txtData)
+				wire, ok = parseEnvelope(txtData)
+				if !ok {
+					continue
+				}
 				// A live sequenced registration may refresh the same announcement
 				// or advance it. Legacy and reordered packets cannot roll it back.
 				if old.wire != nil && old.wire.sequence > 0 && (old.expires.After(now) || c.livePTR(k.name, now)) {
-					if wire == nil || wire.sequence < old.wire.sequence || wire.sequence == old.wire.sequence && *wire != *old.wire {
+					if wire.sequence < old.wire.sequence || wire.sequence == old.wire.sequence && *wire != *old.wire {
 						continue
 					}
 				}

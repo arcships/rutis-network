@@ -27,15 +27,15 @@ const maxOffers = 128
 // names its ID, which must be suppressed along with the other duplicate.
 func decodeSnapshot(raw any) (SourceSnapshot, error) {
 	if state, ok := raw.(SourceSnapshot); ok {
-		if state.Cursor == "" || len(state.Offers) > maxOffers {
-			return SourceSnapshot{}, errors.New("invalid source cursor or offer count")
+		if state.Cursor == "" || state.Offers == nil || len(state.Offers) > maxOffers {
+			return SourceSnapshot{}, errors.New("invalid source cursor or offers array")
 		}
 		return state, nil
 	}
 	record, _ := raw.(map[string]any)
 	cursor, _ := record["cursor"].(string)
-	items, ok := record["offers"].([]any)
-	if cursor == "" || !ok {
+	items, _ := record["offers"].([]any)
+	if cursor == "" || items == nil {
 		return SourceSnapshot{}, errors.New("source requires a cursor and an offers array")
 	}
 	if len(items) > maxOffers {
