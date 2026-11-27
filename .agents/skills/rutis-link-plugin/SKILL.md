@@ -180,7 +180,7 @@ Write a short section in **this repository's** `docs/guide/link-plugins.md` (and
 - ❌ Registering a cleanup from a cleanup, or waiting for another cleanup (0.20 unload order).
 - ❌ A cross-link `links` manager, global `connect` service, cross-link registry or central credential store; composition is row + session + service name.
 - ❌ Presenting a bridge-side queue as a bound on the session's outbound queue; non-Rust `open(far)` cannot set `outbound_limit`.
-- ❌ Treating WebSocket as a new link plugin or plain HTTP as a link.
+- ❌ Treating plain HTTP request/response as a link.
 
 ## References
 
