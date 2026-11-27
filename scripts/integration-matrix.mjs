@@ -34,6 +34,19 @@ function changed(paths) {
 
 const suites = []
 if (changed(['link/tcp/'])) suites.push({ transport: 'tcp', package: 'link/tcp/node' })
+if (
+  changed([
+    'link/grpc/',
+    ':(glob)link/tcp/*.go',
+    ':(exclude,glob)link/tcp/*_test.go',
+    'link/tcp/go.mod',
+    'link/tcp/go.sum',
+    'link/tcp/node/package.json',
+    'link/tcp/node/package-lock.json',
+  ])
+) {
+  suites.push({ transport: 'grpc', package: 'link/tcp/node' })
+}
 if (changed(['group/peer/', 'discovery/mdns/', 'link/tcp/'])) {
   suites.push({ transport: 'peer-group', package: 'link/tcp/node', runner: 'macos-15' })
 }

@@ -184,3 +184,8 @@ go -C link/grpc build -o example/device/plugins/go/link-grpc ./cmd/link-grpc
 在两个终端分别执行 `rutis-host run link/grpc/example/cloud/rutis.json` 和 `rutis-host run link/grpc/example/device/rutis.json`。在设备上执行 `rutis-host call --config link/grpc/example/device/rutis.json device.submit '"build"'`。刚启动的服务返回 `{"id":"job-1","progress":"job-1 queued"}`。在 macOS 或 Linux 上把 `RUTIS_HOST` 设为 rutis-host 的绝对路径，执行 `go -C link/grpc test -race -count=1 ./...`，即可使用临时证书验证两端和重连。
 
 一条获准的流承载一个会话，每个 protobuf 帧携带一条 rutis 消息，上限 16 MiB。设备断线后按 0.5–30 秒退避重连。若云端返回 `PermissionDenied` 或 `Unauthenticated`，即使隧道已建立，设备也会记录该状态码，等待 30 秒再重试。设备每次重连都会重新读取 CA、证书和私钥。如果轮换中的证书与私钥暂不匹配，设备会继续退避重试。中断时请求可能已进入调度器，重新连接不会自动重放。Go 0.23 会话接口尚未向监听端暴露远端 ID，也没有配置会话总出站队列上限的接口。[传输协议](../../link/grpc/wire/link.proto)
+
+
+## 只允许出站的宿主通过云中继连接
+
+两端各挂载一行 `go:link-grpc`，配置租户内相同的配对名并互填对方为目标。目录认证两端、分配允许的区域并签发准入票据。两端向区域中继拨号后即可互相调用。设备还可以通过 `wire:go:worker-jobs` 在云宿主上运行插件。[部署双区域中继并运行 worker 示例](grpc-cloud.md)

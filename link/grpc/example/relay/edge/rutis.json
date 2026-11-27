@@ -1,0 +1,33 @@
+{
+  "id": "edge",
+  "runtimes": {
+    "go": {
+      "dir": "./plugins/go"
+    }
+  },
+  "rows": [
+    {
+      "id": "wire",
+      "name": "go:link-grpc",
+      "config": {
+        "address": "127.0.0.1:7443",
+        "serverName": "directory.test",
+        "caFile": "/etc/rutis/grpc/ca.pem",
+        "certFile": "/etc/rutis/grpc/edge.pem",
+        "keyFile": "/etc/rutis/grpc/edge.key",
+        "cloud": {
+          "pair": "jobs",
+          "target": "worker"
+        }
+      }
+    },
+    {
+      "id": "cloud-jobs",
+      "name": "wire:go:worker-jobs"
+    },
+    {
+      "id": "app",
+      "name": "go:device"
+    }
+  ]
+}

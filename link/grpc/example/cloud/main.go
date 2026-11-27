@@ -106,4 +106,13 @@ var embedded = rutis.Define(rutis.Plugin[rutis.NoConfig]{
 	},
 })
 
-func main() { rutis.Serve(cloud, embedded) }
+// The cloud host can also mount the same job service over an outbound relay.
+var worker = rutis.Define(rutis.Plugin[rutis.NoConfig]{
+	Name: "worker-jobs",
+	Apply: func(row *rutis.Ctx, _ rutis.NoConfig) error {
+		row.Provide("jobs", &jobs{queue: &scheduler{}})
+		return nil
+	},
+})
+
+func main() { rutis.Serve(cloud, embedded, worker) }

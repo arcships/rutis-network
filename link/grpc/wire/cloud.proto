@@ -1,0 +1,68 @@
+syntax = "proto3";
+package rutis.link.v1;
+import "wire/link.proto";
+option go_package = "github.com/arcships/rutis-network/link/grpc/wire";
+
+// Rendezvous for outbound peers. Session frames never enter this service.
+service Cloud {
+  rpc Register(Registration) returns (Member);
+  rpc Candidates(Registration) returns (RegionList);
+  rpc Resolve(Registration) returns (Route);
+  rpc Heartbeat(RegionReport) returns (Lease);
+  rpc Admit(Claim) returns (Member);
+  rpc Inspect(InspectRequest) returns (CloudStatus);
+}
+message Registration {
+  string pair = 1;
+  string target = 2;
+  string region = 3;
+  repeated string capabilities = 4;
+  uint32 load = 5;
+}
+message RegionEndpoint { string name = 1; string address = 2; string server_name = 3; }
+message RegionList { repeated RegionEndpoint regions = 1; }
+message Probe {}
+message Route {
+  string region = 1;
+  string address = 2;
+  string server_name = 3;
+  string ticket = 4;
+  uint64 generation = 5;
+  Member member = 6;
+}
+message Member { string tenant = 1; string id = 2; }
+message Claim {
+  string region = 1;
+  string instance = 2;
+  string pair = 3;
+  string target = 4;
+  uint64 generation = 5;
+  string ticket = 6;
+  bytes certificate_hash = 7;
+}
+message PairKey { string tenant = 1; string pair = 2; }
+message RegionReport {
+  string region = 1;
+  string instance = 2;
+  repeated PairKey pairs = 3;
+  uint64 messages = 4;
+  uint64 bytes = 5;
+  map<string,uint64> errors = 6;
+  uint32 streams = 7;
+}
+message Lease { int64 milliseconds = 1; }
+message InspectRequest {}
+message HostStatus {
+  Member member = 1;
+  Registration registration = 2;
+  int64 seen_unix = 3;
+  bool recent = 4;
+}
+message RegionStatus { RegionReport report = 1; bool available = 2; }
+message CloudStatus { repeated HostStatus hosts = 1; repeated RegionStatus regions = 2; }
+
+// A relay and an embedded direct endpoint can share a single grpc.Server.
+service CloudRelay {
+  rpc Ping(Probe) returns (Probe);
+  rpc Tunnel(stream Frame) returns (stream Frame);
+}

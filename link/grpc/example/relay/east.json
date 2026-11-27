@@ -1,0 +1,15 @@
+{
+  "listen": "127.0.0.1:7444",
+  "caFile": "/etc/rutis/grpc/ca.pem",
+  "certFile": "/etc/rutis/grpc/east.pem",
+  "keyFile": "/etc/rutis/grpc/east.key",
+  "relay": {
+    "address": "127.0.0.1:7443",
+    "serverName": "directory.test",
+    "region": "east",
+    "maxStreams": 64,
+    "caFile": "/etc/rutis/grpc/ca.pem",
+    "certFile": "/etc/rutis/grpc/east-agent.pem",
+    "keyFile": "/etc/rutis/grpc/east-agent.key"
+  }
+}

@@ -29,6 +29,12 @@ import (
 
 func testIdentities(t *testing.T) (Identity, Identity, Identity) {
 	t.Helper()
+	issue := testIssuer(t)
+	return issue("cloud.test", x509.ExtKeyUsageServerAuth), issue("device.test", x509.ExtKeyUsageClientAuth), issue("other.test", x509.ExtKeyUsageClientAuth)
+}
+
+func testIssuer(t *testing.T) func(string, x509.ExtKeyUsage) Identity {
+	t.Helper()
 	dir := t.TempDir()
 	write := func(name, kind string, data []byte) string {
 		path := filepath.Join(dir, name)
@@ -61,8 +67,10 @@ func testIdentities(t *testing.T) (Identity, Identity, Identity) {
 		return b
 	}
 	root := write("ca.pem", "CERTIFICATE", cert(ca, caKey))
-	issue := func(name string, n int64, usage x509.ExtKeyUsage) Identity {
-		c := template(n)
+	serial := int64(1)
+	return func(name string, usage x509.ExtKeyUsage) Identity {
+		serial++
+		c := template(serial)
 		c.DNSNames = []string{name}
 		c.ExtKeyUsage = []x509.ExtKeyUsage{usage}
 		c.KeyUsage = x509.KeyUsageDigitalSignature
@@ -73,7 +81,6 @@ func testIdentities(t *testing.T) (Identity, Identity, Identity) {
 		}
 		return Identity{CAFile: root, CertFile: write(name+".crt", "CERTIFICATE", cert(c, k)), KeyFile: write(name+".key", "EC PRIVATE KEY", der)}
 	}
-	return issue("cloud.test", 2, x509.ExtKeyUsageServerAuth), issue("device.test", 3, x509.ExtKeyUsageClientAuth), issue("other.test", 4, x509.ExtKeyUsageClientAuth)
 }
 
 func testConn(t *testing.T, address string, id Identity) *grpc.ClientConn {
@@ -135,63 +142,8 @@ func TestEmbeddedCloudService(t *testing.T) {
 	}
 	cloudRows := exampleRows("cloud", "listen", server)
 	app, embedded := cloudRows[0], cloudRows[1]
-	manifest := func(id string, rows ...obj) string {
-		home := filepath.Join(dir, id)
-		if err := os.MkdirAll(home, 0700); err != nil {
-			t.Fatal(err)
-		}
-		data, err := json.Marshal(obj{"id": id, "runtimes": obj{"go": obj{"dir": "./plugins/go"}}, "rows": rows})
-		if err != nil {
-			t.Fatal(err)
-		}
-		path := filepath.Join(home, "rutis.json")
-		if err := os.WriteFile(path+".new", data, 0600); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.Rename(path+".new", path); err != nil {
-			t.Fatal(err)
-		}
-		return path
-	}
-	start := func(path string) func() {
-		log, err := os.CreateTemp(dir, "host-*.log")
-		if err != nil {
-			t.Fatal(err)
-		}
-		cmd := exec.Command(host, "run", "--watch-config", path)
-		cmd.Dir = dir
-		cmd.Stdout = log
-		cmd.Stderr = log
-		if err := cmd.Start(); err != nil {
-			t.Fatal(err)
-		}
-		stopped := false
-		stop := func() {
-			if stopped {
-				return
-			}
-			stopped = true
-			cmd.Process.Signal(os.Interrupt)
-			done := make(chan error, 1)
-			go func() { done <- cmd.Wait() }()
-			select {
-			case <-done:
-			case <-time.After(8 * time.Second):
-				cmd.Process.Kill()
-				<-done
-				t.Error("host shutdown timed out")
-			}
-			log.Close()
-		}
-		t.Cleanup(func() {
-			stop()
-			if t.Failed() {
-				b, _ := os.ReadFile(log.Name())
-				t.Log(string(b))
-			}
-		})
-		return stop
-	}
+	manifest := func(id string, rows ...obj) string { return writeHostManifest(t, dir, id, rows...) }
+	start := func(path string) func() { return startHost(t, host, dir, path) }
 	cloudPath := manifest("cloud", app, embedded)
 	stopCloud := start(cloudPath)
 	devicePath := manifest("device", exampleRows("device", "address", client)...)
@@ -258,4 +210,69 @@ func TestEmbeddedCloudService(t *testing.T) {
 	if id := wait(true); id != "job-1" {
 		t.Fatalf("fresh cloud process returned %s", id)
 	}
+}
+
+func writeHostManifest(t *testing.T, dir, id string, rows ...map[string]any) string {
+	t.Helper()
+	type obj = map[string]any
+	home := filepath.Join(dir, id)
+	if err := os.MkdirAll(home, 0700); err != nil {
+		t.Fatal(err)
+	}
+	data, err := json.Marshal(obj{"id": id, "runtimes": obj{"go": obj{"dir": "./plugins/go"}}, "rows": rows})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(home, "rutis.json")
+	if err := os.WriteFile(path+".new", data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(path+".new", path); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+func startHost(t *testing.T, host, dir, path string) func() {
+	t.Helper()
+	log, err := os.CreateTemp(dir, "host-*.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(host, "run", "--watch-config", path)
+	cmd.Dir = dir
+	cmd.Stdout = log
+	cmd.Stderr = log
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	stopped := false
+	stop := func() {
+		if stopped {
+			return
+		}
+		stopped = true
+		cmd.Process.Signal(os.Interrupt)
+		done := make(chan error, 1)
+		go func() { done <- cmd.Wait() }()
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Errorf("host %s exited with %v", path, err)
+			}
+		// rutis-host gives row cleanup 10 seconds before reaping runtime processes.
+		case <-time.After(15 * time.Second):
+			cmd.Process.Kill()
+			<-done
+			t.Error("host shutdown timed out")
+		}
+		log.Close()
+	}
+	t.Cleanup(func() {
+		stop()
+		if t.Failed() {
+			b, _ := os.ReadFile(log.Name())
+			t.Log(string(b))
+		}
+	})
+	return stop
 }

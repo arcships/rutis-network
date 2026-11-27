@@ -9,6 +9,7 @@ import (
 
 	"github.com/arcships/rutis-network/link/grpc/wire"
 	"github.com/arcships/rutis-network/link/tcp"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -111,7 +112,7 @@ func serveSession(run, row context.Context, stream messageStream, sessions tcp.S
 		return nil
 	}
 	if row.Err() == nil {
-		if err := near.End(row, tcp.CloseReason{Kind: "done"}); err != nil && errors.Is(cause, io.EOF) {
+		if err := near.End(row, closeReason(cause)); err != nil && errors.Is(cause, io.EOF) {
 			return err
 		}
 	}
@@ -119,4 +120,19 @@ func serveSession(run, row context.Context, stream messageStream, sessions tcp.S
 		return nil
 	}
 	return cause
+}
+
+func closeReason(err error) tcp.CloseReason {
+	s := status.Convert(err)
+	if s.Code() == codes.Aborted {
+		for _, d := range s.Details() {
+			if info, ok := d.(*errdetails.ErrorInfo); ok && info.Domain == "rutis.link.v1" && info.Reason == "REPLACED" {
+				return tcp.CloseReason{Kind: "replaced"}
+			}
+		}
+	}
+	if s.Code() == codes.Unauthenticated || s.Code() == codes.PermissionDenied {
+		return tcp.CloseReason{Kind: "rejected", Reason: s.Code().String()}
+	}
+	return tcp.CloseReason{Kind: "done"}
 }
