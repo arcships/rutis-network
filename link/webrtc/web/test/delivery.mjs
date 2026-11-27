@@ -43,15 +43,18 @@ async function echo(pages, expected) {
 }
 
 test('live browser RPC after a source edit and RPC from an installed tarball', async (t) => {
-  const dir = await mkdtemp(join(tmpdir(), 'webrtc-delivery-'))
+  const root = await mkdtemp(join(tmpdir(), 'webrtc-delivery-'))
+  const dir = join(root, 'link/webrtc')
   const env = { stops: [] }
   t.after(async () => {
     try {
       for (const stop of env.stops.reverse()) await stop()
     } finally {
-      await rm(dir, { recursive: true, force: true })
+      await rm(root, { recursive: true, force: true })
     }
   })
+  await mkdir(dir, { recursive: true })
+  await cp(join(project, '../../../tsconfig.base.json'), join(root, 'tsconfig.base.json'))
   const turn = join(dir, 'turn')
   await exec('go', ['build', '-o', turn, './example/turn'], { cwd: join(project, '..') })
   const turnSecret = randomUUID()

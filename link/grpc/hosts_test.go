@@ -92,6 +92,9 @@ func testConn(t *testing.T, address string, id Identity) *grpc.ClientConn {
 }
 
 func TestEmbeddedCloudService(t *testing.T) {
+	if testing.Short() {
+		t.Skip("rutis-host integration")
+	}
 	host := os.Getenv("RUTIS_HOST")
 	if host == "" || runtime.GOOS == "windows" {
 		t.Skip("requires RUTIS_HOST 0.23 and Unix control sockets")

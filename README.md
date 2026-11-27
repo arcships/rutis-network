@@ -15,6 +15,19 @@ For device integration, the [network stack survey](docs/research/network-stacks.
 
 The [Wireshark protocol family survey](docs/research/wireshark-support.en.md) evaluates the display filter index across 50 groups and proposes five plugin capabilities to validate.
 
+## Development checks
+
+From the repository root, use Git, Make, Go 1.24 or newer with automatic toolchain selection, and a supported Node.js version (`^22.18.0 || ^24.11.0 || >=26.0.0`). Run `make setup` after checkout or a lockfile change to install the pinned formatter and the TypeScript packages' development dependencies.
+
+| Command | What it runs |
+| --- | --- |
+| `make fmt` | Format tracked Go files with gofmt and tracked `.ts`, `.mts`, and `.mjs` files with Prettier. |
+| `make fmt-check` | List files that need formatting and exit with an error if any do. Leaves source files untouched. |
+| `make test` | Run Go short tests in each module and Vitest unit tests in each TypeScript package. |
+| `make check` | Check formatting, run Go vet and strict TypeScript checks, then run the fast tests. |
+
+PR checks run on Linux. The Go jobs use each module's `go.mod`; consumers of the TCP bridge use its checked-out source in a temporary Go workspace. For a single job, run e.g. `make go-check GO_MODULES=link/ssh` or `make typecheck ts-test TS_PACKAGES=link/webrtc/web`. The TCP and WebRTC packages also provide `npm run test:integration` and `npm run test:delivery` for real hosts, browsers and package installations.
+
 ## Status
 
 Browsers can connect to each other or to a native rutis host over a WebRTC DataChannel, directly or via authenticated TURN. [WebRTC setup and example](docs/design/08-link-webrtc.en.md)

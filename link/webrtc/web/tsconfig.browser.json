@@ -1,9 +1,6 @@
 {
+  "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
-    "strict": true,
-    "target": "ES2022",
-    "module": "NodeNext",
-    "rewriteRelativeImportExtensions": true,
     "verbatimModuleSyntax": true,
     "lib": [
       "ES2024",
