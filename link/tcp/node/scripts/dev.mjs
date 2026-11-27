@@ -1,9 +1,10 @@
 // The 0.23 Node runtime invalidates only the mounted entry in its ESM cache.
 // Give it one watched file containing the dialer and its local imports.
-import { context } from 'esbuild'
+import { build } from 'tsdown'
+import config from '../tsdown.config.mjs'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { rename, writeFile } from 'node:fs/promises'
+import { copyFile, rename } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
@@ -11,29 +12,23 @@ const project = new URL('../dev/', import.meta.url)
 const entry = new URL('plugin.mjs', project)
 const temporary = new URL('.plugin.tmp', entry)
 const firstBuild = Promise.withResolvers()
-const bundler = await context({
-  entryPoints: [fileURLToPath(new URL('../src/index.ts', import.meta.url))],
-  bundle: true,
-  platform: 'node',
-  format: 'esm',
-  packages: 'external',
-  write: false,
-  plugins: [
-    {
-      name: 'write-dev-entry',
-      setup(build) {
-        build.onEnd(async (result) => {
-          if (result.errors.length) return
-          await writeFile(temporary, result.outputFiles[0].contents)
-          await rename(temporary, entry)
-          firstBuild.resolve()
-        })
-      },
-    },
-  ],
+const output = new URL('../../.rutis/node-build/', import.meta.url)
+const bundler = await build({
+  ...config,
+  config: false,
+  cwd: fileURLToPath(new URL('../', import.meta.url)),
+  entry: { plugin: 'src/index.ts' },
+  outDir: fileURLToPath(output),
+  fixedExtension: true,
+  dts: false,
+  watch: true,
+  async onSuccess() {
+    await copyFile(new URL('plugin.mjs', output), temporary)
+    await rename(temporary, entry)
+    firstBuild.resolve()
+  },
 })
 try {
-  await bundler.watch()
   await firstBuild.promise
   const binary = fileURLToPath(import.meta.resolve('@arcships/rutis-host/package.json'))
   const host = spawn(
@@ -49,5 +44,5 @@ try {
   process.off('SIGTERM', stop)
   process.exitCode = code ?? 1
 } finally {
-  await bundler.dispose()
+  await bundler.watch.close()
 }

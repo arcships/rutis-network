@@ -134,6 +134,8 @@
 | Node/TS | `npm run dev` | `node_modules/.bin/rutis-host call --config dev witness.echo 37` |
 | Go | `node_modules/.bin/rutis-host dev ..` | `node_modules/.bin/rutis-host call --config .. witness.echo 37` |
 
-预期返回 `["loopback",37]`。修改 Go 源码后，宿主会重编译二进制。0.23 的 Node 运行时会缓存插件入口导入的模块，因此开发命令用 esbuild 监听本地 TS 模块，构建成功后原子替换单个开发入口。宿主重载该行，拨号插件重新建立连接。
+预期返回 `["loopback",37]`。修改 Go 源码后，宿主会重编译二进制。0.23 的 Node 运行时会缓存插件入口导入的模块，因此开发命令用 tsdown 监听本地 TS 模块，构建成功后原子替换单个开发入口。宿主重载该行，拨号插件重新建立连接。
 
 在 Node 包目录执行 `npm pack`，即可生成包含 ESM 和类型声明的本地压缩包。在集成方的 Node 工程中安装该包和 `@arcships/rutis-runtime@0.23.0`，将 `runtimes.node.project` 指向该工程，行的 `name` 填 `rutis-network-tcp-reference`。该参考插件用 `port`、`ca`、`cert`、`key` 配置回环 mTLS 连接。已有源码行仍可挂载 `link/tcp/dial.ts`。迁移已有检出时请先移走旧的 `link/tcp/node_modules`，再在 `node/` 安装，以便两个入口使用同一份运行时依赖。执行 `npm run test:delivery` 可验证源码重载和仓库外安装。
+
+包内开发命令支持的 Node 版本为 `^22.18.0 || ^24.11.0 || >=26.0.0`。执行 `npm run test:unit` 用 Vitest 验证 TCP 分帧，执行 `npm run test:integration` 用 `node:test` 验证宿主与连接管理。`npm test` 依次运行两组测试。

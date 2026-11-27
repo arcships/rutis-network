@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { setTimeout as delay } from 'node:timers/promises'
 import { chromium } from 'playwright'
-import { build } from 'esbuild'
+import { build } from 'vite'
 import { exec, processFor } from '../../../tcp/node/test/fixtures/hosts.mjs'
 
 const project = fileURLToPath(new URL('../', import.meta.url))
@@ -73,6 +73,7 @@ test('live browser RPC after a source edit and RPC from an installed tarball', a
     'package-lock.json',
     'scripts',
     'src',
+    'tsdown.config.mjs',
     'tsconfig.node.json',
     'tsconfig.browser.json',
   ]) {
@@ -86,8 +87,7 @@ test('live browser RPC after a source edit and RPC from an installed tarball', a
   const dev = processFor(env, process.execPath, ['--watch', server, '--dev'], { cwd: web, env: settings })
   const url = (await dev.waitFor(/http:\/\/127\.0\.0\.1:\d+/))[0]
   const pages = await Promise.all([browser.newPage(), browser.newPage()])
-  // Wait for the initial successful build before starting the peers.
-  for (let i = 0; i < 100 && !(await fetch(url + '/link-webrtc.mjs')).ok; i++) await delay(100)
+  assert.equal((await fetch(url + '/link-webrtc.mjs')).status, 200)
   await Promise.all(pages.map((page) => page.goto(url, { waitUntil: 'domcontentloaded' })))
   await echo(pages, ['page-1', 'hello'])
 
@@ -95,8 +95,14 @@ test('live browser RPC after a source edit and RPC from an installed tarball', a
   const original = await readFile(source, 'utf8')
   const good = await (await fetch(url + '/link-webrtc.mjs')).text()
   await writeFile(source, original + '\nconst invalid = ;\n')
-  await dev.waitFor(/Expected expression|Unexpected ";"/)
+  await dev.waitFor(/PARSE_ERROR|Unexpected token/)
   assert.equal(await (await fetch(url + '/link-webrtc.mjs')).text(), good)
+  const page = pages[0]
+  await page.locator('#reply').evaluate((output) => {
+    output.value = ''
+  })
+  await page.getByRole('button', { name: 'Call echo' }).click()
+  await page.getByText(JSON.stringify(['page-1', 'hello']), { exact: true }).waitFor()
   const call = 'return invoke(methodCall, args)'
   assert.ok(original.includes(call))
   await Promise.all([
@@ -104,6 +110,12 @@ test('live browser RPC after a source edit and RPC from an installed tarball', a
     writeFile(source, original.replace(call, "return ['updated', await invoke(methodCall, args)]")),
   ])
   await echo(pages, ['updated', ['page-1', 'hello']])
+  const html = join(dir, 'example/index.html')
+  const originalHtml = await readFile(html, 'utf8')
+  await writeFile(html, originalHtml.replace('Connect a rutis peer', 'Updated pairing page'))
+  await Promise.all(
+    pages.map((page) => page.getByRole('heading', { name: 'Updated pairing page' }).waitFor()),
+  )
   await Promise.all(pages.map((page) => page.close()))
 
   const pairing = join(web, 'src/node/pairing.ts')
@@ -159,16 +171,19 @@ export function consumer(pairId: string) {
     { cwd: consumer },
   )
   await build({
-    entryPoints: [entry],
-    platform: 'browser',
-    format: 'esm',
-    bundle: true,
-    outfile: join(dir, 'dist/link-webrtc.mjs'),
+    configFile: false,
+    root: consumer,
+    build: {
+      target: 'es2022',
+      outDir: join(dir, 'dist'),
+      emptyOutDir: false,
+      lib: { entry, formats: ['es'], fileName: () => 'link-webrtc.mjs' },
+    },
   })
   // Serve the consumer's bundle at the example's public URL.
   const packed = processFor(env, process.execPath, [server], { cwd: dir, env: settings })
   const packedURL = (await packed.waitFor(/http:\/\/127\.0\.0\.1:\d+/))[0]
   const installed = await Promise.all([browser.newPage(), browser.newPage()])
-  await Promise.all(installed.map(page => page.goto(packedURL)))
+  await Promise.all(installed.map((page) => page.goto(packedURL)))
   await echo(installed, ['page-1', 'hello'])
 })

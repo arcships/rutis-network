@@ -17,7 +17,7 @@
 
 ## 跑起来
 
-在构建机上使用 Go 1.26 和 Node.js 22.18 或更高版本。下面的命令在仓库根目录执行。它会生成浏览器模块 `dist/link-webrtc.mjs` 和同时提供传输、HTTP 信令两种插件的 Go 可执行文件。
+在构建机上使用 Go 1.26 和 构建工具支持的 Node.js 版本（`^22.18.0 || ^24.11.0 || >=26.0.0`）。下面的命令在仓库根目录执行。它会生成浏览器模块 `dist/link-webrtc.mjs` 和同时提供传输、HTTP 信令两种插件的 Go 可执行文件。
 
 ```sh
 cd link/webrtc
@@ -46,7 +46,7 @@ printf 'A: %s\nB: %s\n' "$PAIR_A_TOKEN" "$PAIR_B_TOKEN"
 
 ## 浏览器开发和打包
 
-在 `link/webrtc` 使用上面示例的配对凭据和可选的 TURN 设置，执行 `npm run dev --prefix web`，即可启动页面和同源信令。保存浏览器 TS 会重新构建 ESM 并刷新已打开的页面。构建失败时终端显示错误，页面仍能读取上一份成功产物。保存 Node 配对模块会重启示例服务。页面刷新后重新连接即可建立新会话。
+在 `link/webrtc` 使用上面示例的配对凭据和可选的 TURN 设置，执行 `npm run dev --prefix web`，即可启动页面和同源信令。保存浏览器 TS 后，tsdown 重新构建 ESM，成功后由 Vite 刷新已打开的页面。构建失败时终端显示错误，页面仍能读取上一份成功产物。保存 Node 配对模块会重启示例服务。页面刷新后重新连接即可建立新会话。
 
 在 `link/webrtc/web` 执行 `npm pack`，即可生成包含浏览器 ESM 和类型声明的压缩包。在应用内安装该包，通过 `@arcships/rutis-link-webrtc` 导入 `createWebRtcLink`、`createPageEndpoint` 和 `httpSignaling`。普通 HTML 可以直接导入构建生成的 `dist/link-webrtc.mjs`。示例信令服务和 TURN 服务各自部署。安装 Chromium 后，执行 `npm run test:delivery` 可验证开发重载、构建出错后恢复、仓库外消费端的严格类型检查和真实 RPC。
 
@@ -165,7 +165,7 @@ page.provide('display', {
 
 ## 浏览器端点与验收
 
-页面端点复用固定版本 `@arcships/rutis-runtime@0.23.0` 的会话与编解码模块，构建时接入浏览器平台 API。页面通过 `provide` 显式导出异步服务，支持方法调用、回调、二进制值与服务撤下。升级 rutis 时需重新验证这些模块和协议。原生与页面都通过同一份网络记录协议交付消息。[浏览器端点](../../link/webrtc/web/src/browser/endpoint.ts) · [浏览器构建](../../link/webrtc/web/scripts/build.mjs)
+页面端点复用固定版本 `@arcships/rutis-runtime@0.23.0` 的会话与编解码模块，构建时接入浏览器平台 API。页面通过 `provide` 显式导出异步服务，支持方法调用、回调、二进制值与服务撤下。升级 rutis 时需重新验证这些模块和协议。原生与页面都通过同一份网络记录协议交付消息。[浏览器端点](../../link/webrtc/web/src/browser/endpoint.ts) · [浏览器构建](../../link/webrtc/web/tsdown.config.mjs)
 
 ```sh
 cd link/webrtc
@@ -175,4 +175,6 @@ npm test --prefix web
 go test -race ./...
 ```
 
-端到端测试使用原版 rutis-host 0.23、Chromium、Firefox，以及回环地址上的真实 STUN/TURN 服务器。两种端点组合都运行直连和强制 TURN，检查双方实选路径与双向 RPC。中继测试终止 TURN 进程，等待远端服务撤下，再用同一端口启动 TURN，确认能再次调用。短期凭据测试让一个回调跨过原凭据到期时间，检查实选中继端口已变化，并在同一会话上完成挂起的 RPC 和新调用。测试还覆盖页面刷新、业务插件重载、回调、跨记录的二进制值、16 MiB 消息边界和背压。跨公网 NAT 拓扑与具体生产 TURN 部署需要另行验证。[端到端测试](../../link/webrtc/web/test/hosts.test.mjs) · [浏览器单元测试](../../link/webrtc/web/test/channel.test.mjs) · [Go 边界测试](../../link/webrtc/records_test.go)
+在 `link/webrtc/web` 执行 `npm run test:unit`，可用 Vitest 验证通道、配对和页面端点。`npm run test:integration` 先构建产物，再用 `node:test` 运行真实宿主、浏览器和 TURN 用例。`npm test` 依次运行两组测试。
+
+端到端测试使用原版 rutis-host 0.23、Chromium、Firefox，以及回环地址上的真实 STUN/TURN 服务器。两种端点组合都运行直连和强制 TURN，检查双方实选路径与双向 RPC。中继测试终止 TURN 进程，等待远端服务撤下，再用同一端口启动 TURN，确认能再次调用。短期凭据测试让一个回调跨过原凭据到期时间，检查实选中继端口已变化，并在同一会话上完成挂起的 RPC 和新调用。测试还覆盖页面刷新、业务插件重载、回调、跨记录的二进制值、16 MiB 消息边界和背压。跨公网 NAT 拓扑与具体生产 TURN 部署需要另行验证。[端到端测试](../../link/webrtc/web/test/hosts.test.mjs) · [浏览器单元测试](../../link/webrtc/web/test/unit/channel.test.mjs) · [Go 边界测试](../../link/webrtc/records_test.go)

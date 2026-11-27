@@ -17,7 +17,7 @@ Implemented for rutis 0.23.0, session protocol 5. A Web endpoint runs inside a b
 
 ## Run the example
 
-Use Go 1.26 and Node.js 22.18 or later on the build machine. Run the following commands from the repository root. They produce the browser module at `dist/link-webrtc.mjs` and one Go executable containing both the transport and the HTTP signaling provider.
+Use Go 1.26 and a Node.js version supported by the build tools (`^22.18.0 || ^24.11.0 || >=26.0.0`) on the build machine. Run the following commands from the repository root. They produce the browser module at `dist/link-webrtc.mjs` and one Go executable containing both the transport and the HTTP signaling provider.
 
 ```sh
 cd link/webrtc
@@ -46,7 +46,7 @@ These commands start an authenticated loopback TURN server and the pairing page.
 
 ## Browser development and packaging
 
-With the same pairing credentials and optional TURN settings as the example, run `npm run dev --prefix web` from `link/webrtc`. It starts the example and same-origin signaling. Saving browser TS rebuilds the ESM and refreshes open pages. A failed build prints its error and keeps serving the last good bundle. Saving the Node pairing module restarts the example server. Reconnect on the refreshed page to open a new session.
+With the same pairing credentials and optional TURN settings as the example, run `npm run dev --prefix web` from `link/webrtc`. It starts the example and same-origin signaling. Saving browser TS triggers tsdown to rebuild the ESM and Vite to refresh open pages on success. A failed build prints its error and keeps serving the last good bundle. Saving the Node pairing module restarts the example server. Reconnect on the refreshed page to open a new session.
 
 Run `npm pack` in `link/webrtc/web` to build and package the browser ESM and generated declarations. Install the resulting tarball in your application and import `createWebRtcLink`, `createPageEndpoint` and `httpSignaling` from `@arcships/rutis-link-webrtc`. Plain HTML can import the built `dist/link-webrtc.mjs` directly. The example signaling and TURN servers are separate deployment components. With Chromium installed, `npm run test:delivery` verifies live reload, recovery after a failed build, strict type checking in an external consumer and RPC through its installed package.
 
@@ -165,7 +165,7 @@ Transport closure ends the local session once. Session closure closes the channe
 
 ## Browser endpoint and verification
 
-The page endpoint reuses the session and codec modules from the pinned `@arcships/rutis-runtime@0.23.0` with a build-time browser platform binding. Pages explicitly export asynchronous services with `provide`. They support method calls, callbacks, binary values and service withdrawal. Requalify these modules and their protocol when upgrading rutis. The native and browser transports deliver the same wire records. [Page endpoint](../../link/webrtc/web/src/browser/endpoint.ts) · [Browser build](../../link/webrtc/web/scripts/build.mjs)
+The page endpoint reuses the session and codec modules from the pinned `@arcships/rutis-runtime@0.23.0` with a build-time browser platform binding. Pages explicitly export asynchronous services with `provide`. They support method calls, callbacks, binary values and service withdrawal. Requalify these modules and their protocol when upgrading rutis. The native and browser transports deliver the same wire records. [Page endpoint](../../link/webrtc/web/src/browser/endpoint.ts) · [Browser build](../../link/webrtc/web/tsdown.config.mjs)
 
 ```sh
 cd link/webrtc
@@ -175,4 +175,6 @@ npm test --prefix web
 go test -race ./...
 ```
 
-The integration tests run stock rutis-host 0.23, Chromium, Firefox and a real loopback STUN/TURN server. Each endpoint combination exercises direct and forced-relay paths, checks both selected routes and makes bidirectional RPCs. The relay tests stop the TURN process, wait for service withdrawal, restart TURN on the same port and call again. Short-lived credential tests hold a callback across expiry, verify a new selected relay allocation and complete both the pending RPC and a new call on the same session. Coverage also includes page refresh, business-plugin reload, callbacks, binary values spanning records, the 16 MiB message boundary and backpressure. Public NAT topologies and production TURN deployments require separate validation. [Integration tests](../../link/webrtc/web/test/hosts.test.mjs) · [Browser unit tests](../../link/webrtc/web/test/channel.test.mjs) · [Go boundary tests](../../link/webrtc/records_test.go)
+From `link/webrtc/web`, run `npm run test:unit` for the channel, pairing and page endpoint tests in Vitest. `npm run test:integration` builds the package and runs host, browser and TURN cases with the Node test runner. `npm test` runs both.
+
+The integration tests run stock rutis-host 0.23, Chromium, Firefox and a real loopback STUN/TURN server. Each endpoint combination exercises direct and forced-relay paths, checks both selected routes and makes bidirectional RPCs. The relay tests stop the TURN process, wait for service withdrawal, restart TURN on the same port and call again. Short-lived credential tests hold a callback across expiry, verify a new selected relay allocation and complete both the pending RPC and a new call on the same session. Coverage also includes page refresh, business-plugin reload, callbacks, binary values spanning records, the 16 MiB message boundary and backpressure. Public NAT topologies and production TURN deployments require separate validation. [Integration tests](../../link/webrtc/web/test/hosts.test.mjs) · [Browser unit tests](../../link/webrtc/web/test/unit/channel.test.mjs) · [Go boundary tests](../../link/webrtc/records_test.go)

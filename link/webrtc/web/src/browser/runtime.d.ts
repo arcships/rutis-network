@@ -1,4 +1,4 @@
-// The v5 bindings are resolved to the pinned rutis runtime by scripts/build.mjs.
+// scripts/browser-runtime.mjs binds these modules to the pinned rutis runtime.
 declare module 'rutis-codec-v5' {
   export function decode(text: string): unknown
 }

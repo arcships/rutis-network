@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
-import test from 'node:test'
+import { test } from 'vitest'
 import { once } from 'node:events'
 import { createConnection, createServer } from 'node:net'
 import { setImmediate } from 'node:timers/promises'
-import { maxMessage, openTcp } from '../../bridge.ts'
+import { maxMessage, openTcp } from '../../src/bridge.ts'
 
 function frame(bytes) {
   const header = Buffer.alloc(4)
@@ -18,7 +18,7 @@ async function pair(t) {
   const accepted = once(server, 'connection')
   const peer = createConnection(server.address().port, '127.0.0.1')
   const [socket] = await accepted
-  t.after(() => { socket.destroy(); peer.destroy(); server.close() })
+  t.onTestFinished(() => { socket.destroy(); peer.destroy(); server.close() })
   return { socket, peer }
 }
 
