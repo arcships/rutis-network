@@ -2,7 +2,6 @@ package tailscale
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -18,8 +17,8 @@ import (
 	"tailscale.com/types/views"
 )
 
-func taggedPeers(s *ipnstate.Status, tag string) map[tailcfg.StableNodeID]netip.Addr {
-	peers := make(map[tailcfg.StableNodeID]netip.Addr)
+func taggedPeers(s *ipnstate.Status, tag string) map[tailcfg.StableNodeID][]netip.Addr {
+	peers := make(map[tailcfg.StableNodeID][]netip.Addr)
 	if s == nil || s.Self == nil {
 		return peers
 	}
@@ -30,38 +29,10 @@ func taggedPeers(s *ipnstate.Status, tag string) map[tailcfg.StableNodeID]netip.
 			continue
 		}
 		if p.Tags != nil && views.SliceContains(*p.Tags, tag) && len(p.TailscaleIPs) > 0 {
-			peers[p.ID] = p.TailscaleIPs[0]
+			peers[p.ID] = p.TailscaleIPs
 		}
 	}
 	return peers
-}
-
-// Recheck the selected address at the transport boundary. A cached address
-// can change owners between discovery, a retry and completion of a TCP dial.
-func (n *tailnet) dialTagged(ctx context.Context, id tailcfg.StableNodeID, ip netip.Addr, port uint16, tag string) (net.Conn, error) {
-	address := netip.AddrPortFrom(ip, port).String()
-	check := func() error {
-		p, err := n.identify(ctx, address)
-		if err != nil {
-			return err
-		}
-		if p.StableID != id || !slices.Contains(p.Tags, tag) {
-			return errors.New("peer-not-allowed")
-		}
-		return nil
-	}
-	if err := check(); err != nil {
-		return nil, err
-	}
-	conn, err := n.dialIP(ctx, ip.String(), port)
-	if err != nil {
-		return nil, fmt.Errorf("tailnet-dial: %w", err)
-	}
-	if err := check(); err != nil {
-		conn.Close()
-		return nil, err
-	}
-	return conn, nil
 }
 
 // Notifications are invalidations. Coalesce bursts and always reconcile from
@@ -112,11 +83,12 @@ func (n *tailnet) acceptTagged(ctx context.Context, listener net.Listener, tag s
 			return
 		}
 		check, cancel := context.WithTimeout(ctx, 5*time.Second)
-		peer, err := n.identify(check, conn.RemoteAddr().String())
+		addr := conn.RemoteAddr()
+		peer, err := n.identify(check, addr)
 		cancel()
 		if err != nil || !slices.Contains(peer.Tags, tag) {
 			conn.Close()
-			fmt.Fprintln(os.Stderr, "link/tailscale listen: peer-not-allowed", conn.RemoteAddr())
+			fmt.Fprintln(os.Stderr, "link/tailscale listen: peer-not-allowed", addr)
 			continue
 		}
 		select {
@@ -129,24 +101,17 @@ func (n *tailnet) acceptTagged(ctx context.Context, listener net.Listener, tag s
 }
 
 type peerRun struct {
-	address netip.Addr
-	cancel  context.CancelFunc
-	done    chan struct{}
+	addresses []netip.Addr
+	cancel    context.CancelFunc
+	// Keep only the newest admitted connection while the previous session ends.
+	pending net.Conn
 }
 
-func (r peerRun) stop() {
-	r.cancel()
-	<-r.done
-}
-
-func startPeer(ctx context.Context, ip netip.Addr, run func(context.Context)) peerRun {
-	peer, cancel := context.WithCancel(ctx)
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		run(peer)
-	}()
-	return peerRun{address: ip, cancel: cancel, done: done}
+func (r *peerRun) discardPending() {
+	if r.pending != nil {
+		r.pending.Close()
+		r.pending = nil
+	}
 }
 
 // A single owner serializes membership changes and inbound replacement.
@@ -162,18 +127,37 @@ func (n *tailnet) runTagged(row context.Context, sessions tcp.Sessions, tag stri
 		incoming = make(chan incomingPeer)
 		background.Go(func() { n.acceptTagged(ctx, listener, tag, incoming) })
 	}
-	active := make(map[tailcfg.StableNodeID]peerRun)
+	active := make(map[tailcfg.StableNodeID]*peerRun)
+	finished := make(chan tailcfg.StableNodeID)
 	defer func() {
 		cancel()
 		if listener != nil {
 			listener.Close()
 		}
 		for _, run := range active {
-			run.stop()
+			run.discardPending()
 		}
 		background.Wait()
 	}()
-	var allowed map[tailcfg.StableNodeID]netip.Addr
+	start := func(id tailcfg.StableNodeID, ips []netip.Addr, conn net.Conn) {
+		peerCtx, stop := context.WithCancel(ctx)
+		active[id] = &peerRun{addresses: ips, cancel: stop}
+		background.Go(func() {
+			defer stop()
+			if conn == nil {
+				n.dialLoop(peerCtx, row, sessions, string(id), func(attempt context.Context) (net.Conn, error) {
+					return n.dialPeer(attempt, id, ips, port, tag)
+				})
+			} else if err := n.peerSession(peerCtx, row, sessions, conn, string(id)); err != nil && peerCtx.Err() == nil {
+				fmt.Fprintln(os.Stderr, "link/tailscale session:", err)
+			}
+			select {
+			case finished <- id:
+			case <-ctx.Done():
+			}
+		})
+	}
+	var allowed map[tailcfg.StableNodeID][]netip.Addr
 	refresh := func() {
 		check, end := context.WithTimeout(ctx, 5*time.Second)
 		s, err := n.status(check)
@@ -183,23 +167,19 @@ func (n *tailnet) runTagged(row context.Context, sessions tcp.Sessions, tag stri
 		}
 		allowed = taggedPeers(s, tag)
 		for id, run := range active {
-			if ip, ok := allowed[id]; !ok || run.address != ip {
-				run.stop()
-				delete(active, id)
+			if !slices.Equal(allowed[id], run.addresses) {
+				run.cancel()
+				run.discardPending()
 			}
 		}
 		if listener != nil {
 			return
 		}
-		for id, ip := range allowed {
+		for id, ips := range allowed {
 			if _, ok := active[id]; ok {
 				continue
 			}
-			active[id] = startPeer(ctx, ip, func(peerCtx context.Context) {
-				n.dialLoop(peerCtx, row, sessions, ip.String(), func(attempt context.Context) (net.Conn, error) {
-					return n.dialTagged(attempt, id, ip, port, tag)
-				})
-			})
+			start(id, ips, nil)
 		}
 	}
 	// Also reconcile expiry and support system daemons without peer-change notifications.
@@ -213,23 +193,30 @@ func (n *tailnet) runTagged(row context.Context, sessions tcp.Sessions, tag stri
 			refresh()
 		case <-ticker.C:
 			refresh()
+		case id := <-finished:
+			run := active[id]
+			delete(active, id)
+			if ips := allowed[id]; len(ips) > 0 && (listener == nil || run.pending != nil) {
+				start(id, ips, run.pending)
+			} else {
+				run.discardPending()
+			}
 		case peer, ok := <-incoming:
 			if !ok {
 				return
 			}
-			ip, ok := allowed[peer.id]
+			ips, ok := allowed[peer.id]
 			if !ok {
 				peer.conn.Close()
 				continue
 			}
-			if previous, ok := active[peer.id]; ok {
-				previous.stop()
+			if previous := active[peer.id]; previous != nil {
+				previous.cancel()
+				previous.discardPending()
+				previous.pending = peer.conn
+				continue
 			}
-			active[peer.id] = startPeer(ctx, ip, func(peerCtx context.Context) {
-				if err := n.peerSession(peerCtx, row, sessions, peer.conn, ip.String()); err != nil && peerCtx.Err() == nil {
-					fmt.Fprintln(os.Stderr, "link/tailscale session:", err)
-				}
-			})
+			start(peer.id, ips, peer.conn)
 		}
 	}
 }

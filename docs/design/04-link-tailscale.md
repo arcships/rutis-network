@@ -43,7 +43,7 @@ go -C link/tailscale build -o ../../plugins/go/link-tailscale ./cmd/link-tailsca
 {"id":"from-host","name":"go:link-tailscale","config":{"allowTag":"tag:rutis-controller"}}
 ```
 
-宿主订阅本机 Tailscale 可见节点的变化，按稳定节点 ID 为每台匹配的 leaf 建立一个 rutis 会话。leaf 监听自己首个 tailnet IP，逐连接使用 WhoIs 校验来源节点与标签。新增带标签的 leaf 会自动接入，改名会保留原连接，撤销标签或移出网络图会关闭对应连接。每 30 秒也会重新核对一次。本机 LocalAPI 无法确认节点状态时会关闭这些连接，恢复后重新发现。插件只需本机 LocalAPI，无需 tailnet 管理令牌或节点地址清单。要换端口，同时修改 `discover.port`、leaf 的 `listen` 和 tailnet 授权。
+宿主订阅本机 Tailscale 可见节点的变化，按稳定节点 ID 为每台匹配的 leaf 建立一个 rutis 会话。系统模式下，发现行可以先于 `tailscaled` 启动，守护进程就绪后会自动发现 leaf。宿主会依次尝试同一 leaf 的可见地址，因此也可以连接只监听 IPv6 的双栈 leaf。leaf 默认监听自己首个 tailnet IP，逐连接使用 WhoIs 校验来源节点与标签。新增带标签的 leaf 会自动接入，改名会保留原连接，撤销标签或移出网络图会关闭对应连接。每 30 秒也会重新核对一次。本机 LocalAPI 无法确认节点状态时会关闭这些连接，恢复后重新发现。插件只需本机 LocalAPI，无需 tailnet 管理令牌或节点地址清单。要换端口，同时修改 `discover.port`、leaf 的 `listen` 和 tailnet 授权。
 
 连接建立后，集成方按 rutis 服务名调用。多个 leaf 的服务处于同一 rutis 作用域时，给需要分别调用的服务使用不同名称。rutis 0.23 的 `<连接行>:<插件>` 只寻址该行的首个会话；需要通过这个语法在指定 leaf 加载插件时，使用下面的单节点连接行。
 
@@ -68,7 +68,7 @@ rutis-host call --config rutis.json two.echo '"hello"'
 {"id":"to-bravo","name":"go:link-tailscale","config":{"dial":"bravo:7443"}}
 ```
 
-`dial` 和 `allowPeer` 接受节点的 tailnet IP、MagicDNS 短名或完整域名。拨号只选本机守护进程网络图里的节点地址。`:7443` 只绑定本节点的首个 tailnet IP。若要指定 IPv6，可写 `[本机 tailnet IPv6]:7443`。端口 `0` 会在日志中输出实际地址。监听端对每条连接执行 TCP WhoIs，校验源 IP 属于该节点，再校验 `allowPeer`。同一获准节点重新连接时，监听端结束前一条传输后再挂新会话，不需要解析 rutis 的 Hello。
+`dial` 和 `allowPeer` 接受节点的 tailnet IP、MagicDNS 短名或完整域名。拨号端从本机网络图解析目标，并在每次 TCP 拨号前后用 WhoIs 核对地址所属节点的稳定 ID。指定名称时可以回退到该节点的其他地址，指定 IP 时只拨这个地址。`:7443` 只绑定本节点的首个 tailnet IP。若要指定 IPv6，可写 `[本机 tailnet IPv6]:7443`。端口 `0` 会在日志中输出实际地址。监听端对每条连接执行 TCP WhoIs，校验源 IP 属于该节点，再校验 `allowPeer`。同一获准节点重新连接时，监听端结束前一条传输后再挂新会话，不需要解析 rutis 的 Hello。
 
 ## 独立节点
 

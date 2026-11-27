@@ -21,7 +21,7 @@ import (
 var errKeyExpired = errors.New("node-key-expired")
 
 // System rows share the daemon's LocalAPI connection pool across reloads.
-var systemAPI local.Client
+var systemAPI = new(local.Client)
 
 type tailnet struct {
 	api    *local.Client
@@ -33,7 +33,7 @@ type tailnet struct {
 func openNetwork(ctx context.Context, opts *embeddedNode) (*tailnet, error) {
 	if opts == nil {
 		var lc net.ListenConfig
-		return &tailnet{api: &systemAPI, dialIP: systemAPI.DialTCP, listen: lc.Listen}, nil
+		return &tailnet{api: systemAPI, dialIP: systemAPI.DialTCP, listen: lc.Listen}, nil
 	}
 	server := &tsnet.Server{Dir: opts.StateDir, Hostname: opts.Hostname}
 	if _, err := server.Up(ctx); err != nil {
@@ -91,6 +91,9 @@ func findPeer(s *ipnstate.Status, target string) (*ipnstate.PeerStatus, netip.Ad
 		return s.Self, ip
 	}
 	for _, p := range s.Peer {
+		if p == nil || !p.InNetworkMap {
+			continue
+		}
 		if ip, ok := nodeAddress(target, p, suffix); ok {
 			return p, ip
 		}
@@ -110,14 +113,72 @@ func (n *tailnet) dial(ctx context.Context, target string, port uint16) (net.Con
 	if node.Expired {
 		return nil, errKeyExpired
 	}
+	ips := node.TailscaleIPs
+	if _, err := netip.ParseAddr(target); err == nil {
+		ips = []netip.Addr{ip}
+	}
+	return n.dialPeer(ctx, node.ID, ips, port, "")
+}
+
+// Divide the remaining attempt time between addresses so a silent first
+// address cannot consume the entire deadline before the other family is tried.
+func (n *tailnet) dialPeer(ctx context.Context, id tailcfg.StableNodeID, ips []netip.Addr, port uint16, tag string) (net.Conn, error) {
+	if len(ips) == 0 {
+		return nil, errors.New("peer has no tailnet addresses")
+	}
+	var failures []error
+	for i, ip := range ips {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		budget := 10 * time.Second
+		if deadline, ok := ctx.Deadline(); ok {
+			budget = time.Until(deadline) / time.Duration(len(ips)-i)
+		}
+		attempt, cancel := context.WithTimeout(ctx, budget)
+		conn, err := n.dialVerified(attempt, id, ip, port, tag)
+		cancel()
+		if err == nil {
+			return conn, nil
+		}
+		failures = append(failures, fmt.Errorf("%s: %w", ip, err))
+	}
+	return nil, errors.Join(failures...)
+}
+
+// Check the selected address on both sides of the dial. Reassignment or tag
+// revocation while connecting must be observed before the stream is mounted.
+func (n *tailnet) dialVerified(ctx context.Context, id tailcfg.StableNodeID, ip netip.Addr, port uint16, tag string) (net.Conn, error) {
+	addr := net.TCPAddrFromAddrPort(netip.AddrPortFrom(ip, port))
+	check := func() error {
+		p, err := n.identify(ctx, addr)
+		if err != nil {
+			return err
+		}
+		if p.StableID != id || tag != "" && !slices.Contains(p.Tags, tag) {
+			return errors.New("peer-not-allowed")
+		}
+		return nil
+	}
+	if err := check(); err != nil {
+		return nil, err
+	}
 	conn, err := n.dialIP(ctx, ip.String(), port)
 	if err != nil {
 		return nil, fmt.Errorf("tailnet-dial: %w", err)
 	}
+	if err := check(); err != nil {
+		conn.Close()
+		return nil, err
+	}
 	return conn, nil
 }
 
-func (n *tailnet) identify(ctx context.Context, addr string) (*tailcfg.Node, error) {
+func (n *tailnet) identify(ctx context.Context, remote net.Addr) (*tailcfg.Node, error) {
+	if remote == nil {
+		return nil, errors.New("unknown-peer: missing remote address")
+	}
+	addr := remote.String()
 	source, err := netip.ParseAddrPort(addr)
 	if err != nil {
 		return nil, fmt.Errorf("unknown-peer: %w", err)
@@ -137,7 +198,7 @@ func (n *tailnet) identify(ctx context.Context, addr string) (*tailcfg.Node, err
 }
 
 func (n *tailnet) admit(ctx context.Context, addr net.Addr, allowed string) error {
-	peer, err := n.identify(ctx, addr.String())
+	peer, err := n.identify(ctx, addr)
 	if err != nil {
 		return err
 	}
@@ -160,6 +221,14 @@ func (n *tailnet) path(ctx context.Context, target string) string {
 		return "unknown"
 	}
 	p, _ := findPeer(s, target)
+	if p == nil {
+		for _, node := range s.Peer {
+			if node != nil && string(node.ID) == target {
+				p = node
+				break
+			}
+		}
+	}
 	switch {
 	case p == s.Self:
 		return "local"

@@ -3,7 +3,7 @@ module github.com/arcships/rutis-network/link/tailscale
 go 1.27.4
 
 require (
-	github.com/arcships/rutis-network/link/tcp v0.0.0-20261126163821-50690b617e8c
+	github.com/arcships/rutis-network/link/tcp v0.0.0-20261127011306-41e219eeb46a
 	github.com/arcships/rutis/go/rutis v0.23.0
 	tailscale.com v1.106.1
 )

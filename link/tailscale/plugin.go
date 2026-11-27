@@ -124,13 +124,13 @@ var Plugin = rutis.Define(rutis.Plugin[config]{
 			}
 			return nil
 		})
-		s, err := n.status(startup)
-		if err != nil {
-			return err
-		}
 		if cfg.Discover != nil {
 			workers.Go(func() { n.runTagged(ctx, sessions, cfg.Discover.Tag, port, nil) })
 			return nil
+		}
+		s, err := n.status(startup)
+		if err != nil {
+			return err
 		}
 		if cfg.Dial != "" {
 			workers.Go(func() {
@@ -198,11 +198,11 @@ func (n *tailnet) accept(ctx context.Context, sessions tcp.Sessions, listener ne
 	interrupt := context.AfterFunc(ctx, closeListener)
 	defer interrupt()
 	defer closeListener()
-	var active net.Conn
+	var stopSession context.CancelFunc
 	var session sync.WaitGroup
 	closeActive := func() {
-		if active != nil {
-			active.Close()
+		if stopSession != nil {
+			stopSession()
 			session.Wait()
 		}
 	}
@@ -228,31 +228,21 @@ func (n *tailnet) accept(ctx context.Context, sessions tcp.Sessions, listener ne
 		// This row pins one tailnet node. Its fresh, admitted TCP connection
 		// can recover from an old half-open socket after that node restarts.
 		closeActive()
-		active = conn
+		peerCtx, stop := context.WithCancel(ctx)
+		stopSession = stop
 		session.Go(func() {
-			if err := n.session(ctx, sessions, conn, allowed); err != nil && ctx.Err() == nil {
+			if err := n.peerSession(peerCtx, ctx, sessions, conn, allowed); err != nil && peerCtx.Err() == nil {
 				fmt.Fprintln(os.Stderr, "link/tailscale session:", err)
 			}
 		})
 	}
 }
 
-// Closing only the peer socket leaves the row alive for tcp.Open to send near.end.
-func (n *tailnet) peerSession(peer, row context.Context, sessions tcp.Sessions, conn net.Conn, address string) error {
-	if err := peer.Err(); err != nil {
-		conn.Close()
-		return err
-	}
-	stop := context.AfterFunc(peer, func() { conn.Close() })
-	defer stop()
-	return n.session(row, sessions, conn, address)
-}
-
-func (n *tailnet) session(ctx context.Context, sessions tcp.Sessions, conn net.Conn, peer string) error {
-	done, err := tcp.Open(ctx, conn, sessions)
+func (n *tailnet) peerSession(peer, row context.Context, sessions tcp.Sessions, conn net.Conn, target string) error {
+	done, err := tcp.OpenManaged(peer, row, conn, sessions)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "link/tailscale connected %s path=%s\n", peer, n.path(ctx, peer))
+	fmt.Fprintf(os.Stderr, "link/tailscale connected %s path=%s\n", target, n.path(peer, target))
 	return <-done
 }

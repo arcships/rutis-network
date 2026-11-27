@@ -8,12 +8,18 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"slices"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/arcships/rutis-network/link/tcp"
 	"tailscale.com/client/local"
 	"tailscale.com/client/tailscale/apitype"
+	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
+	"tailscale.com/net/netutil"
 	"tailscale.com/tailcfg"
 	"tailscale.com/types/key"
 	"tailscale.com/types/views"
@@ -81,9 +87,10 @@ func TestTaggedPeers(t *testing.T) {
 	const tag = "tag:worker"
 	ip := netip.MustParseAddr("100.64.0.10")
 	tags := views.SliceOf([]string{"tag:second", tag})
-	p := ipnstate.PeerStatus{ID: "worker", TailscaleIPs: []netip.Addr{ip}, InNetworkMap: true, Tags: &tags}
+	ips := []netip.Addr{ip, netip.MustParseAddr("fd7a:115c:a1e0::10")}
+	p := ipnstate.PeerStatus{ID: "worker", TailscaleIPs: ips, InNetworkMap: true, Tags: &tags}
 	s := &ipnstate.Status{Self: &ipnstate.PeerStatus{ID: "self"}, Peer: map[key.NodePublic]*ipnstate.PeerStatus{{}: &p}}
-	if got := taggedPeers(s, tag); len(got) != 1 || got[p.ID] != ip {
+	if got := taggedPeers(s, tag); len(got) != 1 || !slices.Equal(got[p.ID], ips) {
 		t.Fatalf("tagged worker missing: %v", got)
 	}
 	for _, change := range []func(*ipnstate.PeerStatus){
@@ -104,38 +111,247 @@ func TestTaggedPeers(t *testing.T) {
 	}
 }
 
-func TestDialRejectsReassignedAddress(t *testing.T) {
-	ip := netip.MustParseAddr("100.64.0.10")
-	const id, tag = "original", "tag:worker"
-	// The same tagged address belongs to a different node when the TCP dial finishes.
-	responses := make(chan tailcfg.StableNodeID, 2)
-	responses <- id
-	responses <- "replacement"
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/localapi/v0/whois" {
-			http.NotFound(w, r)
-			return
-		}
-		p := &tailcfg.Node{StableID: <-responses, Tags: []string{tag}, Addresses: []netip.Prefix{netip.PrefixFrom(ip, 32)}}
-		json.NewEncoder(w).Encode(apitype.WhoIsResponse{Node: p})
-	}))
-	defer server.Close()
-	client := &local.Client{OmitAuth: true, Dial: func(ctx context.Context, _, _ string) (net.Conn, error) {
+func testLocalAPI(t *testing.T, handler http.HandlerFunc) *local.Client {
+	t.Helper()
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	return &local.Client{OmitAuth: true, Dial: func(ctx context.Context, _, _ string) (net.Conn, error) {
 		var d net.Dialer
 		return d.DialContext(ctx, "tcp", server.Listener.Addr().String())
 	}}
-	first, second := net.Pipe()
-	defer first.Close()
-	defer second.Close()
-	n := &tailnet{api: client, dialIP: func(context.Context, string, uint16) (net.Conn, error) { return first, nil }}
-	if conn, err := n.dialTagged(t.Context(), id, ip, defaultPort, tag); err == nil || conn != nil {
-		t.Fatal("accepted an address reassigned to a different tagged node")
+}
+
+func serveTestStatus(w http.ResponseWriter, leaf *ipnstate.PeerStatus) {
+	json.NewEncoder(w).Encode(ipnstate.Status{
+		BackendState: "Running",
+		Self:         &ipnstate.PeerStatus{ID: "host"},
+		TailscaleIPs: []netip.Addr{netip.MustParseAddr("100.64.0.1")},
+		Peer:         map[key.NodePublic]*ipnstate.PeerStatus{{}: leaf},
+	})
+}
+
+func serveTestNotification(w http.ResponseWriter, r *http.Request, trigger <-chan struct{}, event ipn.Notify) {
+	w.WriteHeader(http.StatusOK)
+	w.(http.Flusher).Flush()
+	select {
+	case <-trigger:
+		json.NewEncoder(w).Encode(event)
+		w.(http.Flusher).Flush()
+		<-r.Context().Done()
+	case <-r.Context().Done():
 	}
-	if len(responses) != 0 {
-		t.Fatal("expected WhoIs both before and after dialing")
+}
+
+type connWithoutRemoteAddr struct{ net.Conn }
+
+func (connWithoutRemoteAddr) RemoteAddr() net.Addr { return nil }
+
+func TestMissingRemoteAddress(t *testing.T) {
+	for _, mode := range []string{"allowTag", "allowPeer"} {
+		t.Run(mode, func(t *testing.T) {
+			conn, other := net.Pipe()
+			defer conn.Close()
+			defer other.Close()
+			listener := netutil.NewOneConnListener(connWithoutRemoteAddr{conn}, nil)
+			defer listener.Close()
+			n := new(tailnet)
+			if mode == "allowTag" {
+				incoming := make(chan incomingPeer, 1)
+				n.acceptTagged(t.Context(), listener, "tag:host", incoming)
+				if _, admitted := <-incoming; admitted {
+					t.Fatal("admitted a missing remote address")
+				}
+			} else {
+				n.accept(t.Context(), tcp.Sessions{}, listener, "host")
+			}
+			other.SetReadDeadline(time.Now().Add(time.Second))
+			if _, err := other.Read(make([]byte, 1)); err != io.EOF {
+				t.Fatalf("rejected connection still open: %v", err)
+			}
+		})
 	}
-	second.SetReadDeadline(time.Now().Add(time.Second))
-	if _, err := second.Read(make([]byte, 1)); err != io.EOF {
-		t.Fatalf("rejected stream was not closed: %v", err)
+}
+
+func TestDialRejectsReassignedAddress(t *testing.T) {
+	ip := netip.MustParseAddr("100.64.0.10")
+	const id, tag = "original", "tag:worker"
+	for _, mode := range []string{"tag", "MagicDNS"} {
+		t.Run(mode, func(t *testing.T) {
+			var dialed atomic.Bool
+			client := testLocalAPI(t, func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/localapi/v0/status":
+					node := &ipnstate.PeerStatus{ID: id, DNSName: "leaf.test.ts.net.", TailscaleIPs: []netip.Addr{ip}, InNetworkMap: true}
+					serveTestStatus(w, node)
+				case "/localapi/v0/whois":
+					p := &tailcfg.Node{StableID: id, Tags: []string{tag}, Addresses: []netip.Prefix{netip.PrefixFrom(ip, 32)}}
+					if dialed.Load() {
+						p.StableID = "replacement"
+					}
+					json.NewEncoder(w).Encode(apitype.WhoIsResponse{Node: p})
+				default:
+					http.NotFound(w, r)
+				}
+			})
+			first, second := net.Pipe()
+			defer first.Close()
+			defer second.Close()
+			n := &tailnet{api: client, dialIP: func(context.Context, string, uint16) (net.Conn, error) {
+				dialed.Store(true)
+				return first, nil
+			}}
+			var conn net.Conn
+			var err error
+			if mode == "MagicDNS" {
+				conn, err = n.dial(t.Context(), "leaf.test.ts.net", defaultPort)
+			} else {
+				conn, err = n.dialPeer(t.Context(), id, []netip.Addr{ip}, defaultPort, tag)
+			}
+			if !dialed.Load() || err == nil || conn != nil {
+				t.Fatalf("dialed=%t, conn=%v, err=%v", dialed.Load(), conn, err)
+			}
+			second.SetReadDeadline(time.Now().Add(time.Second))
+			if _, err := second.Read(make([]byte, 1)); err != io.EOF {
+				t.Fatalf("rejected stream was not closed: %v", err)
+			}
+		})
 	}
+}
+
+func TestMagicDNSFallsBackAfterAddressTimeout(t *testing.T) {
+	ips := []netip.Addr{netip.MustParseAddr("100.64.0.2"), netip.MustParseAddr("fd7a:115c:a1e0::2")}
+	leaf := &ipnstate.PeerStatus{ID: "leaf", DNSName: "leaf.test.ts.net.", InNetworkMap: true, TailscaleIPs: ips}
+	client := testLocalAPI(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/localapi/v0/status":
+			serveTestStatus(w, leaf)
+		case "/localapi/v0/whois":
+			p := &tailcfg.Node{StableID: leaf.ID, Addresses: []netip.Prefix{netip.PrefixFrom(ips[0], 32), netip.PrefixFrom(ips[1], 128)}}
+			json.NewEncoder(w).Encode(apitype.WhoIsResponse{Node: p})
+		default:
+			http.NotFound(w, r)
+		}
+	})
+	var attempts []string
+	conn, other := net.Pipe()
+	defer other.Close()
+	defer conn.Close()
+	n := &tailnet{api: client, dialIP: func(ctx context.Context, host string, _ uint16) (net.Conn, error) {
+		attempts = append(attempts, host)
+		if host == ips[0].String() {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		}
+		return conn, nil
+	}}
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+	got, err := n.dial(ctx, leaf.DNSName, defaultPort)
+	if err != nil || got != conn || !slices.Equal(attempts, []string{ips[0].String(), ips[1].String()}) {
+		t.Fatalf("attempts=%v, conn=%v, err=%v", attempts, got, err)
+	}
+}
+
+// Switch the visible tag from leaf A to B. A's receive must be interrupted,
+// and B must connect even while the host is still acknowledging A's near.end.
+func TestDiscoveryIsolatesPeerShutdown(t *testing.T) {
+	const tag = "tag:worker"
+	ipA := netip.MustParseAddr("100.64.0.2")
+	ipB := netip.MustParseAddr("100.64.0.3")
+	tags := views.SliceOf([]string{tag})
+	changed := make(chan struct{})
+	client := testLocalAPI(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/localapi/v0/watch-ipn-bus":
+			serveTestNotification(w, r, changed, ipn.Notify{PeersRemoved: []tailcfg.NodeID{1}})
+		case "/localapi/v0/status":
+			leaf := &ipnstate.PeerStatus{ID: "leaf-a", InNetworkMap: true, Tags: &tags, TailscaleIPs: []netip.Addr{ipA}}
+			select {
+			case <-changed:
+				leaf.ID = "leaf-b"
+				leaf.TailscaleIPs = []netip.Addr{ipB}
+			default:
+			}
+			serveTestStatus(w, leaf)
+		case "/localapi/v0/whois":
+			endpoint, err := netip.ParseAddrPort(r.URL.Query().Get("addr"))
+			if err != nil {
+				http.Error(w, "invalid address", http.StatusBadRequest)
+				return
+			}
+			p := &tailcfg.Node{StableID: "leaf-a", Tags: []string{tag}, Addresses: []netip.Prefix{netip.PrefixFrom(endpoint.Addr(), 32)}}
+			if endpoint.Addr() == ipB {
+				p.StableID = "leaf-b"
+			}
+			json.NewEncoder(w).Encode(apitype.WhoIsResponse{Node: p})
+		default:
+			http.NotFound(w, r)
+		}
+	})
+	ctx, stop := context.WithTimeout(t.Context(), 10*time.Second)
+	defer stop()
+	connA, otherA := net.Pipe()
+	defer otherA.Close()
+	connB, otherB := net.Pipe()
+	defer otherB.Close()
+	n := &tailnet{api: client, dialIP: func(_ context.Context, host string, _ uint16) (net.Conn, error) {
+		if host == ipA.String() {
+			return connA, nil
+		}
+		return connB, nil
+	}}
+	receivingA, endingA, receivingB := make(chan struct{}), make(chan error, 1), make(chan struct{})
+	release := make(chan struct{})
+	sessions := tcp.Sessions{Open: func(context.Context, tcp.Far) (tcp.Near, error) {
+		var name string
+		return tcp.Near{
+			Receive: func(ctx context.Context, frame []byte) error {
+				name = string(frame)
+				if name == "A" {
+					close(receivingA)
+				} else {
+					close(receivingB)
+				}
+				<-ctx.Done()
+				return ctx.Err()
+			},
+			End: func(ctx context.Context, _ tcp.CloseReason) error {
+				if name == "A" {
+					endingA <- ctx.Err()
+					select {
+					case <-release:
+					case <-ctx.Done():
+					}
+				}
+				return nil
+			},
+		}, nil
+	}}
+	var workers sync.WaitGroup
+	workers.Go(func() { n.runTagged(ctx, sessions, tag, defaultPort, nil) })
+	defer func() { close(release); stop(); workers.Wait() }()
+	send := func(conn net.Conn, id byte, received <-chan struct{}) {
+		t.Helper()
+		deadline, _ := ctx.Deadline()
+		conn.SetWriteDeadline(deadline)
+		if _, err := conn.Write([]byte{0, 0, 0, 1, id}); err != nil {
+			t.Fatalf("leaf %c: %v", id, err)
+		}
+		select {
+		case <-received:
+		case <-ctx.Done():
+			t.Fatalf("leaf %c did not receive", id)
+		}
+	}
+	send(otherA, 'A', receivingA)
+	close(changed)
+	select {
+	case err := <-endingA:
+		if err != nil {
+			t.Fatalf("lost row context for near.end: %v", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("revocation did not interrupt A's receive")
+	}
+	send(otherB, 'B', receivingB)
 }

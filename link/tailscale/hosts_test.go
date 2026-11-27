@@ -6,20 +6,27 @@ import (
 	"context"
 	"encoding/json"
 	"net"
+	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/arcships/rutis/go/rutis/rutistest"
 	"tailscale.com/client/local"
+	"tailscale.com/ipn"
+	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/tailcfg"
 	"tailscale.com/tstest/integration"
 	"tailscale.com/tstest/integration/testcontrol"
 	"tailscale.com/types/logger"
+	"tailscale.com/types/views"
 )
 
 type object = map[string]any
@@ -201,10 +208,35 @@ func waitRPC(t *testing.T, host, path, service string, want bool) {
 
 func exerciseDiscovery(t *testing.T, host, bin string, control *testcontrol.Server) {
 	const workerTag, controllerTag = "tag:rutis-worker", "tag:rutis-controller"
-	startLeaf := func(id, service string) string {
+	startLeaf := func(id, service string, ipv6Only bool) string {
 		t.Helper()
+		opts := &embeddedNode{Hostname: id, StateDir: t.TempDir()}
+		cfg := object{"allowTag": controllerTag, "tsnet": opts}
+		if ipv6Only {
+			// Enroll once to learn the IPv6 address assigned by test control.
+			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+			defer cancel()
+			n, err := openNetwork(ctx, opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			status, err := n.status(ctx)
+			closeErr := n.close()
+			if err != nil || closeErr != nil {
+				t.Fatalf("pre-enroll leaf: status=%v close=%v", err, closeErr)
+			}
+			for _, addr := range status.TailscaleIPs {
+				if addr.Is6() {
+					cfg["listen"] = netip.AddrPortFrom(addr, defaultPort).String()
+					break
+				}
+			}
+			if cfg["listen"] == nil || !status.TailscaleIPs[0].Is4() {
+				t.Fatal("expected dual-stack leaf with IPv4 first for the fallback test")
+			}
+		}
 		_, log := startHost(t, host, bin, id, []object{
-			wire(object{"allowTag": controllerTag, "tsnet": object{"hostname": id, "stateDir": t.TempDir()}}),
+			wire(cfg),
 			{"id": "echo", "name": "go:tailnet-probe", "config": object{"service": service}},
 		})
 		return log
@@ -229,8 +261,8 @@ func exerciseDiscovery(t *testing.T, host, bin string, control *testcontrol.Serv
 		control.UpdateNode(p)
 	}
 	controller, _ := startHost(t, host, bin, "controller", []object{})
-	logOne := startLeaf("worker-one", "one")
-	logTwo := startLeaf("worker-two", "two")
+	logOne := startLeaf("worker-one", "one", true)
+	logTwo := startLeaf("worker-two", "two", false)
 	tag("worker-one", workerTag)
 	tag("worker-two", workerTag)
 	wait := func(service string, want bool) { t.Helper(); waitRPC(t, host, controller, service, want) }
@@ -337,4 +369,50 @@ func exerciseDiscovery(t *testing.T, host, bin string, control *testcontrol.Serv
 	wait("one", false)
 	wait("two", false)
 	checkStatus(false)
+}
+
+func TestDiscoveryWaitsForSystemDaemon(t *testing.T) {
+	const tag = "tag:worker"
+	starting, ready, discovered := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	sawStarting := sync.OnceFunc(func() { close(starting) })
+	sawLeaf := sync.OnceFunc(func() { close(discovered) })
+	client := testLocalAPI(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/localapi/v0/watch-ipn-bus":
+			state := ipn.Running
+			serveTestNotification(w, r, ready, ipn.Notify{State: &state})
+		case "/localapi/v0/status":
+			select {
+			case <-ready:
+				tags := views.SliceOf([]string{tag})
+				leaf := &ipnstate.PeerStatus{ID: "leaf", InNetworkMap: true, Tags: &tags, TailscaleIPs: []netip.Addr{netip.MustParseAddr("100.64.0.2")}}
+				serveTestStatus(w, leaf)
+			default:
+				json.NewEncoder(w).Encode(ipnstate.Status{BackendState: "Starting"})
+				sawStarting()
+			}
+		case "/localapi/v0/whois":
+			if r.URL.Query().Get("addr") == "100.64.0.2:7443" {
+				sawLeaf()
+			}
+			http.NotFound(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+	previous := systemAPI
+	systemAPI = client
+	t.Cleanup(func() { systemAPI = previous })
+	rutistest.Load(t, Plugin, config{Discover: &discovery{Tag: tag}}, nil)
+	select {
+	case <-starting:
+	case <-time.After(5 * time.Second):
+		t.Fatal("discovery did not check the starting daemon")
+	}
+	close(ready)
+	select {
+	case <-discovered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("discovery missed the daemon's transition to Running")
+	}
 }
