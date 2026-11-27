@@ -84,6 +84,8 @@ On the accepting host, use the same runtime configuration and a row named `go:li
 
 To discover the port automatically, use `go:tcp-offer-source` to observe the listener control and `go:tcp-offer-dial` to select a matching `rutis.tcp` v1 offer and configure a dedicated local dialer. Each TCP row holds its own CA, certificate and key. The receiving adapter supplies the locally expected server identity. [mDNS configuration and two-host example](../../discovery/mdns/README.md)
 
+For multiple members, inject the local mDNS observation service into `go:peer-group` and point each TCP offer adapter at the group’s output. The topology selects outbound descriptions and the TCP row verifies the expected peer. [Topology configuration and three-host ring](../../group/peer/README.md)
+
 Run the checks below from the repository root. Integration tests use Node ≥22.18, npm, OpenSSL and a Unix host with control-socket support. They build the Go binary, start real rutis hosts and call a remote service through both the Go dialer and the single-dial TypeScript reference. The Rust example uses Cargo. [TypeScript reference](../../link/tcp/dial.ts) · [Host tests](../../link/tcp/node/test/hosts.test.mjs)
 
 ```sh

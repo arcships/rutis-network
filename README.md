@@ -37,6 +37,8 @@ On PRs, TCP and WebRTC changes select their respective suites. Changes to the sh
 
 The Go DNS-SD/mDNS plugin advertises ordinary endpoints and versioned public connection descriptions. The TCP example discovers a ready listener and connects using local mTLS credentials. [Configuration and Go API](discovery/mdns/README.md)
 
+Use `go:peer-group` between the mDNS browser and dialing adapters to select neighbors and agree on one dialer per edge. [Go group plugin and ring example](group/peer/README.md)
+
 Browsers can connect to each other or to a native rutis host over a WebRTC DataChannel, directly or via authenticated TURN. [WebRTC setup and example](docs/design/08-link-webrtc.en.md)
 
 The [Go SSH plugins](docs/design/03-link-ssh.en.md) dial rutis peers, accept sessions through a VPS, and reverse-forward streams to an existing TCP service.

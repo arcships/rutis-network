@@ -242,7 +242,7 @@ flowchart TB
     link <-->|Admitted transport channel| peer["Peer link and rutis session"]
 ```
 
-Dotted arrows show discovery, policy and control feedback. Solid arrows trace messages on an established connection. The [Go DNS-SD/mDNS plugin](../../discovery/mdns/README.md) implements discovery. The proposed `go:peer-group` plugin would select neighbors and manage dial targets. The existing TCP link accepts a target and performs mTLS admission before handing the channel to `rutis/sessions.open(far)`. [TCP control interface](../design/06-link-tcp-integration.en.md) · [Plugin composition contract D11](../design/01-link-plugin-contract.en.md)
+Dotted arrows show discovery, policy and control feedback. Solid arrows trace messages on an established connection. The [Go DNS-SD/mDNS plugin](../../discovery/mdns/README.md) implements discovery. The Go group plugin selects neighbors and passes outbound connection descriptions to the protocol adapter. Its configuration and seven topology policies are documented in the [group guide](../../group/peer/README.md). The existing TCP link accepts a target and performs mTLS admission before handing the channel to `rutis/sessions.open(far)`. [TCP control interface](../design/06-link-tcp-integration.en.md) · [Plugin composition contract D11](../design/01-link-plugin-contract.en.md)
 
 | Component | Responsibility of one configured row | Consumer |
 | --- | --- | --- |
@@ -260,7 +260,7 @@ A **connection target** answers “who is this host allowed to connect to, and w
 
 ### Mapping a topology edge to configuration
 
-The first version proposes explicit neighbors. The configuration below expands one edge with A dialing B. For point-to-point it is the whole topology. In a star or tree it can be the uplink to a hub or parent. A complete ring or mesh also needs the membership selection and coordination described above. This proposed configuration for A isolates discovery, status and dialing services in the local management scope.
+The original design sketch described an edge with an explicit target. The configuration below expands one edge with A dialing B. For point-to-point it is the whole topology. In a star or tree it can be the uplink to a hub or parent. A complete ring or mesh also needs the membership selection and coordination described above. The sketch below shows the original management scope on A. The implemented plugin uses a roster, a topology and a separate dialing adapter. [Runnable configuration](../../group/peer/example/ring-a.json)
 
 ```json
 {

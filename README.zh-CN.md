@@ -37,6 +37,8 @@ PR 改动 TCP 或 WebRTC 时运行对应套件。改动共享的 Go TCP 包、We
 
 Go DNS-SD/mDNS 插件可以发布普通入口，也可以发布和发现带版本的公开连接说明。TCP 示例会发现已就绪的监听器，并使用本机凭据建立 mTLS 会话。[配置与 Go 接口](discovery/mdns/README.zh-CN.md)
 
+将 `go:peer-group` 接在 mDNS 浏览器与拨号适配器之间，即可按拓扑选邻居，并为每条边指定唯一拨号方。[Go 组网插件与环形示例](group/peer/README.zh-CN.md)
+
 浏览器之间、浏览器与原生 rutis 宿主之间可通过 WebRTC DataChannel 双向调用服务，支持直连和经过认证的 TURN 中继。[WebRTC 配置与示例](docs/design/08-link-webrtc.md)
 
 [Go SSH 插件](docs/design/03-link-ssh.md) 支持通过 SSH 拨号、经 VPS 监听并接入 rutis 会话，以及反向转发到已有 TCP 服务。

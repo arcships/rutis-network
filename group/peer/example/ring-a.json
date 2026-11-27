@@ -1,0 +1,56 @@
+{
+  "id": "a",
+  "runtimes": { "go": { "dir": "./plugins/go" } },
+  "rows": [
+    {
+      "id": "ring",
+      "group": true,
+      "isolate": {
+        "listener": "management",
+        "published": "management",
+        "lan": "management",
+        "neighbors": "management",
+        "outgoing": "management"
+      },
+      "config": [
+        {
+          "id": "in", "name": "go:link-tcp-listen",
+          "config": {
+            "port": 0, "controlService": "listener",
+            "ca": "/etc/rutis/group-ca.pem", "cert": "/etc/rutis/a.pem", "key": "/etc/rutis/a.key"
+          }
+        },
+        {
+          "id": "offer", "name": "go:tcp-offer-source", "inject": ["listener"],
+          "config": { "listener": "listener", "service": "published", "id": "a", "serverName": "a.example" }
+        },
+        {
+          "id": "announce", "name": "go:discover-mdns", "inject": ["published"],
+          "config": { "interface": "lo0", "offers": { "source": "published" } }
+        },
+        {
+          "id": "discovery", "name": "go:discover-mdns",
+          "config": {
+            "interface": "lo0", "service": "lan",
+            "offers": { "accept": { "rutis.tcp": [1] }, "allowCIDRs": ["127.0.0.1/32"] }
+          }
+        },
+        {
+          "id": "group-policy", "name": "go:peer-group", "inject": ["lan"],
+          "config": { "source": "lan", "service": "neighbors", "local": "a", "members": ["a", "b", "c"], "topology": "ring" }
+        },
+        {
+          "id": "out", "name": "go:link-tcp-dial",
+          "config": {
+            "autoStart": false, "controlService": "outgoing",
+            "ca": "/etc/rutis/group-ca.pem", "cert": "/etc/rutis/a.pem", "key": "/etc/rutis/a.key"
+          }
+        },
+        {
+          "id": "dial-successor", "name": "go:tcp-offer-dial", "inject": ["neighbors", "outgoing"],
+          "config": { "discovery": "neighbors", "dialer": "outgoing", "id": "b", "serverName": "b.example", "allowCIDRs": ["127.0.0.1/32"] }
+        }
+      ]
+    }
+  ]
+}

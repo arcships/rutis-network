@@ -242,7 +242,7 @@ flowchart TB
     link <-->|获准的传输通道| peer["对端 link 与 rutis 会话"]
 ```
 
-虚线表示发现、策略与控制反馈，实线表示已建连接上的消息路径。[Go DNS-SD/mDNS 插件](../../discovery/mdns/README.zh-CN.md)已实现发现。拟议的 `go:peer-group` 插件负责选邻和管理拨号目标。已有 TCP link 可接受目标配置并实施 mTLS 准入，成功后将通道交给 `rutis/sessions.open(far)`。[TCP 控制接口](../design/06-link-tcp-integration.md) · [插件组合契约 D11](../design/01-link-plugin-contract.md)
+虚线表示发现、策略与控制反馈，实线表示已建连接上的消息路径。[Go DNS-SD/mDNS 插件](../../discovery/mdns/README.zh-CN.md)已实现发现。Go 组网插件已实现选邻，并将出站连接说明交给协议适配器。[组网指南](../../group/peer/README.zh-CN.md)列出了配置方式和七种拓扑策略。已有 TCP link 可接受目标配置并实施 mTLS 准入，成功后将通道交给 `rutis/sessions.open(far)`。[TCP 控制接口](../design/06-link-tcp-integration.md) · [插件组合契约 D11](../design/01-link-plugin-contract.md)
 
 | 组件 | 一行配置负责什么 | 谁来消费 |
 | --- | --- | --- |
@@ -260,7 +260,7 @@ flowchart TB
 
 ### 将一条拓扑边映射到配置
 
-首版提案支持显式指定邻居。下面只展开一条由 A 拨向 B 的边。在点对点网络里它构成整张拓扑，在星形或树形网络里它可以是到中心或父节点的上行边。完整环形或 mesh 还需要各自图中约定的成员选择与协调机制。以下是 A 端的配置草案，发现、状态和拨号服务均隔离在本地管理作用域。
+最初的设计草案用显式目标描述一条邻接边。下面只展开一条由 A 拨向 B 的边。在点对点网络里它构成整张拓扑，在星形或树形网络里它可以是到中心或父节点的上行边。完整环形或 mesh 还需要各自图中约定的成员选择与协调机制。以下保留 A 端的配置草案。当前插件使用成员名单、拓扑和独立的拨号适配器，部署时请使用[可运行的配置](../../group/peer/example/ring-a.json)。
 
 ```json
 {
