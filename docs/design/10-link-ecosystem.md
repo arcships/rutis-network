@@ -2,28 +2,28 @@
 
 [English](10-link-ecosystem.en.md) · [Issue #10](https://github.com/arcships/rutis-network/issues/10)
 
-草案，2026-11-27。兼容基线为 rutis 0.23.0、会话协议 5、插件 API 3。此 PR 用于评审方案。方案通过后，各阶段单独提实现 PR。
+草案，2026-11-27。兼容基线为 rutis 0.23.0、会话协议 5、插件 API 3。目录调整、TS 迁移和第一版开发及交付验收已在 #23 合并。以下选型用于后续实现和模板。
 
 ## 范围和优先级
 
 **第一批支持 Go 和 TypeScript。** Go 插件作者需要可复用的 bridge，部署者需要宿主能加载的二进制。Node 参考插件和浏览器适配器使用 TypeScript 开发。浏览器应用加载编译生成的 ESM，使用 TypeScript 的集成方同时获得从实现生成的类型声明。所有宿主使用语言无关的 `rutis.json` 行配置。[TCP 接入](06-link-tcp-integration.md) · [WebRTC 接入](08-link-webrtc.md)
 
-当前 `link/` 下有七个独立 Go module，各自声明工具链要求。TCP 的私有 npm 工程已有严格类型检查，WebRTC 的私有工程已能构建浏览器 ESM。已有 Rust listen 示例继续用 Cargo 验证。Python、Rust 的新模板以及 Swift、Kotlin 支持进入后续批次，按实际适配器需求排期。[TCP 工程](../../link/tcp/package.json) · [WebRTC 工程](../../link/webrtc/package.json) · [Rust 示例](../../examples/rust-listen/Cargo.toml)
+当前 `link/` 下有七个独立 Go module，各自声明工具链要求。TCP 的私有 npm 工程已有严格类型检查，WebRTC 的私有工程已能构建浏览器 ESM。已有 Rust listen 示例继续用 Cargo 验证。Python、Rust 的新模板以及 Swift、Kotlin 支持进入后续批次，按实际适配器需求排期。[TCP 工程](../../link/tcp/node/package.json) · [WebRTC 工程](../../link/webrtc/web/package.json) · [Rust 示例](../../examples/rust-listen/Cargo.toml)
 
 #1 定义传输交接与一致性契约。#10 负责把这些约定落实到开发命令、CI、可安装产物、模板和目录。适配器处理传输、准入、重连。会话处理远端注册的身份、服务发现和 RPC。下面的命令名、模板目录、标签和发布文件都是拟交付内容。[链接层契约](01-link-plugin-contract.md)
 
 ## 前置阶段 · 整理目录，迁移 TypeScript 源码
 
-以 `link/<transport>/` 为适配器的维护单位。Go 源码、`go.mod` 和 `cmd/` 沿用现有位置，其他插件依赖的 Go 导入路径及发布标签均以这个目录为基准。将已有的两个 npm 工程各设为可独立运行的子目录。当前 `link/` 下 28 个受版本控制的 `.mjs` 中，18 个位于测试目录。其余集中在 WebRTC，包含 6 个浏览器运行时文件、HTTP 信令客户端、Node 配对逻辑、构建脚本和示例服务器。
+以 `link/<transport>/` 为适配器的维护单位。Go 源码、`go.mod` 和 `cmd/` 沿用现有位置，其他插件依赖的 Go 导入路径及发布标签均以这个目录为基准。将已有的两个 npm 工程各设为可独立运行的子目录。
 
 | 现有代码 | 拟定布局与迁移范围 |
 | --- | --- |
 | TCP 的 `bridge.ts`、`dial.ts` | 两者已经是 TS。实现移入 `link/tcp/node/src/`。原路径提供薄的再导出入口，保留 `dial.ts` 的默认插件导出和 `bridge.ts` 的命名及类型导出，现有宿主行可以继续加载。 |
 | WebRTC 的 `browser/` 运行时代码和 `signaling.mjs` | 迁入 `link/webrtc/web/src/browser/`，使用严格 TS。覆盖通道、连接状态、页面端点、平台适配和 HTTP 信令。浏览器入口 `index.mts` 导出 `createWebRtcLink`、`createPageEndpoint` 和 `httpSignaling`。 |
 | WebRTC 的 `pairing.mjs` | 迁为 `link/webrtc/web/src/node/pairing.ts`，由示例服务器和测试使用。浏览器入口只导出客户端 API，配对服务使用的 Node 加密模块仅供服务端加载。两端实际共用的信令类型可放在 `src/shared/`。 |
-| 构建、示例和测试 | 构建入口放入包内 `scripts/`，同步修改 npm 脚本及 esbuild 的别名和注入路径。示例保留 `node example/server.mjs` 的启动方式。构建和示例脚本、Node 测试及通过路径挂载的宿主夹具可以继续使用手写 `.mjs`。测试和中英文指南随迁移更新引用。 |
+| 构建、示例和测试 | 构建入口放入包内 `scripts/`，同步修改 npm 脚本及浏览器构建的别名和注入路径。示例保留 `node example/server.mjs` 的启动方式。构建和示例脚本、Node 测试及通过路径挂载的宿主夹具可以继续使用手写 `.mjs`。测试和中英文指南随迁移更新引用。 |
 
-迁移 PR 先在各包内提供严格类型检查。浏览器目标使用 DOM 类型，Node 目标使用 NodeNext 和 Node 类型。为固定版本 rutis 的 session、codec 构建别名描述实际调用的接口。HTTP 和 RTC 输入沿用运行时校验。esbuild 从 TS 入口构建 `dist/link-webrtc.mjs`，供普通 JS 页面直接导入。同一入口由 `tsc --emitDeclarationOnly` 生成声明，供第三阶段打包。[esbuild 的 TypeScript 支持](https://esbuild.github.io/content-types/#typescript) · [TypeScript ESM 扩展名](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-7.html#new-file-extensions)
+迁移 PR 先在各包内提供严格类型检查。浏览器目标使用 DOM 类型，Node 目标使用 NodeNext 和 Node 类型。为固定版本 rutis 的 session、codec 构建别名描述实际调用的接口。HTTP 和 RTC 输入沿用运行时校验。tsdown 从 TS 入口构建 `dist/link-webrtc.mjs`，供普通 JS 页面直接导入。同一入口由 `tsc --emitDeclarationOnly` 生成声明，供第三阶段打包。[tsdown 平台目标](https://tsdown.dev/options/platform) · [TypeScript ESM 扩展名](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-7.html#new-file-extensions)
 
 **迁移验收**要求从干净检出完成两个包的类型检查、现有单元测试及宿主集成测试。用原有 `dial.ts` 行完成 TCP RPC。按现有命令启动 WebRTC 示例，让页面从原 URL 导入三个公开函数，跑通浏览器互连、原生端与浏览器 RPC 及强制 TURN 中继。完成这一阶段后，再将命令接入仓库级检查。
 
@@ -34,10 +34,21 @@
 | 目标 | 开发入口与修改后的行为 | 一次性构建与打包 |
 | --- | --- | --- |
 | Go 插件（先以 TCP 验收） | 从仓库根运行 `rutis-host dev link/tcp`。开发项目用 `rutis.dev.json` 指定行和回环对端所需配置。保存 Go 源码后由宿主重编译、重启插件运行时。 | 从模块内用 `go build` 构建 `./cmd/link-tcp`。第三阶段把同一二进制打入平台归档，在独立宿主的 `runtimes.go.dir` 下加载。 |
-| TCP 的 Node/TS 参考插件 | 在 `link/tcp/node/` 执行 `npm run dev`，调用固定版本的 `rutis-host dev .`。以 `src/index.ts` 导出既有拨号插件，宿主按开发行配置直接加载 TS。 | `npm run build` 检查类型并输出可加载的 ESM 和声明到包内 `dist/`。`npm pack` 通过 `prepack` 从干净源码构建本地 tarball，安装后由宿主按包名挂载。构建时保留的外部导入须声明为运行时依赖。TCP 参考包继续私有。 |
-| WebRTC 浏览器端 | 在 `link/webrtc/web/` 执行 `npm run dev`，启动回环示例及同源信令。esbuild 监听依赖，构建成功后示例提供最新模块并自动刷新页面。开发服务器按请求提供最新 HTML 和成功构建的模块。修改 Node 配对代码会重启示例服务。 | `npm run build` 从同一入口生成浏览器 ESM 和类型声明。`npm pack` 构建并打包 `web/dist/` 内的发布文件。构建同时将同一 ESM 提供到原示例路径 `link/webrtc/dist/link-webrtc.mjs`。 |
+| TCP 的 Node/TS 参考插件 | 在 `link/tcp/node/` 执行 `npm run dev`，由 tsdown 监听源码。成功构建后原子替换挂载的 ESM 入口，间接导入的 TS 文件发生变化也会触发固定版本的 `rutis-host dev` 重载该行。 | `npm run build` 检查类型并输出可加载的 ESM 和声明到包内 `dist/`。`npm pack` 通过 `prepack` 从干净源码构建本地 tarball，安装后由宿主按包名挂载。构建时保留的外部导入须声明为运行时依赖。TCP 参考包继续私有。 |
+| WebRTC 浏览器端 | 在 `link/webrtc/web/` 执行 `npm run dev`，启动回环示例及同源信令。tsdown 监听依赖，成功后示例提供新模块，由 Vite 刷新开发页面。开发服务器按请求提供最新 HTML 和成功构建的模块。修改 Node 配对代码会重启示例服务。 | `npm run build` 从同一入口生成浏览器 ESM 和类型声明。`npm pack` 构建并打包 `web/dist/` 内的发布文件。构建同时将同一 ESM 提供到原示例路径 `link/webrtc/dist/link-webrtc.mjs`。 |
 
-在前置迁移阶段打通本地开发和一次性构建，第二阶段在临时项目验证，第三阶段才发布。开发验收先完成一次 RPC，再修改一处可观察的行为，等宿主重载或浏览器刷新后重新连接并调用，验证返回新结果。重载传输行或刷新页面会结束它持有的连接，重新建连遵循适配器的配置。浏览器构建失败时显示错误并继续提供上一次成功产物，修复后恢复自动刷新。打包验收从仓库外安装产物，仅凭运行时依赖完成相同 RPC。两个模板都要演练这两条路径。[esbuild 监听与页面刷新](https://esbuild.github.io/api/#live-reload)
+在前置迁移阶段打通本地开发和一次性构建，第二阶段在临时项目验证，第三阶段才发布。开发验收先完成一次 RPC，再修改一处可观察的行为，等宿主重载或浏览器刷新后重新连接并调用，验证返回新结果。重载传输行或刷新页面会结束它持有的连接，重新建连遵循适配器的配置。浏览器构建失败时显示错误并继续提供上一次成功产物，修复后恢复自动刷新。打包验收从仓库外安装产物，仅凭运行时依赖完成相同 RPC。两个模板都要演练这两条路径。
+
+### TypeScript 工具链与测试命令
+
+两个包和 Node 模板使用 npm 锁文件、严格 TypeScript 和 tsdown。Node 包把 rutis SDK 保留为运行时依赖，浏览器包将固定版本的运行时适配打入单个 ESM。类型检查独立于打包。浏览器示例开发时使用 Vite。发布包通过已有的 exports 提供 ESM 和声明。
+
+| 包内命令 | 执行工具与验收 |
+| --- | --- |
+| `npm run test:unit` | Vitest 运行 TCP 分帧、WebRTC 通道、配对和端点用例，可在本机独立执行。 |
+| `npm run test:integration` | `node:test` 启动真实 rutis 宿主。WebRTC 用 Playwright 验证 ICE 直连、认证 TURN 中继和凭据续期。SSH 与隧道集成同样使用 `node:test`。 |
+| `npm run test:delivery` | `node:test` 验证源码重载，在仓库外安装 `npm pack` 生成的包、编译消费端并完成真实 RPC。 |
+| `npm test` | 运行单测和集成测试。CI 可单独执行上述命令并分别报告结果。 |
 
 ## 第一阶段 · 统一格式和本地检查
 
@@ -57,7 +68,7 @@
 | Go 与 TS 一致性 | 两端实现执行下表中适用的 TCP 用例。支持竞态检测的 Go runner 执行 `go test -race` | 两个实现均满足相同断言，报告列明适用范围 |
 | 宿主和浏览器集成 | 准备匹配版本的 `rutis-host`、Chromium、Firefox 和回环 TURN，运行双向 RPC、强制中继及短凭据续期 | 必跑用例实际执行。缺少所需工具或用例被跳过时，该任务失败 |
 
-基础检查每个 PR 都跑。集成任务在相关插件、共享 bridge、夹具或 CI 配置变化时运行。主分支运行完整的无公网账号矩阵。需要真实 tailnet 或供应商账号的场景单列为手动验收，记录平台及结果。保留 Rust 示例的 `cargo test --locked` 验证。[现有测试入口](../guide/link-plugins.md) · [WebRTC 集成用例](../../link/webrtc/test/hosts.test.mjs)
+基础检查每个 PR 都跑。集成任务在相关插件、共享 bridge、夹具或 CI 配置变化时运行。主分支运行完整的无公网账号矩阵。需要真实 tailnet 或供应商账号的场景单列为手动验收，记录平台及结果。保留 Rust 示例的 `cargo test --locked` 验证。[现有测试入口](../guide/link-plugins.md) · [WebRTC 集成用例](../../link/webrtc/web/test/hosts.test.mjs)
 
 **验收时**，一个干净的 PR 能分别看到快速检查和集成结果。修改共享 TCP bridge 时，矩阵覆盖使用它的插件，并通过本地工作区验证本次修改。第三阶段另用已发布依赖验证安装。一次格式错误和一次缺少必跑宿主的演练都能得到对应的失败结果。
 
@@ -80,13 +91,13 @@
 | 模板 | 作者拿到什么 |
 | --- | --- |
 | `templates/go/link-echo/` | 独立 `go.mod`，依赖已发布的 TCP bridge，提供适配器、`cmd/link-echo` 入口、配置示例和测试 |
-| `templates/typescript/link-echo/` | 独立的 Node ESM 包、锁文件、严格 `tsconfig`、位于 `src/` 的插件入口、配置示例和 `test/` 用例。从受测的 TCP 参考源码带入 bridge，复制后能独立构建 |
+| `templates/typescript/link-echo/` | 独立的 Node ESM 包、npm 锁文件、严格 `tsconfig`、Prettier、tsdown、Vitest 单测及 node:test 集成与交付命令、位于 `src/` 的插件入口、配置示例和 `test/` 用例。从受测的 TCP 参考源码带入 bridge，复制后能独立构建 |
 
 两个模板都通过回环 TCP 和临时 mTLS 凭据接入测试服务，使用 `rutis/sessions.open(far)` 交接连接。README 包含安装、修改传输、启动、错误与限制。CI 从模板复制到仓库外，修改插件名、安装依赖、构建、启动宿主并调用一次 echo，再执行共享一致性用例。该流程就是本阶段的验收。模板成功后再扩展语言。[TCP 参考实现](../../link/tcp/bridge.ts) · [插件开发指南](../../.agents/skills/rutis-link-plugin/SKILL.md)
 
 ## 一致性与管理边界
 
-Go 和 TS 使用相同的用例名和预期结果，各自用原生测试工具实现。字节样本和大小边界可共享为数据。慢写、断连、卸载由各语言夹具控制时序。
+Go 和 TS 使用相同的用例名和预期结果，分别用 Go 测试和 Vitest 实现单元用例。字节样本和大小边界可共享为数据。慢写、断连、卸载由各语言夹具控制时序。
 
 | 用例 | 断言 |
 | --- | --- |
