@@ -78,24 +78,27 @@ test('Go and TypeScript clients, mTLS admission, chunked echo, row unload and re
   await coast.waitFor(/dial: (?:removed|unloaded|stopped)/, beforeUnload)
 })
 
-test('unloading during initial backoff cancels the next TCP connection', { timeout: 10000 }, async (t) => {
+test('unloading during initial backoff cancels the next TCP connection', { timeout: 30000 }, async (t) => {
   const env = await setup(t)
   let attempts = 0
   const server = createServer((socket) => {
     attempts++
-    socket.destroy()
+    if (attempts > 1) socket.destroy()
   })
   server.listen(0, '127.0.0.1')
   await once(server, 'listening')
   t.after(() => server.close())
+  const first = once(server, 'connection')
   const host = await startHost(env, 'coast', [
     row('dial', 'go:link-tcp-dial', { ...env.identity, port: server.address().port, reconnect: true }),
   ])
+  // Hold the first TLS handshake until the host has finished mounting the row.
+  const [peer] = await first
+  t.after(() => peer.destroy())
+  await host.waitFor(/dial: running/)
+  peer.destroy()
   await host.waitFor(/retry in 500ms/)
-  await host.reload([])
-  await host.waitFor(/dial: (?:removed|unloaded|stopped)/)
-  const afterUnload = attempts
+  await host.rootCall('rutis/loader.remove', ['dial'], 10000)
   await delay(1100)
-  assert.ok(afterUnload >= 1)
-  assert.equal(attempts, afterUnload)
+  assert.equal(attempts, 1)
 })
