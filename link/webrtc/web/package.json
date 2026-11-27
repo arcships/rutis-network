@@ -1,0 +1,47 @@
+{
+  "name": "@arcships/rutis-link-webrtc",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch ../example/server.mjs --dev",
+    "typecheck": "tsc -p tsconfig.browser.json --noEmit && tsc -p tsconfig.node.json",
+    "build": "npm run typecheck && tsdown && tsc -p tsconfig.browser.json --emitDeclarationOnly",
+    "prepack": "npm run build 1>&2",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "vitest run",
+    "pretest:integration": "npm run build",
+    "test:integration": "node --test test/*.test.mjs",
+    "test:delivery": "node --test test/delivery.mjs"
+  },
+  "devDependencies": {
+    "@arcships/rutis": "0.23.0",
+    "@arcships/rutis-host": "0.23.0",
+    "@arcships/rutis-runtime": "0.23.0",
+    "@types/node": "^22.0.0",
+    "buffer": "6.0.3",
+    "playwright": "1.62.1",
+    "tsdown": "0.23.7",
+    "typescript": "6.0.3",
+    "vite": "8.4.0",
+    "vitest": "5.1.2"
+  },
+  "version": "0.0.0",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "files": [
+    "dist/link-webrtc.mjs",
+    "dist/browser/index.d.mts",
+    "dist/browser/endpoint.d.ts",
+    "dist/browser/link.d.ts",
+    "dist/browser/signaling.d.ts",
+    "dist/browser/types.d.ts",
+    "dist/shared/signaling.d.ts"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/browser/index.d.mts",
+      "import": "./dist/link-webrtc.mjs"
+    }
+  }
+}

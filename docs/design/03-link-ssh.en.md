@@ -141,7 +141,7 @@ Run the following from the repository root. Host tests need Node 22.18+, OpenSSL
 
 ```sh
 go -C link/ssh test -race ./...
-npm ci --prefix link/tcp
+npm ci --prefix link/tcp/node
 node --test link/ssh/test/*.mjs
 ```
 

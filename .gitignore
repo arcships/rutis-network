@@ -1,2 +1,9 @@
 node_modules/
 target/
+/link/tcp/.rutis/
+/link/tcp/node/dist/
+/link/tcp/rutis.dev.json
+/link/tcp/node/dev/rutis.dev.json
+/link/tcp/node/dev/plugin.mjs
+/link/tcp/node/dev/.plugin.tmp
+/link/tcp/node/dev/.rutis/

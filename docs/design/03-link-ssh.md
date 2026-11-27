@@ -141,7 +141,7 @@ B 在前面的拨号配置中使用 `sshAddress: "vps.example.com:22"`、`target
 
 ```sh
 go -C link/ssh test -race ./...
-npm ci --prefix link/tcp
+npm ci --prefix link/tcp/node
 node --test link/ssh/test/*.mjs
 ```
 

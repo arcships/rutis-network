@@ -1,7 +1,7 @@
 import { createServer } from 'node:http'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
-import { createPairing } from '../pairing.mjs'
+import { createPairing } from '../web/src/node/pairing.ts'
 
 const secrets = [process.env.PAIR_A_TOKEN, process.env.PAIR_B_TOKEN]
 if (secrets.some((x) => !x || x.length < 20) || secrets[0] === secrets[1])
@@ -29,14 +29,18 @@ const signaling = createPairing({
     return servers
   },
 })
-const html = await readFile(new URL('./index.html', import.meta.url))
-const bundle = await readFile(new URL('../dist/link-webrtc.mjs', import.meta.url))
+const htmlFile = new URL('./index.html', import.meta.url)
+const dev = process.argv.includes('--dev')
+let devMiddleware
+let bundle = dev ? undefined : await readFile(new URL('../dist/link-webrtc.mjs', import.meta.url))
 const server = createServer(async (req, res) => {
   try {
     res.setHeader('cache-control', 'no-store')
     if (req.method === 'GET' && req.url === '/') {
       res.setHeader('content-type', 'text/html; charset=utf-8')
-      return res.end(html)
+      const html = await readFile(htmlFile, 'utf8')
+      const reload = dev ? '<script type="module" src="/@vite/client"></script>' : ''
+      return res.end(html.replace('</html>', reload + '</html>'))
     }
     if (req.method === 'GET' && req.url === '/link-webrtc.mjs') {
       res.setHeader('content-type', 'text/javascript')
@@ -44,6 +48,8 @@ const server = createServer(async (req, res) => {
     }
     const method = /^\/signal\/(acquire|publish|receive)$/.exec(req.url)?.[1]
     if (req.method !== 'POST' || !method) {
+      if (devMiddleware && req.method === 'GET' && /^\/@(?:vite|fs)\//.test(req.url))
+        return devMiddleware(req, res)
       res.writeHead(404)
       return res.end()
     }
@@ -75,6 +81,12 @@ const server = createServer(async (req, res) => {
     res.end()
   }
 })
+if (dev) {
+  const { startDevPage } = await import('../web/scripts/dev.mjs')
+  devMiddleware = await startDevPage(server, (bytes) => {
+    bundle = bytes
+  })
+}
 server.listen(Number(process.env.PORT ?? 8080), '127.0.0.1', () =>
   console.log('WebRTC example ready at http://127.0.0.1:' + server.address().port),
 )

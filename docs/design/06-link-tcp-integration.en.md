@@ -40,7 +40,7 @@ Merge these fields into the existing local caller's row, keeping its runtime, en
 
 For example, when a user selects a server, pass the object `{"host":"office.example.com","port":7443}` to `configure`. Call `status()` for a snapshot, then pass its `cursor` string to `waitForChange`. Call `stop()` when the user disconnects. The methods, arguments and results are shared across SDKs.
 
-**Keep the control service and caller in the same local isolation scope.** The example maps the same service name to the same `isolate` label on both rows. The host exports ordinary root-scope services to connected peers. [Host export rules](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/services.rs) · [Integration tests](../../link/tcp/test/control.test.mjs)
+**Keep the control service and caller in the same local isolation scope.** The example maps the same service name to the same `isolate` label on both rows. The host exports ordinary root-scope services to connected peers. [Host export rules](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/services.rs) · [Integration tests](../../link/tcp/node/test/control.test.mjs)
 
 ## Mount from plugin code at runtime
 
@@ -121,4 +121,21 @@ To migrate the local `controlReceiver` draft, move that field and the receiver i
 
 Use `configure` to switch endpoints for ordinary cross-host service calls. If the host also runs remote plugins through `wire:<plugin>`, rutis 0.23.0 acknowledges the end of input through `near.end` while old plugins may still be unloading. The old session can still own the row's route when the new socket connects.
 
-To move these plugins reliably to another host, await `rutis/loader.remove("wire")`, then call `rutis/loader.create(options, "local-links")`. Reuse `id: "wire"` and the original isolation group. Supply the new endpoint and desired settings in `options.config`. The host releases the old row and mounts the existing `wire:<plugin>` rows on the new peer. The new TCP instance has its own control handle and cursor. A successful service call confirms application readiness. [Release-host integration test](../../link/tcp/test/control.test.mjs)
+To move these plugins reliably to another host, await `rutis/loader.remove("wire")`, then call `rutis/loader.create(options, "local-links")`. Reuse `id: "wire"` and the original isolation group. Supply the new endpoint and desired settings in `options.config`. The host releases the old row and mounts the existing `wire:<plugin>` rows on the new peer. The new TCP instance has its own control handle and cursor. A successful service call confirms application readiness. [Release-host integration test](../../link/tcp/node/test/control.test.mjs)
+
+## Develop and load the TCP plugins
+
+From `link/tcp/node`, run `npm ci`, then `npm run dev:setup`. Setup uses Go and OpenSSL to build a named loopback peer, create a seven-day local mTLS certificate and write the two development configurations. Set `PORT` on first setup to change the peer’s default port of 17443. Rerun setup to restore missing configurations and renew a certificate that has expired or will expire within one day. Setup preserves existing configurations and the private key. After renewal, restart the peer and development host to load the certificate.
+
+Start the peer with `npm run dev:peer` and keep it running. In a second terminal, also in `link/tcp/node`, choose the target you are editing.
+
+| Target | Start | Call after the initial connection or a source edit |
+| --- | --- | --- |
+| Node/TS | `npm run dev` | `node_modules/.bin/rutis-host call --config dev witness.echo 37` |
+| Go | `node_modules/.bin/rutis-host dev ..` | `node_modules/.bin/rutis-host call --config .. witness.echo 37` |
+
+The expected reply is `["loopback",37]`. Go edits rebuild the binary. The 0.23 Node runtime caches imports below the mounted entry, so tsdown watches the local TS modules and atomically replaces a single dev entry after each successful build. The host reloads that row; the dialer establishes a fresh connection.
+
+Run `npm pack` from the Node package to build the runtime ESM and declarations into a local tarball. Install it alongside `@arcships/rutis-runtime@0.23.0` in the consumer’s Node project. Set `runtimes.node.project` to that directory and the row’s `name` to `rutis-network-tcp-reference`. Its configuration is `port`, `ca`, `cert` and `key` for a loopback mTLS connection. Existing source rows can still use `link/tcp/dial.ts`. When migrating a previous checkout, move its old `link/tcp/node_modules` aside before installing in `node/` so both entry points use the same runtime dependencies. Run `npm run test:delivery` to exercise source edits and an external tarball installation.
+
+Run the package commands with a supported Node development version (`^22.18.0 || ^24.11.0 || >=26.0.0`). `npm run test:unit` runs TCP framing tests with Vitest. `npm run test:integration` runs host and control tests with the Node test runner. `npm test` runs both.

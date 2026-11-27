@@ -1,0 +1,42 @@
+{
+  "name": "rutis-network-tcp-reference",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:setup": "node scripts/setup-dev.mjs",
+    "dev:peer": "rutis-host run ../.rutis/peer.json",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && tsdown",
+    "prepack": "npm run build 1>&2",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "vitest run",
+    "test:integration": "node --test test/*.test.mjs",
+    "test:tunnels": "node --test test/tunnels.mjs",
+    "test:delivery": "node --test test/delivery.mjs"
+  },
+  "devDependencies": {
+    "@arcships/rutis-host": "0.23.0",
+    "@types/node": "^22.0.0",
+    "tsdown": "0.23.7",
+    "typescript": "6.0.3",
+    "vitest": "5.1.2"
+  },
+  "version": "0.0.0",
+  "files": [
+    "dist/index.js",
+    "dist/index.d.ts"
+  ],
+  "dependencies": {
+    "@arcships/rutis": "0.23.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  }
+}
