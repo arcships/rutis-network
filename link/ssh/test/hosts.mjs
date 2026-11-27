@@ -4,9 +4,9 @@ import assert from 'node:assert/strict'
 import { readFile, writeFile } from 'node:fs/promises'
 import { userInfo } from 'node:os'
 import { join } from 'node:path'
-import { exec, processFor, row, setup, startHost } from '../../tcp/test/fixtures/hosts.mjs'
-import { manager } from '../../tcp/test/fixtures/manager.mjs'
-import { availablePort, sshServer } from '../../tcp/test/fixtures/sshd.mjs'
+import { exec, processFor, row, setup, startHost } from '../../tcp/node/test/fixtures/hosts.mjs'
+import { manager } from '../../tcp/node/test/fixtures/manager.mjs'
+import { availablePort, sshServer } from '../../tcp/node/test/fixtures/sshd.mjs'
 
 const project = new URL('../', import.meta.url)
 

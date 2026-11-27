@@ -8,6 +8,13 @@ rutis 自己只管会话这一侧：连接插件打开一条通道，交给服�
 
 插件基于 rutis 0.23.0（会话协议 5，插件 API 3）。两端宿主及其语言运行时需要一起升级。0.19.3 把服务改名为 `rutis/sessions`；0.20 改了卸载顺序，并让会话有自己的写线程；0.21 把收到的函数改为默认异步，并改了错误文本。
 
+从单条连接扩展到多个节点或多个自治域时，可参考[发现、组网与跨域互联的服务边界研究](docs/research/network-groups.md)。
+接入具体设备时，[网络栈调查](docs/research/network-stacks.md)列出物联网、工业和通用协议族在插件一侧实际提供的接口。比较 MQTT 等协议的订阅、确认、断线补收和重放，见[通信协议研究](docs/research/communication-protocols.md)。
+
+[安全、稳定与可信研究](docs/research/network-assurance.md)沿设备、网关到云应用的路径分析准入、故障恢复和数据来源。
+
+[Wireshark 协议族与支持建议](docs/research/wireshark-support.md)按 50 个分组逐项评估过滤器索引，并给出五项待验证的插件能力。
+
 ## 状态
 
 浏览器之间、浏览器与原生 rutis 宿主之间可通过 WebRTC DataChannel 双向调用服务，支持直连和经过认证的 TURN 中继。[WebRTC 配置与示例](docs/design/08-link-webrtc.md)

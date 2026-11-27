@@ -7,9 +7,9 @@ import { connect as tlsConnect } from 'node:tls'
 import { readFile, writeFile } from 'node:fs/promises'
 import { userInfo } from 'node:os'
 import { join } from 'node:path'
-import { exec, row, setup, startHost } from '../../tcp/test/fixtures/hosts.mjs'
-import { manager } from '../../tcp/test/fixtures/manager.mjs'
-import { availablePort, sshServer } from '../../tcp/test/fixtures/sshd.mjs'
+import { exec, row, setup, startHost } from '../../tcp/node/test/fixtures/hosts.mjs'
+import { manager } from '../../tcp/node/test/fixtures/manager.mjs'
+import { availablePort, sshServer } from '../../tcp/node/test/fixtures/sshd.mjs'
 
 async function bind(env, server) {
   server.listen(0, '127.0.0.1')
@@ -161,16 +161,19 @@ test('a single host runs both static reverse roles with independent lifetimes', 
     row('origin-beacon', 'test/fixtures/witness.mjs', { proof: 'forwarded' }),
   ])
   const [, port] = await origin.waitFor(/link\/tcp listening 127\.0\.0\.1:(\d+)/)
-  const directAddress = '127.0.0.1:' + await availablePort()
-  const wire = row('accept', 'go:link-ssh-listen', { ...options, profiles: { key: linkKey }, listenAddress: directAddress })
+  const listenAddress = '127.0.0.1:0'
+  const listening = /link\/ssh listening (127\.0\.0\.1:\d+)\s/
+  const wire = row('accept', 'go:link-ssh-listen', { ...options, profiles: { key: linkKey }, listenAddress })
   const office = await startHost(env, 'office', [wire, row('beacon', 'test/fixtures/witness.mjs', { proof: 'mounted' })])
-  await office.waitFor(/link\/ssh listening /)
-  const forwardAddress = '127.0.0.1:' + await availablePort()
+  const [, directAddress] = await office.waitFor(listening)
+  // The listener binds during apply, before the host finishes installing its file rows.
+  await Promise.all([office.waitFor(/accept: running/), office.waitFor(/beacon: running/)])
   const logOffset = office.output().length
   const forward = row('forward', 'go:link-ssh-tunnel', { ...options, profiles: { key: gateway.profile },
-    listenAddress: forwardAddress, localTarget: '127.0.0.1:' + port })
+    listenAddress, localTarget: '127.0.0.1:' + port })
   await office.rootCall('rutis/loader.create', [forward])
-  await office.waitFor(/link\/ssh listening /, logOffset)
+  const [, forwardAddress] = await office.waitFor(listening, logOffset)
+  assert.notEqual(forwardAddress, directAddress)
   const dial = targetAddress => row('dial', 'go:link-ssh-dial', { ...options, targetAddress, profiles: { key: linkKey } })
   const directPeer = await startHost(env, 'direct', [dial(directAddress)])
   const forwardPeer = await startHost(env, 'forwarded', [dial(forwardAddress)])
