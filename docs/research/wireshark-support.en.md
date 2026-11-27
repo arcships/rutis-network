@@ -2,15 +2,14 @@
 
 [中文](wireshark-support.md) · [Per-filter inventory (CSV)](wireshark-protocols.csv) · [Network stack survey](network-stacks.en.md)
 
-**Start with local service discovery.** Two plugins can already establish sessions over TCP, SSH or gRPC. The libp2p plugin already supports direct QUIC and relays. Tailscale also discovers tagged nodes within a tailnet. An ordinary LAN still needs a standalone way to find a dialable plugin and tell when its record has expired. Devices and brokers present another gap. A UDP instrument delivers datagrams and an MQTT broker delivers topic messages. The device itself can run its native protocol throughout. [Tailscale tag discovery](../design/04-link-tailscale.en.md) · [Network groups and service boundaries](network-groups.en.md) · [Existing libp2p paths](../design/09-p2p-plugins.en.md)
+**Local service discovery is available.** Two plugins can already establish sessions over TCP, SSH or gRPC. The libp2p plugin already supports direct QUIC and relays. Tailscale also discovers tagged nodes within a tailnet. On an ordinary LAN, the [Go DNS-SD/mDNS plugin](../../discovery/mdns/README.md) exposes resolved candidates and removes expired records. Devices and brokers present another gap. A UDP instrument delivers datagrams and an MQTT broker delivers topic messages. The device itself can run its native protocol throughout. [Tailscale tag discovery](../design/04-link-tailscale.en.md) · [Network groups and service boundaries](network-groups.en.md) · [Existing libp2p paths](../design/09-p2p-plugins.en.md)
 
-## Five capabilities to validate
+## Four capabilities to validate
 
 The ordering below is a research recommendation. Each row describes a small, independently testable Go plugin capability. The filter key identifies an actual index entry, while a capability may use several protocols.
 
 | Priority and filter key | Plugin interface | Acceptance experiment |
 | --- | --- | --- |
-| **First · `dns`** | Advertise, browse and withdraw candidate endpoints with DNS-SD. Use mDNS on the LAN. Preserve interface, instance, address, port and expiry. The caller selects a candidate and the existing link handles admission when dialing. | Two hosts can discover and dial each other. Distinguish identical names on different interfaces and remove records on withdrawal or TTL expiry. A peer that advertises a record still has to pass admission. [DNS-SD](https://www.rfc-editor.org/rfc/rfc6763.html) · [mDNS](https://www.rfc-editor.org/rfc/rfc6762.html) |
 | **First · `udp`** | Expose a datagram endpoint for UDP or multicast equipment. Bind a configured address and interface. Deliver one complete datagram with its source per receive, with limits on size, send rate and receive queue. | Distinguish two senders. Use numbered test payloads to check loss, duplication and reordering. Reject truncated messages and count local queue drops. Leave device-defined sequence numbers to the device adapter. [UDP usage guidelines](https://www.rfc-editor.org/rfc/rfc8085.html) |
 | **First · `mqtt`** | Publish and subscribe on an existing broker. The protocol plugin owns connection, subscription recovery, QoS and retained flags. The application owns topic conventions, payloads, device identity and command receipts. | Fan out to two ordinary subscribers. On resubscription, preserve the broker's retained flag and judge freshness from device timestamps. Exercise QoS 1 redelivery and observe the device's separate command receipt. [MQTT 5](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html) · [Worked device example](communication-protocols.en.md) |
 | **With a constrained device · `coap`** | Send requests to a resource. Subscribe when the peer supports Observe. Preserve the response code, resource identity and freshness information. | Exercise duplicate requests, timeout, observation cancellation and an offline device. An empty ACK cannot complete an operation that needs the resource result. [CoAP](https://www.rfc-editor.org/rfc/rfc7252.html) · [Observe](https://www.rfc-editor.org/rfc/rfc7641.html) |
@@ -30,7 +29,8 @@ The CSV assigns each key one primary family and one decision, preserving its ups
 | --- | ---: | --- |
 | `existing-link` | 6 | This repository implements TCP, SSH, gRPC and WebRTC. QUIC is available through libp2p. The rutis host provides WebSocket. Products and filters are counted separately. [Link contract](../design/01-link-plugin-contract.en.md) |
 | `trial-link` | 1 | Test the session contract over authorized ADB forwarding to a peer plugin on the device. |
-| `trial-service` | 4 | DNS service discovery, UDP datagrams, MQTT topics and CoAP resources each justify a native service interface. |
+| `existing-service` | 1 | DNS-SD over mDNS provides local candidate discovery. |
+| `trial-service` | 3 | UDP datagrams, MQTT topics and CoAP resources each justify a native service interface. |
 | `reuse` | 779 | Consume the host, library, daemon or network service, for example TLS, BGP or STUN. |
 | `gateway` | 406 | Integrate on demand for a named device, controller or broker. One gateway often covers many filters. |
 | `application` | 607 | An application or industry plugin owns the promise, such as a file write, database transaction or call state. |
@@ -50,7 +50,7 @@ The CSV assigns each key one primary family and one decision, preserving its ups
 | Web, proxies and streaming RPC · `web` | 17 / 17 | `http2`, `grpc`, `websocket`, `http3` | Use the existing gRPC bidirectional stream or host WebSocket. Expose unary HTTP calls as application methods. |
 | WebRTC data channels · `webrtc` | 1 / 1 | `rtcdc` | Use the existing WebRTC plugin for reliable, ordered session messages over a direct or TURN-relayed path. [Plugin guide](../design/08-link-webrtc.en.md) |
 | Remote terminals, desktops and proxies · `remote` | 26 / 26 | `ssh`, `rdp`, `vnc`, `socks` | SSH already carries sessions. Screen updates, clipboard and input belong to a remote-control service. |
-| Naming, address configuration and discovery · `discovery` | 24 / 25 | `dns`, `dhcp`, `srvloc` | Start with DNS-SD. Leave DHCP to the host and scope vendor discovery records to the network that produced them. |
+| Naming, address configuration and discovery · `discovery` | 24 / 25 | `dns`, `dhcp`, `srvloc` | Use the DNS-SD/mDNS plugin for LAN discovery. Leave DHCP to the host and scope vendor discovery records to the network that produced them. |
 | NAT traversal and relaying · `traversal` | 5 / 6 | `stun`, `turnchannel`, `portcontrol` | Use a traversal library or TURN service within the link. Report whether the selected path is direct or relayed. |
 | Tunnels, VPNs and overlays · `overlay` | 34 / 34 | `wg`, `esp`, `vxlan`, `geneve` | Consume reachability through an interface, daemon or SDK. Deployment owners control routes and credentials. |
 | IP, routing, multicast and path liveness · `routing` | 86 / 90 | `bgp`, `ospf`, `pim`, `igmp`, `bfd` | Let routers choose next hops. Plugins may observe paths or join multicast groups, while membership authorization remains separate. |

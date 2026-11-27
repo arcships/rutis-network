@@ -2,15 +2,14 @@
 
 [English](wireshark-support.en.md) · [逐项清单（CSV）](wireshark-protocols.csv) · [网络栈调查](network-stacks.md)
 
-**最值得先补的是局域网服务发现。** 现在两端插件已经可以通过 TCP、SSH、gRPC 等建立会话，libp2p 也已经支持直接 QUIC 和中继。Tailscale 已能按标签在 tailnet 中发现节点。普通局域网还缺一个可独立使用的发现接口，让调用方找到可拨的插件，并知道记录什么时候失效。另一类缺口是原生设备和消息网络的接入。UDP 设备交付报文，MQTT broker 交付主题消息，普通设备自身可以完全不运行 rutis。[Tailscale 标签发现](../design/04-link-tailscale.md) · [组网与服务边界](network-groups.md) · [libp2p 已实现的路径](../design/09-p2p-plugins.md)
+**局域网服务发现已有实现。** 现在两端插件已经可以通过 TCP、SSH、gRPC 等建立会话，libp2p 也已经支持直接 QUIC 和中继。Tailscale 已能按标签在 tailnet 中发现节点。普通局域网可用 [Go DNS-SD/mDNS 插件](../../discovery/mdns/README.zh-CN.md)获取已解析的候选，并观察记录何时失效。另一类缺口是原生设备和消息网络的接入。UDP 设备交付报文，MQTT broker 交付主题消息，普通设备自身可以完全不运行 rutis。[Tailscale 标签发现](../design/04-link-tailscale.md) · [组网与服务边界](network-groups.md) · [libp2p 已实现的路径](../design/09-p2p-plugins.md)
 
-## 建议验证的五项能力
+## 建议验证的四项能力
 
 这里的优先顺序是研究判断。表中写的是 Go 插件可以独立验收的最小能力。每一项都以 Wireshark 索引中实际出现的键定位，具体能力可以跨多层协议。
 
 | 顺序与索引键 | 插件对外提供什么 | 如何判断值得保留 |
 | --- | --- | --- |
-| **先做 · `dns`** | 用 DNS-SD 发布、浏览和撤回候选端点。局域网用 mDNS，在记录中保留网络接口、实例、地址、端口和有效期。业务决定选谁，已有 link 在拨号时准入。 | 两台主机可发现并拨号。同名实例出现在两个接口时能区分，撤回或 TTL 到期能移除。未获准对端即使发布了记录也无法创建会话。[DNS-SD](https://www.rfc-editor.org/rfc/rfc6763.html) · [mDNS](https://www.rfc-editor.org/rfc/rfc6762.html) |
 | **先做 · `udp`** | 为只讲 UDP 或组播的设备提供数据报端点。Go 插件按配置绑定地址和接口，每次接收交付一个完整报文及来源，并按配置限制报文长度、发送速率和接收队列。 | 两个发送者可区分。用带序号的测试载荷核对丢失、重复和乱序。截断报文不会冒充完整消息，队列满有丢弃计数。序列号如由设备定义，交由设备适配器解释。[UDP 使用指南](https://www.rfc-editor.org/rfc/rfc8085.html) |
 | **先做 · `mqtt`** | 在已有 broker 上发布和订阅。协议插件负责连接、订阅恢复、QoS 和 retained 标志。业务插件定义主题、载荷、设备身份和命令回执。 | 用两个普通订阅验证扇出。重新订阅时保留 broker 回送的 retained 标志，用设备时间戳判断读数新鲜度。验证 QoS 1 重投和独立的设备执行回执。[MQTT 5](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html) · [设备上报示例](communication-protocols.md) |
 | **有受限设备时 · `coap`** | 向指定资源发请求。对端支持 Observe 时可订阅变化，结果保留响应码、资源标识和新鲜度信息。 | 验证重复请求、超时、观察取消和设备离线。空 ACK 不能完成一次需要资源结果的操作。[CoAP](https://www.rfc-editor.org/rfc/rfc7252.html) · [Observe](https://www.rfc-editor.org/rfc/rfc7641.html) |
@@ -30,7 +29,8 @@ CSV 中每个键只有一个主分类和一个结论，保留上游名称、全�
 | --- | ---: | --- |
 | `existing-link` | 6 | 本仓库已有 TCP、SSH、gRPC 和 WebRTC 插件。QUIC 有 libp2p 路径，WebSocket 由 rutis 宿主提供。产品和过滤器的统计单位不同。[链接契约](../design/01-link-plugin-contract.md) |
 | `trial-link` | 1 | 在设备上运行对端插件，通过已授权的 ADB 转发验证会话契约。 |
-| `trial-service` | 4 | DNS 服务发现、UDP 报文、MQTT 主题和 CoAP 资源可以分别提供通用接口。 |
+| `existing-service` | 1 | DNS-SD/mDNS 提供局域网候选端点的发现服务。 |
+| `trial-service` | 3 | UDP 报文、MQTT 主题和 CoAP 资源可以分别提供通用接口。 |
 | `reuse` | 779 | 依赖系统、库、守护进程或已有网络服务提供的能力，例如 TLS、BGP、STUN。 |
 | `gateway` | 406 | 有明确设备、控制器或 broker 时按需接入。一个网关往往覆盖许多过滤器。 |
 | `application` | 607 | 应用或行业插件拥有对外承诺，例如文件写入、数据库事务或电话状态。 |
@@ -50,7 +50,7 @@ CSV 中每个键只有一个主分类和一个结论，保留上游名称、全�
 | Web、代理与流式 RPC · `web` | 17 / 17 | `http2`, `grpc`, `websocket`, `http3` | 已有 gRPC 双向流和宿主 WebSocket。单次 HTTP 调用导出为应用方法。 |
 | WebRTC 数据通道 · `webrtc` | 1 / 1 | `rtcdc` | 复用已有 WebRTC 插件，经直连或 TURN 传送可靠、有序的会话消息。[插件指南](../design/08-link-webrtc.md) |
 | 远程终端、桌面与代理 · `remote` | 26 / 26 | `ssh`, `rdp`, `vnc`, `socks` | SSH 已能搬运会话。桌面帧、剪贴板和输入属于远控服务。 |
-| 命名、地址配置与发现 · `discovery` | 24 / 25 | `dns`, `dhcp`, `srvloc` | DNS-SD 值得先做。DHCP 由系统运行，厂商发现结果只在声明的作用域内有效。 |
+| 命名、地址配置与发现 · `discovery` | 24 / 25 | `dns`, `dhcp`, `srvloc` | 局域网服务发现可用 DNS-SD/mDNS 插件。DHCP 由系统运行，厂商发现结果只在声明的作用域内有效。 |
 | NAT 穿越与中继 · `traversal` | 5 / 6 | `stun`, `turnchannel`, `portcontrol` | 在具体 link 内调用穿越库或 TURN 服务，记录实际走了直连还是中继。 |
 | 隧道、VPN 与覆盖网络 · `overlay` | 34 / 34 | `wg`, `esp`, `vxlan`, `geneve` | 使用现有接口、守护进程或 SDK 提供的可达性。部署方拥有路由和凭据。 |
 | IP、路由、组播与路径存活 · `routing` | 86 / 90 | `bgp`, `ospf`, `pim`, `igmp`, `bfd` | 系统路由器选下一跳。应用可观察路径或加入组播，但成员授权仍须独立判断。 |

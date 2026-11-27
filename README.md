@@ -13,7 +13,7 @@ For device integration, the [network stack survey](docs/research/network-stacks.
 
 [Security, reliability and trustworthiness](docs/research/network-assurance.en.md) follows a device-to-cloud path through admission, failure recovery and data provenance.
 
-The [Wireshark protocol family survey](docs/research/wireshark-support.en.md) evaluates the display filter index across 50 groups and proposes five plugin capabilities to validate.
+The [Wireshark protocol family survey](docs/research/wireshark-support.en.md) evaluates the display filter index across 50 groups and proposes four further plugin capabilities to validate.
 
 ## Development checks
 
@@ -34,6 +34,8 @@ After `make setup`, run `link/webrtc/web/node_modules/.bin/playwright install --
 On PRs, TCP and WebRTC changes select their respective suites. Changes to the shared Go TCP package, the host fixtures WebRTC imports, or common toolchain and CI configuration select both. Docs-only PRs skip the integration jobs. Every push to `main` runs both suites. [Integration workflow](.github/workflows/integration.yml)
 
 ## Status
+
+The Go DNS-SD/mDNS plugin advertises ordinary endpoints and versioned public connection descriptions. The TCP example discovers a ready listener and connects using local mTLS credentials. [Configuration and Go API](discovery/mdns/README.md)
 
 Browsers can connect to each other or to a native rutis host over a WebRTC DataChannel, directly or via authenticated TURN. [WebRTC setup and example](docs/design/08-link-webrtc.en.md)
 

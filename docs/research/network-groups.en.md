@@ -242,7 +242,7 @@ flowchart TB
     link <-->|Admitted transport channel| peer["Peer link and rutis session"]
 ```
 
-Dotted arrows show discovery, policy and control feedback. Solid arrows trace messages on an established connection. Both `go:discover-mdns` and `go:peer-group` are proposed Go plugins. The existing TCP link accepts a target and performs mTLS admission before handing the channel to `rutis/sessions.open(far)`. [TCP control interface](../design/06-link-tcp-integration.en.md) · [Plugin composition contract D11](../design/01-link-plugin-contract.en.md)
+Dotted arrows show discovery, policy and control feedback. Solid arrows trace messages on an established connection. The [Go DNS-SD/mDNS plugin](../../discovery/mdns/README.md) implements discovery. The proposed `go:peer-group` plugin would select neighbors and manage dial targets. The existing TCP link accepts a target and performs mTLS admission before handing the channel to `rutis/sessions.open(far)`. [TCP control interface](../design/06-link-tcp-integration.en.md) · [Plugin composition contract D11](../design/01-link-plugin-contract.en.md)
 
 | Component | Responsibility of one configured row | Consumer |
 | --- | --- | --- |

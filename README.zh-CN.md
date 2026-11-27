@@ -13,7 +13,7 @@ rutis 自己只管会话这一侧：连接插件打开一条通道，交给服�
 
 [安全、稳定与可信研究](docs/research/network-assurance.md)沿设备、网关到云应用的路径分析准入、故障恢复和数据来源。
 
-[Wireshark 协议族与支持建议](docs/research/wireshark-support.md)按 50 个分组逐项评估过滤器索引，并给出五项待验证的插件能力。
+[Wireshark 协议族与支持建议](docs/research/wireshark-support.md)按 50 个分组逐项评估过滤器索引，并给出四项待验证的插件能力。
 
 ## 开发检查
 
@@ -34,6 +34,8 @@ rutis 自己只管会话这一侧：连接插件打开一条通道，交给服�
 PR 改动 TCP 或 WebRTC 时运行对应套件。改动共享的 Go TCP 包、WebRTC 引用的宿主夹具、公共工具链或 CI 配置时，两套都跑。纯文档 PR 跳过这两个集成任务。每次推送到 `main` 都运行两套完整测试。[集成测试工作流](.github/workflows/integration.yml)
 
 ## 状态
+
+Go DNS-SD/mDNS 插件可以发布普通入口，也可以发布和发现带版本的公开连接说明。TCP 示例会发现已就绪的监听器，并使用本机凭据建立 mTLS 会话。[配置与 Go 接口](discovery/mdns/README.zh-CN.md)
 
 浏览器之间、浏览器与原生 rutis 宿主之间可通过 WebRTC DataChannel 双向调用服务，支持直连和经过认证的 TURN 中继。[WebRTC 配置与示例](docs/design/08-link-webrtc.md)
 
