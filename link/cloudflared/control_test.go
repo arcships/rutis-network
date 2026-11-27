@@ -230,6 +230,9 @@ func TestBindCollisionAndConnectorRetry(t *testing.T) {
 }
 
 func TestConnectorIgnoresHostConfig(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration with the cloudflared CLI")
+	}
 	binary, err := exec.LookPath("cloudflared")
 	if err != nil {
 		t.Skip("requires cloudflared CLI")

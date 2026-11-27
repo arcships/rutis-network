@@ -18,7 +18,10 @@ export default definePlugin({
         res.end(String(error))
       }
     })
-    ctx.effect(() => { server.closeAllConnections(); server.close() })
+    ctx.effect(() => {
+      server.closeAllConnections()
+      server.close()
+    })
     await new Promise((resolve, reject) => server.once('error', reject).listen(socket, resolve))
     console.log('management socket ready', service)
   },

@@ -34,6 +34,7 @@ test('Go and Node source reload and installation of the packed TCP plugin', asyn
   // A consumer's module mode must not change how the legacy source entries load.
   await writeFile(join(env.dir, 'package.json'), '{"type":"commonjs"}')
   await mkdir(link)
+  await cp(join(project, '../../../tsconfig.base.json'), join(env.dir, 'tsconfig.base.json'))
   await cp(join(project, '../../package.json'), join(link, 'package.json'))
   await cp(join(project, '..'), tcp, {
     recursive: true,

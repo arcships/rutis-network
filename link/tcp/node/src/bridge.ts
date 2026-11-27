@@ -1,13 +1,10 @@
 // TCP byte framing for an already-admitted socket. Admission belongs to the caller.
 import type { Socket } from 'node:net'
 
-export type Close = { kind: 'done' | 'replaced' } | { kind: 'rejected', reason: string }
+export type Close = { kind: 'done' | 'replaced' } | { kind: 'rejected'; reason: string }
 type MaybeAsync<T> = T | Promise<T>
 export interface Sessions {
-  open(far: {
-    send(message: Uint8Array): Promise<void>
-    close(why: Close): void
-  }): MaybeAsync<{
+  open(far: { send(message: Uint8Array): Promise<void>; close(why: Close): void }): MaybeAsync<{
     receive(message: Uint8Array): MaybeAsync<void>
     end(why: Close): MaybeAsync<void>
   }>
@@ -91,7 +88,7 @@ export async function openTcp(socket: Socket, sessions: Sessions) {
       frame.writeUInt32BE(message.byteLength)
       frame.set(message, 4)
       await new Promise<void>((resolve, reject) => {
-        socket.write(frame, error => error ? reject(error) : resolve())
+        socket.write(frame, (error) => (error ? reject(error) : resolve()))
       })
     } catch (error) {
       remember(error as Error)

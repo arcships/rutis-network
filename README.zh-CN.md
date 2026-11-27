@@ -15,6 +15,19 @@ rutis 自己只管会话这一侧：连接插件打开一条通道，交给服�
 
 [Wireshark 协议族与支持建议](docs/research/wireshark-support.md)按 50 个分组逐项评估过滤器索引，并给出五项待验证的插件能力。
 
+## 开发检查
+
+在仓库根目录使用 Git、Make、支持自动选择工具链的 Go，以及受支持的 Node.js 版本（`^22.18.0 || ^24.11.0 || >=26.0.0`）。首次检出或锁文件变更后运行 `make setup`，按锁文件安装格式化工具和各 TypeScript 工程的开发依赖。
+
+| 命令 | 检查内容 |
+| --- | --- |
+| `make fmt` | 用 gofmt 格式化 Git 跟踪的 Go 文件，用 Prettier 格式化 Git 跟踪的 `.ts`、`.mts` 和 `.mjs` 文件。 |
+| `make fmt-check` | 列出需要格式化的文件，有差异时以非零状态退出，源文件保持原样。 |
+| `make test` | 逐模块运行 Go 短测试，逐 TypeScript 工程运行 Vitest 单测。 |
+| `make check` | 依次执行格式检查、Go vet、严格 TypeScript 类型检查和快速测试。 |
+
+根命令和 Linux PR 任务都使用 [.go-version](.go-version) 指定的 Go 1.27.4，包括该版本的 gofmt。在仓库根运行 `export GOTOOLCHAIN="go$(cat .go-version)"`，可让当前终端中单独执行的 Go 命令也使用相同版本。各模块的 `go.mod` 声明面向使用者的最低 Go 版本。依赖 TCP bridge 的模块通过临时 Go 工作区使用当前检出的源码。可用 `make go-check GO_MODULES=link/ssh` 或 `make typecheck ts-test TS_PACKAGES=link/webrtc/web` 单独复现一项任务。TCP 与 WebRTC 工程另外提供 `npm run test:integration` 和 `npm run test:delivery`，用来验证真实宿主、浏览器和打包安装。
+
 ## 状态
 
 浏览器之间、浏览器与原生 rutis 宿主之间可通过 WebRTC DataChannel 双向调用服务，支持直连和经过认证的 TURN 中继。[WebRTC 配置与示例](docs/design/08-link-webrtc.md)

@@ -25,6 +25,9 @@ import (
 // Run with RUTIS_HOST pointing to a 0.23.0 executable. RUTIS_TCP_PLUGIN
 // additionally exercises both dedicated TCP control services from #16.
 func TestHostInterconnect(t *testing.T) {
+	if testing.Short() {
+		t.Skip("rutis-host integration")
+	}
 	host := os.Getenv("RUTIS_HOST")
 	if host == "" || runtime.GOOS == "windows" {
 		t.Skip("requires RUTIS_HOST 0.23.0 and Unix host control sockets")
@@ -261,6 +264,9 @@ func hostPair(t *testing.T, host, cloudflared, plugins string, managed bool) {
 }
 
 func TestControlRPC(t *testing.T) {
+	if testing.Short() {
+		t.Skip("rutis-host integration")
+	}
 	if os.Getenv("RUTIS_HOST") == "" {
 		t.Skip("requires RUTIS_HOST")
 	}

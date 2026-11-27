@@ -10,7 +10,7 @@ export async function availablePort() {
   reservation.listen(0, '127.0.0.1')
   await once(reservation, 'listening')
   const port = reservation.address().port
-  await new Promise(resolve => reservation.close(resolve))
+  await new Promise((resolve) => reservation.close(resolve))
   return port
 }
 
@@ -25,14 +25,25 @@ export async function sshServer(env, forwarding) {
   }
   const otherKey = join(env.dir, 'ssh-ecdsa')
   await exec('ssh-keygen', ['-q', '-t', 'ecdsa', '-N', '', '-f', otherKey])
-  await writeFile(knownHosts, `[127.0.0.1]:${port} ` + await readFile(hostKey + '.pub', 'utf8'))
-  await writeFile(sshdConfig, [
-    'ListenAddress 127.0.0.1', `Port ${port}`, `HostKey "${hostKey}"`, `HostKey "${otherKey}"`,
-    `PidFile "${env.dir}/sshd.pid"`, `AuthorizedKeysFile "${identity}.pub"`,
-    `AllowUsers ${userInfo().username}`, 'AuthenticationMethods publickey', 'PasswordAuthentication no',
-    'KbdInteractiveAuthentication no', ...forwarding,
-    'GatewayPorts no', 'MaxSessions 0',
-  ].join('\n') + '\n')
+  await writeFile(knownHosts, `[127.0.0.1]:${port} ` + (await readFile(hostKey + '.pub', 'utf8')))
+  await writeFile(
+    sshdConfig,
+    [
+      'ListenAddress 127.0.0.1',
+      `Port ${port}`,
+      `HostKey "${hostKey}"`,
+      `HostKey "${otherKey}"`,
+      `PidFile "${env.dir}/sshd.pid"`,
+      `AuthorizedKeysFile "${identity}.pub"`,
+      `AllowUsers ${userInfo().username}`,
+      'AuthenticationMethods publickey',
+      'PasswordAuthentication no',
+      'KbdInteractiveAuthentication no',
+      ...forwarding,
+      'GatewayPorts no',
+      'MaxSessions 0',
+    ].join('\n') + '\n',
+  )
   const daemon = processFor(env, process.env.SSHD ?? '/usr/sbin/sshd', ['-D', '-e', '-f', sshdConfig])
   await daemon.waitFor(/Server listening on 127\.0\.0\.1/)
   return { port, identity, hostKey, knownHosts }

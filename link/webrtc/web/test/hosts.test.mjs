@@ -44,7 +44,9 @@ async function fixture(t) {
   await mkdir(join(dir, 'plugins'))
   await Promise.all([
     exec('go', ['build', '-o', join(dir, 'relay'), './example/turn'], { cwd: join(project, '..') }),
-    exec('go', ['build', '-o', join(dir, 'plugins/link-webrtc'), './cmd/link-webrtc'], { cwd: join(project, '..') }),
+    exec('go', ['build', '-o', join(dir, 'plugins/link-webrtc'), './cmd/link-webrtc'], {
+      cwd: join(project, '..'),
+    }),
   ])
   const controller = join(dir, 'controller.mjs')
   await copyFile(new URL('../../../tcp/node/test/fixtures/controller.mjs', import.meta.url), controller)
