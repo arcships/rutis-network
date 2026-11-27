@@ -15,7 +15,7 @@ go -C link/tailscale build -o ../../plugins/go/link-tailscale ./cmd/link-tailsca
 
 ## 按标签自动发现
 
-在 tailnet 策略中定义两个标签，并允许管理端访问 worker 的 TCP 7443。把以下字段合入现有策略。将对应标签分配给各节点，也可以使用带标签的 auth key 注册新节点。[Tailscale 标签](https://tailscale.com/docs/features/tags) · [访问授权](https://tailscale.com/docs/features/access-control/grants)
+宿主使用 `tag:rutis-controller`，每台 leaf 使用 `tag:rutis-worker`。把下面的标签和授权合入已有的 tailnet 策略，允许宿主连接 leaf 的 TCP 7443。可以在 Tailscale 中给现有节点分配标签，也可以用带标签的 auth key 注册新节点。[Tailscale 标签](https://tailscale.com/docs/features/tags) · [访问授权](https://tailscale.com/docs/features/access-control/grants)
 
 ```json
 {
@@ -31,21 +31,28 @@ go -C link/tailscale build -o ../../plugins/go/link-tailscale ./cmd/link-tailsca
 }
 ```
 
-在管理端的 `rutis.json` 中加入这一行。
+在宿主的 `rutis.json` 的 `rows` 中加入发现行。
 
 ```json
-{"id":"workers","name":"go:link-tailscale","config":{"discover":{"tag":"tag:rutis-worker"}}}
+{"id":"leaves","name":"go:link-tailscale","config":{"discover":{"tag":"tag:rutis-worker"}}}
 ```
 
-每台 worker 安装同一个插件，使用同一行配置。
+每台 leaf 安装同一个插件，在自己的 `rows` 中加入相同的监听行。
 
 ```json
-{"id":"controllers","name":"go:link-tailscale","config":{"allowTag":"tag:rutis-controller"}}
+{"id":"from-host","name":"go:link-tailscale","config":{"allowTag":"tag:rutis-controller"}}
 ```
 
-管理端订阅本机 Tailscale 可见节点的变化，按稳定节点 ID 为每台匹配的 worker 建立一个 rutis 会话。worker 监听自己首个 tailnet IP，逐连接使用 WhoIs 校验来源节点与标签。新增带标签的 worker 会自动接入，改名会保留原连接，撤销标签或移出网络图会关闭对应连接。每 30 秒也会重新核对一次。本机 LocalAPI 无法确认节点状态时会关闭这些连接，恢复后重新发现。插件只需本机 LocalAPI，无需 tailnet 管理令牌或节点地址清单。要换端口，同时修改 `discover.port`、worker 的 `listen` 和 tailnet 授权。
+宿主订阅本机 Tailscale 可见节点的变化，按稳定节点 ID 为每台匹配的 leaf 建立一个 rutis 会话。leaf 监听自己首个 tailnet IP，逐连接使用 WhoIs 校验来源节点与标签。新增带标签的 leaf 会自动接入，改名会保留原连接，撤销标签或移出网络图会关闭对应连接。每 30 秒也会重新核对一次。本机 LocalAPI 无法确认节点状态时会关闭这些连接，恢复后重新发现。插件只需本机 LocalAPI，无需 tailnet 管理令牌或节点地址清单。要换端口，同时修改 `discover.port`、leaf 的 `listen` 和 tailnet 授权。
 
-连接建立后，集成方按 rutis 服务名调用。多个 worker 的服务处于同一 rutis 作用域时，给需要分别调用的服务使用不同名称。rutis 0.23 的 `<连接行>:<插件>` 只寻址该行的首个会话；需要通过这个语法在指定 worker 加载插件时，使用下面的单节点连接行。
+连接建立后，集成方按 rutis 服务名调用。多个 leaf 的服务处于同一 rutis 作用域时，给需要分别调用的服务使用不同名称。rutis 0.23 的 `<连接行>:<插件>` 只寻址该行的首个会话；需要通过这个语法在指定 leaf 加载插件时，使用下面的单节点连接行。
+
+例如集成测试中，两台 leaf 分别提供 `one` 和 `two`。在宿主上执行以下命令，两次调用都会从相应的 leaf 返回 `"hello"`。
+
+```sh
+rutis-host call --config rutis.json one.echo '"hello"'
+rutis-host call --config rutis.json two.echo '"hello"'
+```
 
 ## 按名称或 IP 连接单个节点
 
@@ -75,16 +82,18 @@ go -C link/tailscale build -o ../../plugins/go/link-tailscale ./cmd/link-tailsca
 
 ## 通过管理插件启停
 
-管理插件声明并注入 `rutis/loader`，复用上面的行配置。以下代码在管理插件里创建并启动发现行。保留返回的行 ID，作为后续管理操作的参数。
+管理插件声明 `inject: ['rutis/loader']`。在 `apply` 返回后，从管理命令或事件处理函数中执行以下代码，动态创建并启动发现行。保存返回的行 ID，供后续重载或移除。
 
 ```ts
 const loader = ctx.use('rutis/loader')
 const id = await loader.create({
-  id: 'workers', name: 'go:link-tailscale', config: { discover: { tag: 'tag:rutis-worker' } }
+  id: 'leaves', name: 'go:link-tailscale', config: { discover: { tag: 'tag:rutis-worker' } }
 })
 ```
 
-调用 `loader.status()` 查看行的加载状态，`loader.reload(id)` 重启，`loader.remove(id)` 停止并移除该行。再次启动时用保存的配置调用 `create`。对于随宿主启动的静态行，也可以直接编辑 `rutis.json` 并重载。绑定失败会使监听行加载失败。拨号行在后台等待对端，连接结束后从 0.5 秒开始指数退避，最长 30 秒；稳定连接一分钟后重置退避。行处于运行状态时可能正在重试。验证业务可用性时，调用一次远端服务。
+用 `loader.status()` 查看行的加载状态。`loader.reload(id)` 重启发现行并重新连接可见的 leaf。`loader.remove(id)` 关闭该行的全部会话并移除配置行。需要再启动时，用保存的配置调用 `create`。静态行也可以直接编辑 `rutis.json` 并重载。
+
+绑定失败会使监听行加载失败。拨号行在后台等待对端，连接结束后从 0.5 秒开始指数退避，最长 30 秒；稳定连接一分钟后重置退避。行处于运行状态时可能正在重试。验证业务可用性时，调用一次远端服务。
 
 ## 诊断与验证
 

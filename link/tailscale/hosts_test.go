@@ -201,14 +201,13 @@ func waitRPC(t *testing.T, host, path, service string, want bool) {
 
 func exerciseDiscovery(t *testing.T, host, bin string, control *testcontrol.Server) {
 	const workerTag, controllerTag = "tag:rutis-worker", "tag:rutis-controller"
-	start := func(id string, cfg object, service string) (string, string) {
+	startLeaf := func(id, service string) string {
 		t.Helper()
-		cfg["tsnet"] = object{"hostname": id, "stateDir": t.TempDir()}
-		rows := []object{wire(cfg)}
-		if service != "" {
-			rows = append(rows, object{"id": "echo", "name": "go:tailnet-probe", "config": object{"service": service}})
-		}
-		return startHost(t, host, bin, id, rows)
+		_, log := startHost(t, host, bin, id, []object{
+			wire(object{"allowTag": controllerTag, "tsnet": object{"hostname": id, "stateDir": t.TempDir()}}),
+			{"id": "echo", "name": "go:tailnet-probe", "config": object{"service": service}},
+		})
+		return log
 	}
 	node := func(hostname string) *tailcfg.Node {
 		t.Helper()
@@ -229,11 +228,50 @@ func exerciseDiscovery(t *testing.T, host, bin string, control *testcontrol.Serv
 		p.Tags = []string{tag}
 		control.UpdateNode(p)
 	}
-	controller, _ := start("controller", object{"discover": object{"tag": workerTag}}, "")
-	_, logOne := start("worker-one", object{"allowTag": controllerTag}, "one")
-	_, logTwo := start("worker-two", object{"allowTag": controllerTag}, "two")
+	controller, _ := startHost(t, host, bin, "controller", []object{})
+	logOne := startLeaf("worker-one", "one")
+	logTwo := startLeaf("worker-two", "two")
 	tag("worker-one", workerTag)
 	tag("worker-two", workerTag)
+	wait := func(service string, want bool) { t.Helper(); waitRPC(t, host, controller, service, want) }
+	wait("one", false)
+	discovery, err := json.Marshal(object{
+		"id": "leaves", "name": "go:link-tailscale",
+		"config": object{"discover": object{"tag": workerTag}, "tsnet": object{"hostname": "controller", "stateDir": t.TempDir()}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	loader := func(method string, args ...string) string {
+		t.Helper()
+		out, err := callHost(t, host, controller, "rutis/loader."+method, args...)
+		if err != nil {
+			t.Fatalf("loader.%s: %v %s", method, err, out)
+		}
+		return out
+	}
+	id := loader("create", string(discovery))
+	if id != `"leaves"` {
+		t.Fatalf("create returned %s, want the configured row ID", id)
+	}
+	checkStatus := func(running bool) {
+		t.Helper()
+		var snapshot struct{ Rows []struct{ ID, State string } }
+		if err := json.Unmarshal([]byte(loader("status")), &snapshot); err != nil {
+			t.Fatal(err)
+		}
+		for _, row := range snapshot.Rows {
+			if row.ID == "leaves" {
+				if !running || row.State != "running" {
+					t.Fatalf("unexpected discovery row %+v, want running=%t", row, running)
+				}
+				return
+			}
+		}
+		if running {
+			t.Fatal("discovery row missing from loader.status")
+		}
+	}
 	// Discovery alone cannot admit a controller without an approved tag.
 	for _, path := range []string{logOne, logTwo} {
 		for deadline := time.Now().Add(40 * time.Second); ; {
@@ -247,11 +285,15 @@ func exerciseDiscovery(t *testing.T, host, bin string, control *testcontrol.Serv
 			time.Sleep(100 * time.Millisecond)
 		}
 	}
-	wait := func(service string, want bool) { t.Helper(); waitRPC(t, host, controller, service, want) }
 	wait("one", false)
+	checkStatus(true)
 	tag("controller", controllerTag)
 	wait("one", true)
 	wait("two", true)
+	loader("reload", id)
+	wait("one", true)
+	wait("two", true)
+	checkStatus(true)
 	connections := func() int {
 		t.Helper()
 		data, err := os.ReadFile(logOne)
@@ -280,14 +322,19 @@ func exerciseDiscovery(t *testing.T, host, bin string, control *testcontrol.Serv
 	wait("one", true)
 	wait("two", true)
 	// Withdraw just one visible node from the controller's map.
-	if !control.AddRawMapResponse(node("controller").Key, &tailcfg.MapResponse{PeersRemoved: []tailcfg.NodeID{node("worker-two").ID}}) {
+	hostKey := node("controller").Key
+	leaf := node("worker-two")
+	if !control.AddRawMapResponse(hostKey, &tailcfg.MapResponse{PeersRemoved: []tailcfg.NodeID{leaf.ID}}) {
 		t.Fatal("controller is disconnected from control")
 	}
 	wait("two", false)
 	wait("one", true)
-	if out, err := callHost(t, host, controller, "rutis/loader.remove", `"wire"`); err != nil {
-		t.Fatalf("remove discovery row: %v %s", err, out)
+	if !control.AddRawMapResponse(hostKey, &tailcfg.MapResponse{PeersChanged: []*tailcfg.Node{leaf}}) {
+		t.Fatal("could not restore worker in controller's map")
 	}
+	wait("two", true)
+	loader("remove", id)
 	wait("one", false)
 	wait("two", false)
+	checkStatus(false)
 }

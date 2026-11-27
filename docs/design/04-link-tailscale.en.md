@@ -15,7 +15,7 @@ go -C link/tailscale build -o ../../plugins/go/link-tailscale ./cmd/link-tailsca
 
 ## Discover workers by tag
 
-Define two tags in the tailnet policy and grant controllers access to TCP 7443 on workers. Merge the following entries into the existing policy. Assign each node its role tag, or enroll new nodes with a tagged auth key. [Tailscale tags](https://tailscale.com/docs/features/tags) · [Access grants](https://tailscale.com/docs/features/access-control/grants)
+Assign `tag:rutis-controller` to the host and `tag:rutis-worker` to each leaf. Merge the following tags and grant into the existing tailnet policy to allow the host to connect to TCP 7443 on the leaves. Apply tags to enrolled nodes or use a tagged auth key for new nodes. [Tailscale tags](https://tailscale.com/docs/features/tags) · [Access grants](https://tailscale.com/docs/features/access-control/grants)
 
 ```json
 {
@@ -31,21 +31,28 @@ Define two tags in the tailnet policy and grant controllers access to TCP 7443 o
 }
 ```
 
-Add this row to the controller’s `rutis.json`.
+Add the discovery row to `rows` in the host’s `rutis.json`.
 
 ```json
-{"id":"workers","name":"go:link-tailscale","config":{"discover":{"tag":"tag:rutis-worker"}}}
+{"id":"leaves","name":"go:link-tailscale","config":{"discover":{"tag":"tag:rutis-worker"}}}
 ```
 
-Install the same plugin and deploy this row on every worker.
+Install the same plugin and add this listener to `rows` on each leaf.
 
 ```json
-{"id":"controllers","name":"go:link-tailscale","config":{"allowTag":"tag:rutis-controller"}}
+{"id":"from-host","name":"go:link-tailscale","config":{"allowTag":"tag:rutis-controller"}}
 ```
 
-The controller subscribes to changes in its local Tailscale peer map and opens one rutis session per matching worker, keyed by stable node ID. Each worker binds its first tailnet IP and checks the incoming node address and tag with WhoIs. Adding a tagged worker connects it automatically. Renaming it preserves the connection. Removing its tag or withdrawing it from the map closes its connection. The plugin also reconciles every 30 seconds. If LocalAPI cannot confirm node status, it closes these connections and rediscovers peers on recovery. LocalAPI access suffices without a tailnet admin token or an address list. To change ports, set `discover.port`, the worker’s `listen` and the tailnet grant to the same port.
+The host subscribes to changes in its local Tailscale peer map and opens one rutis session per matching leaf, keyed by stable node ID. Each leaf binds its first tailnet IP and checks the incoming node address and tag with WhoIs. Adding a tagged leaf connects it automatically. Renaming it preserves the connection. Removing its tag or withdrawing it from the map closes its connection. The plugin also reconciles every 30 seconds. If LocalAPI cannot confirm node status, it closes these connections and rediscovers peers on recovery. LocalAPI access suffices without a tailnet admin token or an address list. To change ports, set `discover.port`, the leaf’s `listen` and the tailnet grant to the same port.
 
-Once connected, call services by their rutis service names. Give independently callable services from different workers distinct names within a shared rutis scope. In rutis 0.23, `<link-row>:<plugin>` targets the first session on a row. Use a dedicated single-node row when loading a plugin on a particular worker through that syntax.
+Once connected, call services by their rutis service names. Give independently callable services from different leaves distinct names within a shared rutis scope. In rutis 0.23, `<link-row>:<plugin>` targets the first session on a row. Use a dedicated single-node row when loading a plugin on a particular leaf through that syntax.
+
+For example, the integration test runs a service called `one` on one leaf and `two` on the other. On the host, each command returns `"hello"` from the corresponding leaf.
+
+```sh
+rutis-host call --config rutis.json one.echo '"hello"'
+rutis-host call --config rutis.json two.echo '"hello"'
+```
 
 ## Connect to a single node by name or IP
 
@@ -75,16 +82,18 @@ Use the embedded node's actual tailnet name or IP in the other row's `dial` or `
 
 ## Manage a row from another plugin
 
-Inject `rutis/loader` in the management plugin. This example creates and starts the discovery row. Keep its returned row ID for subsequent operations.
+Declare `inject: ['rutis/loader']` in the management plugin. Run the following code from a management command or event handler after `apply` returns. It creates and starts the discovery row. Keep the returned row ID for subsequent operations.
 
 ```ts
 const loader = ctx.use('rutis/loader')
 const id = await loader.create({
-  id: 'workers', name: 'go:link-tailscale', config: { discover: { tag: 'tag:rutis-worker' } }
+  id: 'leaves', name: 'go:link-tailscale', config: { discover: { tag: 'tag:rutis-worker' } }
 })
 ```
 
-Use `loader.status()` for the row's load state, `loader.reload(id)` to restart it and `loader.remove(id)` to stop and remove it. To start it again, call `create` with the saved configuration. For static rows, edit and reload `rutis.json`. A bind failure fails the listener row. Dialers retry in the background with exponential backoff from 0.5 to 30 seconds, resetting after a minute of connection. A running row may be retrying. Call a remote service to verify availability.
+Use `loader.status()` to check the row's load state. Calling `loader.reload(id)` restarts discovery and reconnects visible leaves. Calling `loader.remove(id)` closes all sessions owned by the row and removes the row. To start it again, call `create` with the saved configuration. For static rows, edit and reload `rutis.json`.
+
+A bind failure fails the listener row. Dialers retry in the background with exponential backoff from 0.5 to 30 seconds, resetting after a minute of connection. A running row may be retrying. Call a remote service to verify availability.
 
 ## Diagnostics and verification
 
@@ -98,7 +107,7 @@ Use `loader.status()` for the row's load state, `loader.reload(id)` to restart i
 
 The shared Go TCP bridge uses a four-byte big-endian length prefix and a 16 MiB frame limit. Reconnection starts a fresh session without replay. The rutis 0.23 Go API exposes neither the peer's rutis Hello ID nor a session outbound queue limit. [TCP bridge](../../link/tcp/bridge.go) · [Tailscale CLI](https://tailscale.com/docs/reference/tailscale-cli)
 
-Run these checks from the repository root. The integration test uses rutis-host 0.23.0 from PATH or `RUTIS_HOST`. A local test control server and DERP exercise pinned connections and reconnects, discovery of two workers by one controller, tag revocation and restoration, node renames and removal. Set `RUTIS_TAILSCALE_SYSTEM_TEST=1` to additionally exercise two host processes using the local enrolled system node.
+Run these checks from the repository root. The integration test uses rutis-host 0.23.0 from PATH or `RUTIS_HOST`. A local test control server and DERP exercise pinned connections and reconnects, loader creation, reload and removal of a discovery row connecting two leaves, tag revocation and restoration, node renames and removal. Set `RUTIS_TAILSCALE_SYSTEM_TEST=1` to additionally exercise two host processes using the local enrolled system node.
 
 ```sh
 go -C link/tailscale test -race ./...
