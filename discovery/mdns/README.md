@@ -11,7 +11,6 @@ Use `go:discover-mdns` to find service instances on one multicast-capable interf
 ```mermaid
 flowchart LR
     config["Configured port (current)"] --> ad["Service instance office<br/>_rutis._tcp · edge-b.local.:7443"]
-    ready["Port from ready ingress (proposed)"] -.-> ad
     ad -->|"Advertise on selected interface"| peer["Browser on the LAN<br/>resolves addresses and port"]
 ```
 
@@ -22,7 +21,7 @@ flowchart LR
 
 The publishing row configures the type, instance, port and outgoing interface. Bonjour or Avahi supplies the local target host name and addresses. DNS-SD also carries service attributes in TXT records. This plugin supplies an empty set of attributes. The browser adds its receiving interface, its own row ID and an expiry derived from record TTLs to the candidate snapshot. The link verifies peer identity during admission. [DNS-SD instance resolution](https://www.rfc-editor.org/rfc/rfc6763.html#section-5)
 
-**Automatic publication could use the same advertisement.** The publishing row would select the instance name, service type and interface. The component exposing the ingress would report readiness, exposed interface, transport and actual port. The publisher would select an ingress that matches its interface and service type. For example, a loopback backend behind a LAN-facing forwarder would use the forwarder's port. The publisher would announce on readiness, update on port changes and withdraw when the ingress closes or its provider disappears. The provider's plugin name and the mechanism for observing it are local integration details. The current implementation ties registration to publishing-row load and unload. Following ingress state is a proposed extension.
+The proposed public connection description carries typed, versioned parameters so SSH destinations, libp2p relay paths and WebRTC signaling can each use their own structure. [Generic connection description proposal](../../docs/design/connection-descriptions.en.md). The current endpoint publishing row registers on load and withdraws on unload.
 
 ## Run two rows on a LAN
 
