@@ -12,7 +12,7 @@ export const exec = promisify(execFile)
 export const project = fileURLToPath(new URL('../../', import.meta.url))
 const host = join(project, 'node_modules', '@arcships', 'rutis-host', 'bin', 'rutis-host.mjs')
 
-export async function setup(t) {
+export async function setup(t, { pluginDir } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'link-hosts-'))
   const stops = []
   t.after(async () => {
@@ -54,9 +54,11 @@ export async function setup(t) {
     '-out',
     cert,
   ])
-  const goDir = join(dir, 'go')
-  await mkdir(goDir)
-  await exec('go', ['build', '-o', join(goDir, 'link-tcp'), './cmd/link-tcp'], { cwd: join(project, '..') })
+  const goDir = pluginDir ?? join(dir, 'go')
+  if (!pluginDir) {
+    await mkdir(goDir)
+    await exec('go', ['build', '-o', join(goDir, 'link-tcp'), './cmd/link-tcp'], { cwd: join(project, '..') })
+  }
   return { dir, stops, goDir, identity: { ca: cert, cert, key } }
 }
 

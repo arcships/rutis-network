@@ -1,0 +1,149 @@
+name: TCP release
+
+on:
+  pull_request:
+    paths:
+      - 'link/tcp/**'
+      - 'scripts/package-tcp.sh'
+      - 'scripts/test-tcp-archive.sh'
+      - 'scripts/integration-reporter.mjs'
+      - '.github/workflows/release-tcp.yml'
+      - '.go-version'
+      - 'LICENSE'
+  push:
+    tags: ['link/tcp/v*']
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Install version, build archive and test RPC
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      sha256: ${{ steps.build.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: .go-version
+          cache-dependency-path: link/tcp/go.sum
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22.18.0'
+      - name: Select the public tag or tag a local PR mirror
+        id: version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
+            git merge-base --is-ancestor HEAD origin/main
+            version=${GITHUB_REF_NAME#link/tcp/}
+          else
+            version="v0.0.0-ci.$GITHUB_RUN_ID.$GITHUB_RUN_ATTEMPT"
+            mirror="$RUNNER_TEMP/tcp-candidate"
+            git clone --quiet --bare --no-tags . "$mirror"
+            git --git-dir="$mirror" tag "link/tcp/$version" HEAD
+            # Only the unpublished TCP module resolves from this local mirror.
+            {
+              echo 'GOPRIVATE=github.com/arcships/rutis-network/link/tcp'
+              echo 'GIT_CONFIG_COUNT=1'
+              echo "GIT_CONFIG_KEY_0=url.file://$mirror.insteadOf"
+              echo 'GIT_CONFIG_VALUE_0=https://github.com/arcships/rutis-network'
+            } >> "$GITHUB_ENV"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Package the versioned Go install from an external module
+        id: build
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          scripts/package-tcp.sh "$VERSION" "$RUNNER_TEMP/assets"
+          echo "sha256=$(cut -d' ' -f1 "$RUNNER_TEMP/assets/SHA256SUMS")" >> "$GITHUB_OUTPUT"
+      - name: Load the candidate archive in stock hosts
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          npm ci --prefix link/tcp/node
+          scripts/test-tcp-archive.sh "$RUNNER_TEMP/assets" "$VERSION"
+      - if: github.event_name == 'push'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: tcp-release
+          path: ${{ runner.temp }}/assets/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish the tested files
+    needs: package
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: tcp-release
+          path: assets
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.package.outputs.version }}
+        shell: bash
+        run: |
+          archive="link-tcp-${VERSION}-linux-amd64.tar.gz"
+          # A rerun may find a published release. Never replace an existing asset.
+          if gh release view "$GITHUB_REF_NAME" --json isDraft --jq '.isDraft' > draft-status; then
+            test "$(cat draft-status)" = false
+            gh release download "$GITHUB_REF_NAME" --pattern SHA256SUMS --dir published
+            cmp assets/SHA256SUMS published/SHA256SUMS
+          else
+            flags=()
+            if [[ "$VERSION" == *-* ]]; then flags+=(--prerelease); fi
+            printf '%s\n' \
+              "TCP $VERSION for Linux/amd64. Tested with rutis-host 0.23.0, session protocol 5 and plugin API 3." \
+              '' \
+              "Verify the archive with \`sha256sum -c SHA256SUMS\`, then extract it in your host directory. The archive contains \`plugins/go/link-tcp\` and a sample \`rutis.json\`. Set the peer address and mTLS paths for your deployment." \
+              '' \
+              "Go install: \`go install github.com/arcships/rutis-network/link/tcp/cmd/link-tcp@$VERSION\`." > release-notes.md
+            gh release create "$GITHUB_REF_NAME" "assets/$archive" assets/SHA256SUMS \
+              --verify-tag --title "TCP $VERSION" --notes-file release-notes.md "${flags[@]}"
+          fi
+
+  verify-download:
+    name: Download the GitHub Release and call remote echo
+    needs: [package, publish]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      VERSION: ${{ needs.package.outputs.version }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22.18.0'
+      - name: Download both public release assets
+        env:
+          EXPECTED_SHA256: ${{ needs.package.outputs.sha256 }}
+        shell: bash
+        run: |
+          mkdir "$RUNNER_TEMP/download"
+          cd "$RUNNER_TEMP/download"
+          url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/${GITHUB_REF_NAME//\//%2F}"
+          archive="link-tcp-$VERSION-linux-amd64.tar.gz"
+          for file in "$archive" SHA256SUMS; do
+            curl --fail --location --silent --show-error --retry 3 -o "$file" "$url/$file"
+          done
+          printf '%s  %s\n' "$EXPECTED_SHA256" "$archive" | sha256sum -c -
+      - name: Verify the checksum and call through the downloaded plugin
+        run: |
+          npm ci --prefix link/tcp/node
+          scripts/test-tcp-archive.sh "$RUNNER_TEMP/download" "$VERSION"
