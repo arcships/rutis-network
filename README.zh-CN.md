@@ -1,21 +1,49 @@
-# rutis-network
+# ![rutis-network](assets/network.svg)
 
-[English](README.md)
+[![最新发布](https://img.shields.io/github/v/release/arcships/rutis-network?display_name=release&label=release)](https://github.com/arcships/rutis-network/releases/latest)
+[![兼容的 rutis 版本](https://img.shields.io/badge/rutis-0.23.0-456b75)](https://github.com/arcships/rutis/releases/tag/v0.23.0)
+[![快速检查](https://github.com/arcships/rutis-network/actions/workflows/checks.yml/badge.svg?branch=main)](https://github.com/arcships/rutis-network/actions/workflows/checks.yml)
+[![传输集成测试](https://github.com/arcships/rutis-network/actions/workflows/integration.yml/badge.svg?branch=main)](https://github.com/arcships/rutis-network/actions/workflows/integration.yml)
+[![MIT 许可证](https://img.shields.io/github/license/arcships/rutis-network)](LICENSE)
 
-[rutis](https://github.com/arcships/rutis) 的链接层插件：连到另一台机器、设备或云的插件（SSH、Tailscale、Cloudflare Tunnel、TCP 与反向隧道、gRPC、移动设备、P2P），把每条连接作为一个会话交给 rutis。
+[开始使用](#开始使用) · [选择连接方式](#选择连接方式) · [版本标签](https://github.com/arcships/rutis-network/tags) · [English](README.md)
 
-rutis 自己只管会话这一侧：连接插件打开一条通道，交给服务 `rutis/sessions`（`rutis/sessions.open(far)`，Rust 里是 `Session::new(channel)`）。网络上的事——到达对面、准入与认证、分帧、心跳、重连、接替 listen 的位置——都是链接插件的，放在这里。见 [rutis：自建连接](https://github.com/arcships/rutis/blob/main/docs/guide/plugin-api.md#自建连接rutissessionsopen) 与 [连接节点](https://github.com/arcships/rutis/blob/main/docs/guide/nodes.md)。
+软件上线时，很难预先列出它以后要和哪些程序一起工作。有些程序必须留在数据产生的现场，有些只在用户打开浏览器时运行，还有些要等到下一次功能迭代才会出现。如果每增加一种能力，都要人先改好几处配置，软件能怎样协作，就受限于部署时已经接好的那几条线。
 
-插件基于 rutis 0.23.0（会话协议 5，插件 API 3）。两端宿主及其语言运行时需要一起升级。0.19.3 把服务改名为 `rutis/sessions`；0.20 改了卸载顺序，并让会话有自己的写线程；0.21 把收到的函数改为默认异步，并改了错误文本。
+rutis-network 是 [rutis](https://github.com/arcships/rutis) 的连接插件集合，让软件可以在运行中建立、管理和撤下这些连接。一个应用可以先在单个进程里运行，等任务需要时，再把同一容器里的另一个进程、远端的计算服务或浏览器里的程序接入进来。各部分仍在适合自己的环境里运行，应用可以改变它们的组合。这样，一个程序就有了演进为集群的余地。
 
-从单条连接扩展到多个节点或多个自治域时，可参考[发现、组网与跨域互联的服务边界研究](docs/research/network-groups.md)。
-接入具体设备时，[网络栈调查](docs/research/network-stacks.md)列出物联网、工业和通用协议族在插件一侧实际提供的接口。比较 MQTT 等协议的订阅、确认、断线补收和重放，见[通信协议研究](docs/research/communication-protocols.md)。
+## 软件怎样组织这些连接
 
-[安全、稳定与可信研究](docs/research/network-assurance.md)沿设备、网关到云应用的路径分析准入、故障恢复和数据来源。
+开发者选择连接插件，配置对端身份和准入规则。应用可以随启动加载插件，也可以在运行中通过 `rutis/loader` 创建或移除连接插件。插件按所选网络的方式接入对端，rutis 将连接建立为会话。会话建立后，应用就能按服务名使用对端提供的能力。[rutis 会话](https://github.com/arcships/rutis/blob/v0.23.0/docs/guide/nodes.md) · [连接插件指南](docs/guide/link-plugins.md)
 
-[Wireshark 协议族与支持建议](docs/research/wireshark-support.md)按 50 个分组逐项评估过滤器索引，并给出四项待验证的插件能力。
+以 Tailscale 为例。假设一组计算节点会陆续上线，部署时可以只约定谁有资格加入。宿主配置为发现带 `tag:rutis-worker` 标签的节点，每个工作节点配置为只接受带 `tag:rutis-controller` 标签的宿主。双方安装插件、放行相应的网络访问后，新节点上线，宿主就会为它建立独立会话。节点改名，连接会保留。撤掉工作节点的标签，对应会话就会关闭。
 
-## 开发检查
+这样，部署者维护一条接入规则，应用便能用上之后加入的节点。把哪项任务交给哪个服务，由应用决定。应用也可以在一项任务开始时启用发现，结束时移除这组连接。[Tailscale 双端配置与运行时管理](docs/design/04-link-tailscale.md)
+
+## 选择连接方式
+
+| 你的环境 | 可以怎样接入 |
+| --- | --- |
+| 节点已经在同一个 Tailscale 网络里 | 按标签自动发现一组节点，或按名称连接指定节点。[Tailscale](docs/design/04-link-tailscale.md) |
+| 已有 SSH 入口，或两端都能登录同一台 VPS | 沿用 SSH 入口，或通过 VPS 反向接入。[SSH](docs/design/03-link-ssh.md) |
+| 一部分程序运行在浏览器里 | 让网页与原生宿主或另一个网页双向调用服务。[WebRTC](docs/design/08-link-webrtc.md) |
+| Go 云服务已经提供 gRPC 接口 | 将插件嵌入云服务，复用已有的监听端口。[gRPC](docs/design/07-link-grpc.md) |
+| 内网服务已经使用 Cloudflare Tunnel | 通过已有的命名隧道和 Cloudflare Access 接入。[Cloudflare Tunnel](docs/design/05-cloudflare-plugin-control.md) |
+| 两端通过 Peer ID 识别对方 | 使用 Go 版 libp2p，通过 QUIC 直连或指定中继。[libp2p](docs/design/09-p2p-plugins.md) |
+| 在本机连接两个宿主，或已有 TCP 转发通道 | 使用双向 TLS 认证建立连接。[TCP](docs/design/06-link-tcp-integration.md) |
+
+在局域网里还不知道对端地址时，可以用 DNS-SD/mDNS 插件发现已就绪的服务入口，再由连接插件验证对端并建立会话。[通过服务发现建立 mTLS 连接](discovery/mdns/README.zh-CN.md) · [发现与组网的服务边界](docs/research/network-groups.md)
+
+## 开始使用
+
+第一次接触 rutis，可以先在本机启动两个宿主，让一个进程调用另一个进程提供的服务。已经有 Tailscale 网络，可以直接试节点自动加入和退出。要接入其他环境，可以按连接插件契约实现自己的适配器。[本机双宿主示例](docs/design/06-link-tcp-integration.md#开发运行和打包加载) · [节点自动发现](docs/design/04-link-tailscale.md#按标签自动发现) · [连接插件契约](docs/design/01-link-plugin-contract.md)
+
+当前插件面向 **rutis 0.23.0**，使用会话协议 5、插件 API 3。两端宿主和语言运行时需要使用匹配版本。Linux/amd64 用户可以直接安装预编译的 TCP 插件。[安装 TCP 发布包](docs/guide/link-plugins.md#安装-go-插件)
+
+参与仓库开发时，在根目录运行 `make setup` 安装开发依赖，再运行 `make check` 完成格式检查、静态检查和快速测试。
+
+<details>
+<summary>开发检查</summary>
 
 在仓库根目录使用 Git、Make、支持自动选择工具链的 Go，以及受支持的 Node.js 版本（`^22.18.0 || ^24.11.0 || >=26.0.0`）。首次检出或锁文件变更后运行 `make setup`，按锁文件安装格式化工具和各 TypeScript 工程的开发依赖。
 
@@ -33,25 +61,4 @@ rutis 自己只管会话这一侧：连接插件打开一条通道，交给服�
 
 PR 改动 TCP 或 WebRTC 时运行对应套件。改动共享的 Go TCP 包、WebRTC 引用的宿主夹具、公共工具链或 CI 配置时，两套都跑。纯文档 PR 跳过这两个集成任务。每次推送到 `main` 都运行两套完整测试。[集成测试工作流](.github/workflows/integration.yml)
 
-## 状态
-
-Go DNS-SD/mDNS 插件可以发布普通入口，也可以发布和发现带版本的公开连接说明。TCP 示例会发现已就绪的监听器，并使用本机凭据建立 mTLS 会话。[配置与 Go 接口](discovery/mdns/README.zh-CN.md)
-
-浏览器之间、浏览器与原生 rutis 宿主之间可通过 WebRTC DataChannel 双向调用服务，支持直连和经过认证的 TURN 中继。[WebRTC 配置与示例](docs/design/08-link-webrtc.md)
-
-[Go SSH 插件](docs/design/03-link-ssh.md) 支持通过 SSH 拨号、经 VPS 监听并接入 rutis 会话，以及反向转发到已有 TCP 服务。
-
-[Cloudflare Tunnel Go 插件](docs/design/05-cloudflare-plugin-control.md)可连接两台 rutis 0.23 宿主。指南包含两端配置、可运行的 Go 服务示例和本地控制接口。
-
-[开发指南](docs/guide/link-plugins.md)包含 Go TCP bridge、支持运行时管理的拨号与回环监听插件、用于互通验证的 TypeScript 参考实现、经过验证的 frp 和 OpenSSH 转发配置，以及可运行的 Rust 监听示例。其余工作按以下 issue 跟踪。
-
-1. [#1](https://github.com/arcships/rutis-network/issues/1)：链接插件的契约——它做什么、不做什么；准入与身份；分帧、生命周期；一份参考 bridge。
-2. [#2](https://github.com/arcships/rutis-network/issues/2)：各种链接方式的全景，以及决定优先级的场景。
-3. [#3](https://github.com/arcships/rutis-network/issues/3)–[#9](https://github.com/arcships/rutis-network/issues/9)：各个链接（SSH、Tailscale、Cloudflare Tunnel、TCP bridge、gRPC、移动设备、iroh）。[#6](https://github.com/arcships/rutis-network/issues/6)（TCP bridge）是 TCP 类 adapter 共用的地基。
-4. [#10](https://github.com/arcships/rutis-network/issues/10)：生态——各语言模板、可执行的一致性测试、适配器目录、CI 与许可证。
-
-[Go 版 Tailscale 插件指南](docs/design/04-link-tailscale.md)给出按标签自动发现 worker 或指定单个节点的配置，支持系统守护进程和独立 tsnet 节点。
-
-[Go 版 libp2p 插件指南](docs/design/09-p2p-plugins.md)给出拨号和监听配置，以及每条链路的管理方法。
-
-这些 issue 的草稿在 [docs/issue-drafts/link-plugins](docs/issue-drafts/link-plugins/README.md)；设计稿在各 issue 的 draft PR 里（合并后落在 `docs/design/`）；给编程 agent 的指南在 [.agents/skills/rutis-link-plugin](.agents/skills/rutis-link-plugin/SKILL.md)。
+</details>
