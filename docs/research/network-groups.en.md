@@ -81,36 +81,147 @@ These proposed experiments can use independent Go plugins alongside the existing
 
 ### Selecting neighbors by topology
 
-Suppose discovery sees four nodes A, B, C and D in one scope, and local policy admits all four as group members. In a **star** with A at its center, B needs one connection to A. In a **full mesh**, B needs connections to A, C and D. The candidate set is identical. Topology determines which edges to maintain. Each undirected line represents one desired bidirectional rutis session.
+Read the seven topologies and the inter-domain example from top to bottom. The first box shows how neighbors are discovered. In the second, **A → B** means A dials B. Each **undirected line** in the last panel is one bidirectional rutis session established after admission. Discovery may yield more endpoints than the policy selects.
+
+[Point-to-point](#point-to-point) · [Chain](#chain) · [Ring](#ring) · [Star](#star) · [Tree](#tree) · [Full mesh](#full-mesh) · [Partial mesh](#partial-mesh-with-bounded-degree) · [Inter-domain](#inter-domain-connections)
+
+#### Point-to-point
+
+B can have a configured endpoint or resolve to several addresses. A verifies the expected peer and keeps one healthy connection.
 
 ```mermaid
 flowchart TB
-    subgraph star["Star · 3 edges"]
-        sa((A)) --- sb((B))
-        sa --- sc((C))
-        sa --- sd((D))
-    end
-    subgraph full["Full mesh · 6 edges"]
-        fa((A)) --- fb((B))
-        fa --- fc((C))
-        fa --- fd((D))
-        fb --- fc
-        fb --- fd
-        fc --- fd
+    source["Discovery · A reads B’s endpoint from local configuration"] --> dial["Dial · A → B, with B listening"]
+    dial --> links
+    subgraph links["Established bidirectional link · 1"]
+        direction LR
+        A((A)) --- B((B))
     end
 ```
 
-| Topology | What discovery must supply | How group policy selects edges and dial owners |
-| --- | --- | --- |
-| Point-to-point | One or more valid endpoints for a designated peer. A fixed address can come from configuration. | A dials B. Multiple addresses are alternative paths to that peer. One working connection suffices. |
-| Chain | Endpoints for adjacent nodes. Configuration or a membership directory supplies the node order. | In A–B–C–D, each node dials its successor. The last node only listens. Losing an interior edge splits the chain. |
-| Ring | Endpoints for the predecessor and successor. Configuration or a membership directory supplies the ordered roster. | Each node dials its successor, with the last dialing the first. Use a common revision of the order to adjust adjacent edges when membership changes. |
-| Star | Endpoints for the designated hub. Leaves only need to discover the hub. | Each leaf dials the hub once and the hub listens. Leaf-to-leaf communication requires a separate forwarding capability at the hub. |
-| Tree | Permitted parents for the local node and their endpoints. | Each non-root node dials one parent and may accept children. Check levels or ancestry when reparenting to prevent cycles. |
-| Full mesh | All authorized members and their endpoints. Maintaining the full topology requires a consistent membership view. | Keep one edge per pair. For example, the node with the lower agreed stable member ID dials. N nodes have N(N−1)/2 edges. |
-| Partial mesh with bounded degree | Bootstrap peers and subsequently discovered candidate neighbors. A node may have a partial view. | Select authorized neighbors, bound the number of connections and assign a dial owner to each edge. Multi-hop reachability also requires a connected graph and routing or forwarding. |
+#### Chain
 
-**Inter-domain connections** can be layered on any of these topologies. Each domain forms its own network and advertises permitted boundary endpoints to the other. Inter-domain policy selects the edges and dial owners between them. Route advertisements or gateway exports define which internal prefixes or services are reachable. A transparent relay can also carry a logical edge while leaving the original nodes as the session endpoints. [Intermediate node roles](#3-what-an-intermediate-node-does)
+Configuration or a membership directory supplies the node order. Interior nodes accept from their predecessor and dial their successor. Losing B–C splits the chain into A–B and C–D.
+
+```mermaid
+flowchart TB
+    source["Discovery · Directory orders A, B, C, D<br/>Each node resolves its adjacent peers"] --> dial["Dial · A → B, B → C, C → D"]
+    dial --> links
+    subgraph links["Established bidirectional links · 3"]
+        direction LR
+        A((A)) --- B((B))
+        B --- C((C))
+        C --- D((D))
+    end
+```
+
+#### Ring
+
+A ring adds an edge joining the ends of the chain. When membership changes, nodes use the same revision of the ring order to identify their new predecessor and successor.
+
+```mermaid
+flowchart TB
+    source["Discovery · Each node resolves its predecessor and successor<br/>A follows D in the ordered roster"] --> dial["Dial · A → B, B → C, C → D, D → A"]
+    dial --> links
+    subgraph links["Established bidirectional links · 4"]
+        direction LR
+        A((A)) --- B((B))
+        B --- C((C))
+        C --- D((D))
+        D --- A
+    end
+```
+
+#### Star
+
+Leaves only need an endpoint for hub A. All three sessions are bidirectional. If B needs to reach C through A, the hub must also provide forwarding.
+
+```mermaid
+flowchart TB
+    source["Discovery · A advertises a DNS-SD service on the LAN<br/>B, C and D browse and resolve A’s endpoint"] --> dial["Dial · B → A, C → A, D → A"]
+    dial --> links
+    subgraph links["Established bidirectional links · 3"]
+        direction TB
+        A((A)) --- B((B))
+        A --- C((C))
+        A --- D((D))
+    end
+```
+
+#### Tree
+
+A is the root. Each non-root node connects to one permitted parent and may accept children. Check levels or ancestry before reparenting to prevent cycles.
+
+```mermaid
+flowchart TB
+    source["Discovery · The parent directory maps B and C to A, D and E to B<br/>Each child resolves its assigned parent"] --> dial["Dial · B → A, C → A, D → B, E → B"]
+    dial --> links
+    subgraph links["Established bidirectional links · 4"]
+        direction TB
+        A((A)) --- B((B))
+        A --- C((C))
+        B --- D((D))
+        B --- E((E))
+    end
+```
+
+#### Full mesh
+
+Keep one connection per member pair. The four nodes share an authorized roster and agree that the lower stable ID dials. This assigns one initiator per edge and produces N(N−1)/2 edges for N members.
+
+```mermaid
+flowchart TB
+    source["Discovery · A, B, C and D each read the full roster<br/>and resolve the other three endpoints"] --> dial["Dial · A → B, C, D<br/>B → C, D and C → D"]
+    dial --> links
+    subgraph links["Established bidirectional links · 6"]
+        direction LR
+        A((A)) --- B((B))
+        A --- C((C))
+        A --- D((D))
+        B --- C
+        B --- D
+        C --- D
+    end
+```
+
+#### Partial mesh with bounded degree
+
+Nodes can learn candidates from bootstrap peers and known neighbors, then keep a subset of permitted neighbors. Here each node keeps at most three edges. Even if A learns D’s endpoint, it keeps B and C. Multi-hop communication also requires a connected graph and forwarding.
+
+```mermaid
+flowchart TB
+    source["Discovery · Start at configured bootstrap endpoints<br/>Peer exchange yields a local candidate set"] --> dial["Dial selected peers · A → B, C and B → C, D<br/>C → E and D → E"]
+    dial --> links
+    subgraph links["Established bidirectional links · 6"]
+        direction LR
+        A((A)) --- B((B))
+        A --- C((C))
+        B --- C
+        B --- D((D))
+        C --- E((E))
+        D --- E
+    end
+```
+
+#### Inter-domain connections
+
+Domains can use any internal topology. A and B belong to different domains, with GX and GY as their respective boundary endpoints. Only GX–GY crosses domains. Route advertisements or gateway rules govern reachable prefixes and exported services. A transparent relay can carry the inter-domain edge. [Intermediate node roles](#3-what-an-intermediate-node-does)
+
+```mermaid
+flowchart TB
+    source["Discovery · Local directories give A and B their own boundary endpoints<br/>Peering configuration gives GX a permitted endpoint for GY"] --> dial["Within domains · A → GX, B → GY<br/>Between domains · GX → GY"]
+    dial --> links
+    subgraph links["Established bidirectional links · 3"]
+        direction LR
+        subgraph domainX["Domain X"]
+            A((A)) --- GX((GX))
+        end
+        subgraph domainY["Domain Y"]
+            GY((GY)) --- B((B))
+        end
+        GX ---|Inter-domain| GY
+    end
+```
 
 ### How discovery, group policy and links fit together
 
