@@ -53,14 +53,14 @@ Both packages and the Node template use npm lockfiles, strict TypeScript and tsd
 ## Stage 1. Standardize formatting and local checks
 
 - Provide `fmt`, `fmt-check` and `check` entry points at the repository root. Only `fmt` writes source files. `fmt-check` lists files needing formatting and exits nonzero on differences. `check` reuses that check, then runs static checks and fast tests.
-- Use `gofmt -w` to format tracked `.go` files. In check mode run `gofmt -l` and fail if it lists any files. Run `go vet` and unit tests at each plugin's `go.mod`, respecting its declared Go version. A local workspace may link modules for development. Stage 3 verifies installation against published dependencies.
+- Use `gofmt -w` to format tracked `.go` files. In check mode run `gofmt -l` and fail if it lists any files. Pin the development and CI Go toolchain to 1.27.4 in the root `.go-version` and use its gofmt. Run `go vet` and unit tests per plugin module. Each module's `go` directive declares its minimum version for consumers. A local workspace may link modules for development. Stage 3 verifies installation against published dependencies.
 - Pin Prettier and its rules for handwritten `.ts`, `.mts` and `.mjs`, excluding dependencies and build artifacts. Keep the TCP reference project's minimum Node version of 22.18. Extract shared strict settings from the package configs and check the browser and Node targets separately. Report formatting and `tsc --noEmit` separately. Isolate initial formatting changes in a separate commit for review.
 
 **Acceptance.** A checkout can check all seven Go modules and both JS/TS projects from the root. A deliberate formatting difference lists the file and leaves the working tree untouched. Running `fmt` makes the check pass. Introduce a type error in the TCP reference plugin and in the WebRTC browser implementation in turn. The root type check must identify the affected file in each case.
 
 ## Stage 2. Run the same checks on pull requests
 
-Use the root commands from Stage 1. Linux is the first required platform. Start from a clean runner, select Go toolchains per module, install npm dependencies with `npm ci` against the lockfiles, and publish separate job results.
+Use the root commands from Stage 1. Linux is the first required platform. Start from a clean runner, use the repository's pinned Go toolchain, install npm dependencies with `npm ci` against the lockfiles, and publish separate job results.
 
 | Job | What runs | Passing result on the PR |
 | --- | --- | --- |
