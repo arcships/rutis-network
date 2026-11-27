@@ -36,7 +36,10 @@ func LoadTLSCredentials(ca, cert, key string) (*tls.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: key pair: %w", errCredentials, err)
 	}
-	return &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: pool, ClientCAs: pool, Certificates: []tls.Certificate{pair}}, nil
+	return &tls.Config{
+		MinVersion: tls.VersionTLS12, Certificates: []tls.Certificate{pair},
+		RootCAs: pool, ClientCAs: pool, ClientAuth: tls.RequireAndVerifyClientCert,
+	}, nil
 }
 
 // The TCP TLS implementation exposes remote alerts inside net.OpError. Use
@@ -195,7 +198,6 @@ func (c *control) bind(ctx context.Context, dest target) (net.Listener, *tls.Con
 	if err != nil {
 		return nil, nil, err
 	}
-	identity.ClientAuth = tls.RequireAndVerifyClientCert
 	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp4", dest.address())
 	if err != nil {
 		return nil, nil, err
@@ -210,12 +212,20 @@ func (c *control) bind(ctx context.Context, dest target) (net.Listener, *tls.Con
 	return listener, identity, nil
 }
 
-// AdmitTLS verifies the incoming stream and closes it if the handshake fails.
+// AdmitTLS requires a verified client certificate and closes the stream on failure.
 func AdmitTLS(ctx context.Context, conn net.Conn, identity *tls.Config) (*tls.Conn, error) {
+	if identity == nil || identity.ClientCAs == nil || identity.ClientAuth != tls.RequireAndVerifyClientCert {
+		conn.Close()
+		return nil, errCredentials
+	}
 	secure := tls.Server(conn, identity)
 	handshake, cancel := context.WithTimeout(ctx, handshakeTimeout)
 	err := secure.HandshakeContext(handshake)
 	cancel()
+	// GetConfigForClient can replace the configuration during the handshake.
+	if err == nil && len(secure.ConnectionState().VerifiedChains) == 0 {
+		err = errCredentials
+	}
 	if err != nil {
 		conn.Close()
 		return nil, err

@@ -20,9 +20,6 @@ import (
 const maxReverseStreams = 64
 
 func (c *control) serveReverse(parent context.Context, client *ssh.Client, ln net.Listener, identity *tls.Config, target string) <-chan error {
-	if identity != nil {
-		identity.ClientAuth = tls.RequireAndVerifyClientCert
-	}
 	bound := ln.Addr().String()
 	c.update(func(s *snapshot) {
 		s.Phase, s.BoundAddress, s.LastError, s.LastClientError = "listening", bound, "", ""
