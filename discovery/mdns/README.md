@@ -4,6 +4,26 @@
 
 Use `go:discover-mdns` to find service instances on one multicast-capable interface or advertise an existing local ingress. A browsing row provides a named read-only rutis service. A group policy can use these observations to select neighbors and give a link plugin a dial target. The link owns admission and session establishment. [Network group design](../../docs/research/network-groups.en.md)
 
+## What gets advertised
+
+**One advertisement describes one DNS-SD service instance, an ingress that a peer on this LAN can try to reach.** For example, the instance named `office` offers `_rutis._tcp` at TCP port `7443` on `edge-b.local.`. The service type tells a client which protocol to use after connecting. The instance name distinguishes several ingresses of the same type. A direct listener or a transparent TCP forwarder can provide this ingress. Both deployments can publish the same advertisement when they expose the same protocol at the same address.
+
+```mermaid
+flowchart LR
+    config["Configured port (current)"] --> ad["Service instance office<br/>_rutis._tcp · edge-b.local.:7443"]
+    ready["Port from ready ingress (proposed)"] -.-> ad
+    ad -->|"Advertise on selected interface"| peer["Browser on the LAN<br/>resolves addresses and port"]
+```
+
+| Browser question | DNS records in this example |
+| --- | --- |
+| Which instances offer this service? | PTR points from `_rutis._tcp.local.` to `office._rutis._tcp.local.`. |
+| Where do I connect to the selected instance? | SRV supplies `edge-b.local.` and port `7443`. A and AAAA supply that host's IPv4 and IPv6 addresses. |
+
+The publishing row configures the type, instance, port and outgoing interface. Bonjour or Avahi supplies the local target host name and addresses. DNS-SD also carries service attributes in TXT records. This plugin supplies an empty set of attributes. The browser adds its receiving interface, its own row ID and an expiry derived from record TTLs to the candidate snapshot. The link verifies peer identity during admission. [DNS-SD instance resolution](https://www.rfc-editor.org/rfc/rfc6763.html#section-5)
+
+**Automatic publication could use the same advertisement.** The publishing row would select the instance name, service type and interface. The component exposing the ingress would report readiness, exposed interface, transport and actual port. The publisher would select an ingress that matches its interface and service type. For example, a loopback backend behind a LAN-facing forwarder would use the forwarder's port. The publisher would announce on readiness, update on port changes and withdraw when the ingress closes or its provider disappears. The provider's plugin name and the mechanism for observing it are local integration details. The current implementation ties registration to publishing-row load and unload. Following ingress state is a proposed extension.
+
 ## Run two rows on a LAN
 
 Build from the repository root with Go 1.26 and use rutis-host 0.23.0. Install the binary in the configured Go runtime directory on both hosts.
