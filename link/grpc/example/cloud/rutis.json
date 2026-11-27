@@ -1,0 +1,19 @@
+{
+  "id": "cloud",
+  "runtimes": { "go": { "dir": "./plugins/go" } },
+  "rows": [
+    {
+      "id": "service",
+      "name": "go:cloud-service",
+      "isolate": { "cloud-runtime": "inside-service" },
+      "config": {
+        "listen": "127.0.0.1:7443",
+        "clientName": "device.test",
+        "caFile": "/etc/rutis/grpc/ca.pem",
+        "certFile": "/etc/rutis/grpc/cloud.pem",
+        "keyFile": "/etc/rutis/grpc/cloud.key"
+      }
+    },
+    { "id": "embedded", "name": "go:cloud-jobs", "isolate": { "cloud-runtime": "inside-service" } }
+  ]
+}

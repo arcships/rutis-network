@@ -1,0 +1,4 @@
+github.com/arcships/rutis/go/rutis v0.23.0 h1:K9m6tbHbrHowIR3GIU8s/sP7UClJf0cAviZtlqX+wxw=
+github.com/arcships/rutis/go/rutis v0.23.0/go.mod h1:JLxW7fPIlGfD7O0VeBXIQd+Mdya5ZYprMhBIAUSQ258=
+go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=
+go.uber.org/goleak v1.3.0/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=
