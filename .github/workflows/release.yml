@@ -10,6 +10,7 @@ on:
       - 'link/grpc/v*'
       - 'link/libp2p/v*'
       - 'link/webrtc/v*'
+      - 'link/websocket/v*'
       - 'discovery/mdns/v*'
       - 'group/peer/v*'
 
@@ -99,6 +100,8 @@ jobs:
             notes="Download the archive for your OS and CPU and check its SHA-256 against SHA256SUMS. Extract plugins/go/ into your host project."
             if [[ ${GITHUB_REF_NAME%/*} == discovery/mdns ]]; then
               notes+=" DNS-SD publishing and interface-bound description HTTP require macOS or Linux. Linux publishing also requires Avahi and its DNS-SD compatibility library."
+            elif [[ ${GITHUB_REF_NAME%/*} == link/grpc ]]; then
+              notes+=" The bin/ directory contains the standalone grpc-cloud directory and relay executable."
             fi
             gh release create "$GITHUB_REF_NAME" "${files[@]}" --verify-tag --title "$GITHUB_REF_NAME" \
               --notes "$notes" "${flags[@]}"
