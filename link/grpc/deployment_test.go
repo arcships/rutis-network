@@ -103,7 +103,7 @@ func TestCloudDeploymentExample(t *testing.T) {
 		})
 	}
 	edge := config("edge/rutis.json")
-	startHost(t, host, dir, config("worker/rutis.json"))
+	stopWorker := startHost(t, host, dir, config("worker/rutis.json"))
 	startHost(t, host, dir, edge)
 	var output []byte
 	for end := time.Now().Add(40 * time.Second); time.Now().Before(end); {
@@ -116,6 +116,15 @@ func TestCloudDeploymentExample(t *testing.T) {
 			if json.Unmarshal(output, &r) != nil || r.ID != "job-1" || r.Progress != "job-1 queued" {
 				t.Fatalf("unexpected receipt %s", output)
 			}
+			// Retire the cloud worker while the edge is still serving its local
+			// control socket. The edge must withdraw the remotely mounted job row.
+			stopWorker()
+			until(t, func() bool {
+				ctx, done := context.WithTimeout(t.Context(), 2*time.Second)
+				defer done()
+				b, err := exec.CommandContext(ctx, host, "call", "--config", edge, "device.submit", `"offline"`).CombinedOutput()
+				return err != nil && strings.Contains(string(b), "no row provides")
+			})
 			return
 		}
 		time.Sleep(150 * time.Millisecond)

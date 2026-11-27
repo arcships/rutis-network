@@ -31,6 +31,8 @@ rutis-host run example/relay/edge/rutis.json
 
 On the edge run `rutis-host call --config example/relay/edge/rutis.json device.submit '"build"'`. A fresh worker returns `{"id":"job-1","progress":"job-1 queued"}`. For a local run with temporary ports and certificates, run `npm ci --prefix link/tcp/node` and `make integration-grpc` from the repository root. The suite also partitions a region from the directory. [Deployment test](../../link/grpc/deployment_test.go) · [Host failover test](../../link/grpc/relay_hosts_test.go)
 
+To stop the example deployment, stop the worker, wait for the edge to withdraw the remote service, then stop the edge and cloud processes. On rutis-host 0.23.0, signaling an edge with an active remote business row can occasionally reach the host's 10 s shutdown deadline while unloading that row. To retire just the remote business row, unload it through the loader while the connection is available.
+
 ## Configure an integrating host
 
 The row takes JSON from any host language. Top-level `address`, `serverName` and `caFile` identify the directory. Set `cloud.pair` to the agreed pair and `cloud.target` to the other member. The remote row uses the same pair and the reciprocal target. Credentials identify the member and tenant. A pair name can be reused across tenants. [Edge manifest](../../link/grpc/example/relay/edge/rutis.json) · [Worker manifest](../../link/grpc/example/relay/worker/rutis.json)
