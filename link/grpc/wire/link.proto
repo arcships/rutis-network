@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package rutis.link.v1;
+option go_package = "github.com/arcships/rutis-network/link/grpc/wire";
+
+// A duplex stream carries one rutis session, one complete message per Frame.
+service Link {
+  rpc Tunnel(stream Frame) returns (stream Frame);
+}
+
+message Frame {
+  bytes payload = 1;
+}
