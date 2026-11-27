@@ -137,13 +137,27 @@ export function attachChannel(dc, lifetime) {
       const limit = Math.min(recordLimit, maxSize || recordLimit)
       if (limit < 6) throw Error('incompatible-channel')
       try {
-        near = await sessions.open({
-          send: (data) => send(data, limit),
-          close() {
-            closedBySession = true
-            fail('channel-closed')
-          },
-        })
+        const opening = Promise.resolve(
+          sessions.open({
+            send: (data) => send(data, limit),
+            close() {
+              closedBySession = true
+              fail('channel-closed')
+            },
+          }),
+        )
+        try {
+          near = await abortable(opening, signal)
+        } catch (error) {
+          // The binding may still mount a session after the transport stops.
+          if (signal.aborted)
+            void opening
+              .then((late) => {
+                if (!closedBySession) return late.end({ kind: 'done' })
+              })
+              .catch(() => {})
+          throw error
+        }
         signal.throwIfAborted()
         mounted.resolve(near)
         connected()

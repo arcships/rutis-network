@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "node browser/build.mjs",
+    "pretest": "npm run build",
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {

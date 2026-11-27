@@ -5,7 +5,13 @@ const denied = () => Object.assign(Error('pairing denied'), { name: 'PairingDeni
 
 // Call from an authenticated application route. member is the verified
 // identity from that request, never a field from the request body.
-export function createPairing({ pairId, members, iceServers = () => [], lifetimeMs = 60000 }) {
+export function createPairing({
+  pairId,
+  members,
+  iceServers = () => [],
+  lifetimeMs = 60000,
+  refreshAfterMs,
+}) {
   if (
     typeof pairId !== 'string' ||
     !pairId.trim() ||
@@ -14,30 +20,67 @@ export function createPairing({ pairId, members, iceServers = () => [], lifetime
     !members.every((x) => typeof x === 'string' && x) ||
     members[0] === members[1] ||
     !Number.isFinite(lifetimeMs) ||
-    lifetimeMs <= 0
+    lifetimeMs <= 0 ||
+    (refreshAfterMs !== undefined && (!Number.isSafeInteger(refreshAfterMs) || refreshAfterMs <= 0))
   )
     throw Error('invalid pairing')
   const [offerer, answerer] = members
-  let attempt
+  let initial, renewal
+  const waiting = new Set()
+  function attempt(previous) {
+    const now = Date.now()
+    return {
+      id: randomUUID(),
+      previous,
+      issued: now,
+      expires: now + lifetimeMs,
+      refreshAt: refreshAfterMs && new Date(now + refreshAfterMs).toISOString(),
+      descriptions: new Map(),
+    }
+  }
   return async function handle(member, method, input, signal) {
     if ((member !== offerer && member !== answerer) || input?.pairId !== pairId) throw denied()
     const role = member === offerer ? 'offerer' : 'answerer'
     if (method === 'acquire') {
-      if (!attempt || Date.now() >= attempt.expires || input.after === attempt.id)
-        attempt = { id: randomUUID(), expires: Date.now() + lifetimeMs, descriptions: new Map() }
-      const current = attempt
-      const servers = await iceServers(member, current.expires)
-      if (current !== attempt || Date.now() >= current.expires) throw Error('expired attempt')
+      const rotating = input.renewOf !== undefined
+      if (rotating) {
+        if (!initial?.refreshAt || input.renewOf !== initial.id || initial.descriptions.size !== 2)
+          throw Error('inactive session')
+        // A repeated poll receives the same round. Only advance when both
+        // members have finished the previous SDP exchange and requested more.
+        if (!renewal || input.after !== renewal.previous) {
+          const previous = renewal ?? initial
+          if (input.after !== previous.id || previous.descriptions.size !== 2)
+            throw Error('invalid renewal predecessor')
+          waiting.add(member)
+          if (waiting.size !== 2) return null
+          renewal = attempt(previous.id)
+          waiting.clear()
+        }
+      } else if (!initial || Date.now() >= initial.expires || input.after === initial.id) {
+        initial = attempt()
+        renewal = undefined
+        waiting.clear()
+      }
+      const current = rotating ? renewal : initial
+      const servers = await iceServers(member, current.expires, current.issued)
+      if (current !== (rotating ? renewal : initial) || Date.now() >= current.expires)
+        throw Error('expired attempt')
       return {
         attemptId: current.id,
         role,
         expiresAt: new Date(current.expires).toISOString(),
+        ...(current.refreshAt && { refreshAt: current.refreshAt }),
+        ...(rotating && { renewOf: initial.id }),
         iceServers: servers,
       }
     }
-    const current = attempt
+    const current = input.attemptId === initial?.id ? initial : renewal
     const valid = () =>
-      current && current === attempt && input.attemptId === current.id && Date.now() < current.expires
+      current &&
+      (current === initial || current === renewal) &&
+      input.attemptId === current.id &&
+      Date.now() < current.expires
     if (!valid()) throw Error('expired attempt')
     const own = role === 'offerer' ? 'offer' : 'answer'
     if (method === 'publish') {

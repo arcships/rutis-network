@@ -11,14 +11,18 @@ const pairId = process.env.PAIR_ID ?? 'desk-and-page'
 const turnUrl = process.env.TURN_URL
 const turnSecret = process.env.TURN_SECRET
 if (Boolean(turnUrl) !== Boolean(turnSecret)) throw Error('Set TURN_URL and TURN_SECRET together')
+const turnLifetime = Number(process.env.TURN_TTL_SECONDS ?? 3600)
+if (!Number.isSafeInteger(turnLifetime) || turnLifetime < 2) throw Error('invalid TURN_TTL_SECONDS')
 const signaling = createPairing({
+  lifetimeMs: Math.min(60000, turnLifetime * 1000),
+  refreshAfterMs: turnUrl ? turnLifetime * 500 : undefined,
   pairId,
   members: ['a', 'b'],
-  iceServers(member) {
+  iceServers(member, _expiresAt, issuedAt) {
     const servers = []
     if (process.env.STUN_URL) servers.push({ urls: [process.env.STUN_URL] })
     if (turnUrl) {
-      const username = Math.floor(Date.now() / 1000 + 3600) + ':' + member
+      const username = Math.floor(issuedAt / 1000) + turnLifetime + ':' + member
       const credential = createHmac('sha1', turnSecret).update(username).digest('base64')
       servers.push({ urls: [turnUrl], username, credential })
     }

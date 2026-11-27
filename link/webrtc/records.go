@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"sync"
+	"sync/atomic"
 
 	"github.com/arcships/rutis-network/link/tcp"
 	rtc "github.com/pion/webrtc/v4"
@@ -149,19 +150,49 @@ func (w *wire) send(data []byte, limit int) (err error) {
 
 func (w *wire) serve(row context.Context, sessions tcp.Sessions, limit int, connected func()) (err error) {
 	sessionClosed := errors.New("session-closed")
-	near, err := sessions.Open(row, tcp.Far{
-		Send:  func(b []byte) error { return w.send(b, limit) },
-		Close: func(tcp.CloseReason) { w.cancel(sessionClosed) },
-	})
-	if err != nil {
-		return err
-	}
-	defer func() {
-		w.cancel(err)
-		if context.Cause(w.ctx) != sessionClosed && row.Err() == nil {
+	var closedBySession atomic.Bool
+	end := func(near tcp.Near) {
+		if !closedBySession.Load() && row.Err() == nil {
 			_ = near.End(row, tcp.CloseReason{Kind: "done"})
 		}
+	}
+	// Opening may mount a host child after stop. Keep its reply on the row
+	// context, while letting transport cancellation release the worker.
+	type mount struct {
+		near tcp.Near
+		err  error
+	}
+	opened := make(chan mount)
+	go func() {
+		if w.ctx.Err() != nil {
+			return
+		}
+		near, err := sessions.Open(row, tcp.Far{
+			Send: func(b []byte) error { return w.send(b, limit) },
+			Close: func(tcp.CloseReason) {
+				closedBySession.Store(true)
+				w.cancel(sessionClosed)
+			},
+		})
+		select {
+		case opened <- mount{near, err}:
+		case <-w.ctx.Done():
+			if err == nil {
+				end(near)
+			}
+		}
 	}()
+	var near tcp.Near
+	select {
+	case <-w.ctx.Done():
+		return context.Cause(w.ctx)
+	case result := <-opened:
+		if result.err != nil {
+			return result.err
+		}
+		near = result.near
+	}
+	defer func() { w.cancel(err); end(near) }()
 	if w.ctx.Err() == nil {
 		connected()
 	}

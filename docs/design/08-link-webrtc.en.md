@@ -12,7 +12,7 @@ Implemented for rutis 0.23.0, session protocol 5. A Web endpoint runs inside a b
 ## From pairing to the first call
 
 1. The application authenticates users, lets them select a peer or accept an invitation, and assigns a shared `pairId` to two authorized endpoints. Its existing HTTPS or WebSocket service can carry signaling. Either the native application or the browser can take either role.
-2. Each endpoint acquires a pairing grant from its local signaling provider. The provider assigns one offerer, one answerer and one short-lived `attemptId`. The offerer creates the channel and publishes an offer containing its ICE candidates. The answerer returns an answer. Each side gathers ICE candidates before publishing, so v1 exchanges two complete SDP descriptions.
+2. Each endpoint acquires a pairing grant from its local signaling provider. The provider assigns one offerer, one answerer and one short-lived `attemptId`. The offerer creates the channel and publishes an offer containing its ICE candidates. The answerer returns an answer. Each side includes gathered ICE candidates in a single SDP publication. A browser with a usable relay can publish while other interfaces finish gathering.
 3. ICE selects a path. DTLS verifies the certificate fingerprint bound to the authenticated SDP. Each adapter checks the current grant, peer and channel before handing its channel to a session. Transport status then indicates connectivity. A successful application RPC establishes service readiness. Rutis handles Hello, service discovery and calls. [Session handoff contract](01-link-plugin-contract.en.md) · [WebRTC specification](https://www.w3.org/TR/webrtc/)
 
 ## Run the example
@@ -42,7 +42,7 @@ printf 'A: %s\nB: %s\n' "$PAIR_A_TOKEN" "$PAIR_B_TOKEN"
 
 These commands start an authenticated loopback TURN server and the pairing page. Open `http://127.0.0.1:8080` in two browsers. Enter distinct page IDs such as `page-a` and `page-b` and the respective A and B credentials. Connect both, enter the other page’s service name and click **Call echo**. The example uses the page ID as its service name. For separate devices, serve the page and `/signal` under an HTTPS origin reachable from both endpoints.
 
-**Use your own TURN server.** Replace the loopback service above. Set `TURN_URL` (e.g. `turn:turn.example.org:3478?transport=udp`) and `TURN_SECRET` before starting the example. The TURN server must accept shared-secret credentials and expose its listener and relay port range to both endpoints. With coturn, enable `use-auth-secret` and set `static-auth-secret` to the signaling server’s `TURN_SECRET`. The signaling server issues one-hour credentials per member and keeps the shared secret server-side. Select **Require TURN** on both ends. A working path shows `connected · relay`. Policy `all` also permits direct ICE paths, with optional `STUN_URL` for address discovery. [coturn authentication and ports](https://github.com/coturn/coturn/blob/master/examples/etc/turnserver.conf)
+**Use your own TURN server.** Replace the loopback service above. Set `TURN_URL` (e.g. `turn:turn.example.org:3478?transport=udp`) and `TURN_SECRET` before starting the example. The TURN server must accept shared-secret credentials and expose its listener and relay port range to both endpoints. With coturn, enable `use-auth-secret` and set `static-auth-secret` to the signaling server’s `TURN_SECRET`. The signaling server issues a credential per member. Its lifetime defaults to one hour and can be set with `TURN_TTL_SECONDS`. Both endpoints request fresh credentials halfway through that lifetime. The shared secret stays on the server. Select **Require TURN** on both ends. A working path shows `connected · relay`. Policy `all` also permits direct ICE paths, with optional `STUN_URL` for address discovery. [coturn authentication and ports](https://github.com/coturn/coturn/blob/master/examples/etc/turnserver.conf)
 
 ## Integrate a native host and a page
 
@@ -98,6 +98,21 @@ await link.start()
 
 Both endpoints can publish and call services. For a native `sensor.echo` service, check `page.remoteServices()` for `sensor` and call `await page.call('sensor', 'echo', value)`. A native plugin can inject the page’s `display` service. Call `remove()` to withdraw that service or `await link.stop()` to close the whole connection.
 
+`createPageEndpoint(id, { onServiceError })` reports rejected service announcements and withdrawals as `{ service, operation, error }`. A name collision leaves unrelated calls running. When one page withdraws its conflicting provider, it can discover the other page’s service. The page advertises the services family and accepts both records of function references and object-backed services.
+
+Callbacks passed into a page handler retain the incoming call path across `await`. For a separate service call after an asynchronous step, capture the caller on entry. This also works in browsers without native async context.
+
+```js
+page.provide('display', {
+  async render(value, done) {
+    const call = page.captureCall()
+    await draw(value)
+    await call('sensor', 'ack', value)
+    return done(value)
+  }
+})
+```
+
 | Control method | Contract |
 | --- | --- |
 | `configure(patch)` | Accepts `pairId`, `iceTransportPolicy` and `reconnect`. Validate the whole patch first. Changing the pair or ICE policy while running releases the old connection and acquires a new grant. Changing only the retry flag preserves a healthy connection. |
@@ -112,9 +127,13 @@ This is a local service contract. The application chooses the network URL, login
 
 | Method | Input and result |
 | --- | --- |
-| `acquire({pairId, after, waitMs})` | Returns `{attemptId, role, expiresAt, iceServers}` or `null`. Pass null for `after` initially or the last retired attempt ID on reconnect. Calls are retryable. Both authorized members receive the same attempt, complementary roles and their own ICE configuration. |
+| `acquire({pairId, after, waitMs, renewOf?})` | Returns `{attemptId, role, expiresAt, iceServers}` or `null`. Pass null for `after` initially or the last retired attempt ID on reconnect. Calls are retryable. Both authorized members receive the same attempt, complementary roles and their own ICE configuration. |
 | `publish({pairId, attemptId, type, sdp})` | The offerer publishes the offer and the answerer publishes the answer. Republishing identical content is idempotent. Reject replacement of published content. |
 | `receive({pairId, attemptId, type, waitMs})` | Reads the other endpoint's message for this attempt. Returns `{type, sdp}` or `null`. The message can be read again until expiry. Calls have bounded waits. Discard outstanding replies after stop. |
+
+A provider offering renewable TURN credentials includes an RFC 3339 UTC `refreshAt` in both initial grants. At that time each endpoint calls `acquire` with the original `attemptId` as `renewOf` and its most recently negotiated ID as `after`. Return `null` until both members ask for the next round. Then return a fresh ID, the same `renewOf` and role, new ICE credentials, a negotiation deadline and the next `refreshAt`. The peers exchange SDP for the new ID and restart ICE on the existing PeerConnection. This preserves the DataChannel, rutis session and outstanding calls. Schedule renewal with enough time for both peers to gather and exchange candidates. An existing provider that omits `refreshAt` performs only the initial negotiation.
+
+Both HTTP clients accept JSON `null` or HTTP 204 when polling has no result. An ICE server’s `urls` field accepts a URL string or an array of URL strings.
 
 The provider authenticates signaling sources, protects SDP confidentiality and integrity, and binds the two members, roles, attempt and expiry. A room name addresses a pair. Each endpoint accepts only the intended peer's description under its current grant and rejects stale, replayed, cross-pair or wrong-role messages. Authorizing a pairing grants the peer access as a trusted rutis participant. The application consumes an invitation for first use and applies its authorization policy to reconnects. TURN credentials, raw SDP, candidate addresses and fingerprints stay within the private negotiation interfaces. An established DataChannel can continue through a signaling outage. [WebRTC security architecture](https://www.rfc-editor.org/rfc/rfc8827)
 
@@ -150,4 +169,4 @@ npm test
 go test -race ./...
 ```
 
-The integration tests run stock rutis-host 0.23, Chromium, Firefox and a real loopback STUN/TURN server. Each endpoint combination exercises direct and forced-relay paths, checks both selected routes and makes bidirectional RPCs. The relay tests stop the TURN process, wait for service withdrawal, restart TURN on the same port and call again. Coverage also includes page refresh, business-plugin reload, callbacks, binary values spanning records, the 16 MiB message boundary and backpressure. Public NAT topologies and production TURN deployments require separate validation. [Integration tests](../../link/webrtc/test/hosts.test.mjs) · [Browser unit tests](../../link/webrtc/test/channel.test.mjs) · [Go boundary tests](../../link/webrtc/records_test.go)
+The integration tests run stock rutis-host 0.23, Chromium, Firefox and a real loopback STUN/TURN server. Each endpoint combination exercises direct and forced-relay paths, checks both selected routes and makes bidirectional RPCs. The relay tests stop the TURN process, wait for service withdrawal, restart TURN on the same port and call again. Short-lived credential tests hold a callback across expiry, verify a new selected relay allocation and complete both the pending RPC and a new call on the same session. Coverage also includes page refresh, business-plugin reload, callbacks, binary values spanning records, the 16 MiB message boundary and backpressure. Public NAT topologies and production TURN deployments require separate validation. [Integration tests](../../link/webrtc/test/hosts.test.mjs) · [Browser unit tests](../../link/webrtc/test/channel.test.mjs) · [Go boundary tests](../../link/webrtc/records_test.go)

@@ -2,8 +2,10 @@ package webrtclink
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -17,11 +19,29 @@ var errDenied = errors.New("pairing-denied")
 var errSignal = errors.New("signaling-failed")
 
 type iceServer struct {
-	URLs       []string `json:"urls"`
-	Username   string   `json:"username,omitempty"`
-	Credential string   `json:"credential,omitempty"`
+	URLs       iceURLs `json:"urls"`
+	Username   string  `json:"username,omitempty"`
+	Credential string  `json:"credential,omitempty"`
 }
+
+// RTCIceServer.urls accepts a single URL or a list in signaling grants.
+type iceURLs []string
+
+func (urls *iceURLs) UnmarshalJSON(data []byte) error {
+	if len(data) > 0 && data[0] == '"' {
+		var single string
+		if err := json.Unmarshal(data, &single); err != nil {
+			return err
+		}
+		*urls = iceURLs{single}
+		return nil
+	}
+	return json.Unmarshal(data, (*[]string)(urls))
+}
+
 type grant struct {
+	RefreshAt  string      `json:"refreshAt,omitempty"`
+	RenewOf    string      `json:"renewOf,omitempty"`
 	AttemptID  string      `json:"attemptId"`
 	Role       string      `json:"role"`
 	ExpiresAt  string      `json:"expiresAt"`
@@ -100,7 +120,24 @@ func rtcConfig(g *grant, policy string) (rtc.Configuration, error) {
 	return cfg, nil
 }
 
-func (c *control) exchange(ctx context.Context, pc *rtc.PeerConnection, opts settings, g *grant) error {
+func (c *control) exchange(ctx context.Context, pc *rtc.PeerConnection, opts settings, g *grant, restart bool) error {
+	// A lost reply to an immutable publication is safe to retry. A transient
+	// signaling failure during renewal should not tear down an active session.
+	request := func(call func() error) error {
+		for {
+			err := call()
+			if err == nil {
+				return nil
+			}
+			err = signalError(err)
+			if !restart || err != errSignal {
+				return err
+			}
+			if err := sleep(ctx, 250*time.Millisecond); err != nil {
+				return err
+			}
+		}
+	}
 	publish := func(desc rtc.SessionDescription) error {
 		gathered := rtc.GatheringCompletePromise(pc)
 		if err := pc.SetLocalDescription(desc); err != nil {
@@ -115,16 +152,20 @@ func (c *control) exchange(ctx context.Context, pc *rtc.PeerConnection, opts set
 		if opts.Policy == "relay" && !hasRelayCandidate(local.SDP) {
 			return errTurn
 		}
-		if err := c.signal.Publish(ctx, map[string]any{"pairId": opts.PairID, "attemptId": g.AttemptID, "type": local.Type.String(), "sdp": local.SDP}); err != nil {
-			return signalError(err)
-		}
-		return nil
+		args := map[string]any{"pairId": opts.PairID, "attemptId": g.AttemptID, "type": local.Type.String(), "sdp": local.SDP}
+		return request(func() error { return c.signal.Publish(ctx, args) })
 	}
 	receive := func(kind rtc.SDPType) error {
 		for ctx.Err() == nil {
-			desc, err := c.signal.Receive(ctx, map[string]any{"pairId": opts.PairID, "attemptId": g.AttemptID, "type": kind.String(), "waitMs": 1000})
+			var desc *description
+			args := map[string]any{"pairId": opts.PairID, "attemptId": g.AttemptID, "type": kind.String(), "waitMs": 1000}
+			err := request(func() error {
+				var err error
+				desc, err = c.signal.Receive(ctx, args)
+				return err
+			})
 			if err != nil {
-				return signalError(err)
+				return err
 			}
 			if desc != nil {
 				if desc.Type != kind.String() || desc.SDP == "" {
@@ -139,7 +180,7 @@ func (c *control) exchange(ctx context.Context, pc *rtc.PeerConnection, opts set
 		return context.Cause(ctx)
 	}
 	if g.Role == "offerer" {
-		offer, err := pc.CreateOffer(nil)
+		offer, err := pc.CreateOffer(&rtc.OfferOptions{ICERestart: restart})
 		if err != nil {
 			return err
 		}
@@ -156,6 +197,62 @@ func (c *control) exchange(ctx context.Context, pc *rtc.PeerConnection, opts set
 		return err
 	}
 	return publish(answer)
+}
+
+// Renew the TURN allocation by restarting ICE on the existing SCTP transport.
+// Acquisition can be retried independently while the old path still works.
+func (c *control) renew(ctx context.Context, pc *rtc.PeerConnection, opts settings, root *grant) error {
+	previous := root
+	for previous.RefreshAt != "" {
+		at, err := time.Parse(time.RFC3339Nano, previous.RefreshAt)
+		if err != nil {
+			return errGrant
+		}
+		if err = sleep(ctx, time.Until(at)); err != nil {
+			return err
+		}
+		var next *grant
+		backoff := 250 * time.Millisecond
+		for next == nil {
+			if ctx.Err() != nil {
+				return context.Cause(ctx)
+			}
+			next, err = c.signal.Acquire(ctx, map[string]any{"pairId": opts.PairID, "after": previous.AttemptID, "renewOf": root.AttemptID, "waitMs": 1000})
+			if err != nil {
+				if errors.Is(signalError(err), errDenied) {
+					return errDenied
+				}
+				next = nil
+			}
+			if next == nil {
+				if err = sleep(ctx, backoff); err != nil {
+					return err
+				}
+				backoff = min(2*backoff, 3*time.Second)
+			}
+		}
+		expires, err := time.Parse(time.RFC3339Nano, next.ExpiresAt)
+		refresh, parseErr := time.Parse(time.RFC3339Nano, next.RefreshAt)
+		if err != nil || parseErr != nil || !expires.After(time.Now()) || !refresh.After(at) || next.Role != root.Role ||
+			next.RenewOf != root.AttemptID || next.AttemptID == "" || next.AttemptID == root.AttemptID || next.AttemptID == previous.AttemptID {
+			return errGrant
+		}
+		cfg, err := rtcConfig(next, opts.Policy)
+		if err != nil {
+			return err
+		}
+		if err = pc.SetConfiguration(cfg); err != nil {
+			return err
+		}
+		setup, finish := context.WithDeadline(ctx, expires)
+		err = c.exchange(setup, pc, opts, next, true)
+		finish()
+		if err != nil {
+			return err
+		}
+		previous = next
+	}
+	return nil
 }
 
 func hasRelayCandidate(sdp string) bool {
@@ -234,7 +331,7 @@ func (c *control) connect(run context.Context, opts settings, g *grant) error {
 		}
 		attach(dc)
 	}
-	if err = c.exchange(setup, pc, opts, g); err != nil {
+	if err = c.exchange(setup, pc, opts, g, false); err != nil {
 		if errors.Is(setup.Err(), context.DeadlineExceeded) {
 			return errGrant
 		}
@@ -261,7 +358,16 @@ func (c *control) connect(run context.Context, opts settings, g *grant) error {
 		if limit < 6 {
 			return errProtocol
 		}
+		var workers sync.WaitGroup
+		defer func() { cancel(errClosed); workers.Wait() }()
 		return w.serve(c.row, c.sessions, limit, func() {
+			if g.RefreshAt != "" {
+				workers.Go(func() {
+					if err := c.renew(ctx, pc, opts, g); err != nil {
+						cancel(err)
+					}
+				})
+			}
 			r := route(pc)
 			c.update(func(s *snapshot) { s.Phase = "connected"; s.Route = r; s.LastError = "" })
 			// Only publish samples while this attempt is live.

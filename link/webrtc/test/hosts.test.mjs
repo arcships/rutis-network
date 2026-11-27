@@ -45,7 +45,6 @@ async function fixture(t) {
   await Promise.all([
     exec('go', ['build', '-o', join(dir, 'relay'), './example/turn'], { cwd: project }),
     exec('go', ['build', '-o', join(dir, 'plugins/link-webrtc'), './cmd/link-webrtc'], { cwd: project }),
-    exec(process.execPath, ['browser/build.mjs'], { cwd: project }),
   ])
   const controller = join(dir, 'controller.mjs')
   await copyFile(new URL('../../tcp/test/fixtures/controller.mjs', import.meta.url), controller)
@@ -78,7 +77,7 @@ async function fixture(t) {
   await startRelay()
   const tokens = [randomUUID(), randomUUID()]
   const pairings = new Map()
-  async function addPair(id) {
+  async function addPair(id, turnTTL = 3600) {
     const relayOnly = id.endsWith('relay')
     const server = processFor(process.execPath, [join(project, 'example/server.mjs')], {
       ...environment,
@@ -89,6 +88,7 @@ async function fixture(t) {
       STUN_URL: relayOnly ? '' : 'stun:127.0.0.1:' + port,
       TURN_URL: relayOnly ? 'turn:127.0.0.1:' + port + '?transport=udp' : '',
       TURN_SECRET: relayOnly ? turnSecret : '',
+      TURN_TTL_SECONDS: String(turnTTL),
     })
     const url = await until(() => server.output().match(/http:\/\/127\.0\.0\.1:\d+/)?.[0], server.output)
     pairings.set(id, url)
@@ -109,14 +109,14 @@ async function fixture(t) {
     },
   })
   stops.push(() => ff.close())
-  async function page(browser, name, member, pairId, policy) {
+  async function page(browser, name, member, pairId, policy, observeRotation = false) {
     const url = pairings.get(pairId)
     const tab = await browser.newPage()
     tab.on('pageerror', (e) => logs.push(e.stack))
     await tab.goto(url)
     const init = async () =>
       tab.evaluate(
-        async ({ name, token, url, pairId, policy }) => {
+        async ({ name, token, url, pairId, policy, observeRotation }) => {
           const { createPageEndpoint, createWebRtcLink, httpSignaling } = await import('/link-webrtc.mjs')
           const endpoint = (window.endpoint = createPageEndpoint(name))
           endpoint.provide(name, {
@@ -124,13 +124,52 @@ async function fixture(t) {
             callback: (fn, value) => fn(value),
             length: (bytes) => bytes.length,
           })
+          const http = httpSignaling(url + '/signal', { headers: { Authorization: 'Bearer ' + token } })
+          let sessions = endpoint.sessions,
+            signaling = http
+          if (observeRotation) {
+            window.mounts = 0
+            sessions = {
+              open(far) {
+                window.mounts++
+                return endpoint.sessions.open(far)
+              },
+            }
+            let renewal,
+              lostReply = false
+            signaling = {
+              ...http,
+              async acquire(input, signal) {
+                const grant = await http.acquire(input, signal)
+                if (grant && !input.renewOf)
+                  window.firstExpiry ??= Number(grant.iceServers[0].username.split(':')[0]) * 1000
+                if (grant && input.renewOf) renewal = grant.attemptId
+                return grant
+              },
+              async publish(input, signal) {
+                const result = await http.publish(input, signal)
+                if (input.attemptId === renewal && !lostReply) {
+                  lostReply = true
+                  throw Error('lost publication reply')
+                }
+                return result
+              },
+            }
+            const Peer = window.RTCPeerConnection
+            window.RTCPeerConnection = class extends Peer {
+              constructor(config) {
+                super(config)
+                window.peer = this
+              }
+            }
+          }
           window.link = createWebRtcLink({
-            sessions: endpoint.sessions,
-            signaling: httpSignaling(url + '/signal', { headers: { Authorization: 'Bearer ' + token } }),
+            sessions,
+            signaling,
             config: { pairId, iceTransportPolicy: policy },
           })
         },
-        { name, token: tokens[member], url, pairId, policy },
+        { name, token: tokens[member], url, pairId, policy, observeRotation },
       )
     await init()
     return {
@@ -332,6 +371,93 @@ test(
         } finally {
           await web.tab.close()
           await native.proc.stop()
+        }
+      })
+    }
+
+    for (const [other, member] of [
+      ['Go', 0],
+      ['Go', 1],
+      ['Firefox', 0],
+      ['Firefox', 1],
+    ]) {
+      const role = member === 0 ? 'offerer' : 'answerer'
+      await t.test('in-flight RPC survives TURN rotation with ' + other + ' ' + role, async () => {
+        const pairId = 'rotate-' + other + '-' + role + '-relay'
+        await e.addPair(pairId, 16)
+        const service = other === 'Firefox' ? 'bravo' : 'sensor'
+        const remote =
+          other === 'Firefox'
+            ? await e.page(e.ff, service, member, pairId, 'relay')
+            : await e.native(member, pairId, 'relay')
+        const web = await e.page(e.chrome, 'page', 1 - member, pairId, 'relay', true)
+        const diag = async () =>
+          JSON.stringify([await web.status(), await web.tab.evaluate(() => window.mounts)]) + e.diagnostic()
+        async function selected() {
+          return web.tab.evaluate(async () => {
+            const entries = await peer.getStats()
+            const transport = [...entries.values()].find(
+              (s) => s.type === 'transport' && s.selectedCandidatePairId,
+            )
+            const pair = entries.get(transport?.selectedCandidatePairId)
+            if (!pair || pair.state !== 'succeeded') return
+            const local = entries.get(pair.localCandidateId),
+              remote = entries.get(pair.remoteCandidateId)
+            if (local.candidateType !== 'relay' || remote.candidateType !== 'relay') return
+            return {
+              ports: [local.port, remote.port],
+              generation: peer.currentLocalDescription?.sdp.match(/^a=ice-ufrag:(.+)$/m)?.[1],
+            }
+          })
+        }
+        try {
+          await until(async () => (await web.call(service, 1))[1] === 1, diag)
+          const first = await until(selected, diag)
+          assert.ok(first.generation && first.ports.every(Number.isInteger))
+          await web.tab.evaluate((service) => {
+            window.hold = Promise.withResolvers()
+            window.pending = endpoint.call(
+              service,
+              'callback',
+              async () => {
+                window.entered = true
+                return hold.promise
+              },
+              42,
+            )
+            pending.catch(() => {})
+          }, service)
+          await until(() => web.tab.evaluate(() => window.entered), diag)
+          // Observe the selected relay allocation change, then call after the
+          // original credentials expired while the first callback is still held.
+          await until(
+            async () => {
+              if (!(await web.tab.evaluate(() => Date.now() > firstExpiry))) return false
+              const next = await selected()
+              return (
+                next?.generation &&
+                next.generation !== first.generation &&
+                next.ports.every((port, i) => port !== first.ports[i])
+              )
+            },
+            diag,
+            55000,
+          )
+          assert.deepEqual(await web.call(service, 2), [service, 2])
+          assert.equal(
+            await web.tab.evaluate(() => {
+              hold.resolve(42)
+              return pending
+            }),
+            42,
+          )
+          assert.equal(await web.tab.evaluate(() => mounts), 1)
+          assert.equal((await web.status()).retryCount, 0)
+          assert.equal((remote.manage ? await remote.manage('status') : await remote.status()).retryCount, 0)
+        } finally {
+          await web.tab.close()
+          if (remote.proc) await remote.proc.stop()
+          else await remote.tab.close()
         }
       })
     }

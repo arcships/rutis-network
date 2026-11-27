@@ -1,14 +1,104 @@
 import { Session, RECORD, ENDPOINT_ID } from 'rutis-session-v5'
 import { decode } from 'rutis-codec-v5'
+import { bindInvocation } from './scope.mjs'
 
 const encoder = new TextEncoder()
 const decoder = new TextDecoder('utf-8', { fatal: true })
 
+// Visit RPC lists and records without cloning ordinary values or inspecting
+// remote objects, typed buffers, futures, or other tagged protocol values.
+function mapFunctions(value, map, seen = new Set(), preserveObject = () => false) {
+  if (typeof value === 'function') return map(value)
+  if (!value || typeof value !== 'object' || seen.has(value)) return value
+  if (
+    !Array.isArray(value) &&
+    Object.getPrototypeOf(value) !== Object.prototype &&
+    Object.getPrototypeOf(value) !== null
+  )
+    return value
+  if (preserveObject(value)) return value
+  seen.add(value)
+  let descriptors
+  for (const key of Object.keys(value)) {
+    const field = Object.getOwnPropertyDescriptor(value, key)
+    if (!field || !('value' in field)) continue
+    const next = mapFunctions(field.value, map, seen, preserveObject)
+    if (next === field.value) continue
+    descriptors ??= Object.getOwnPropertyDescriptors(value)
+    descriptors[key] = { ...field, value: next }
+  }
+  seen.delete(value)
+  if (!descriptors) return value
+  const copy = Array.isArray(value) ? [] : Object.create(Object.getPrototypeOf(value))
+  return Object.defineProperties(copy, descriptors)
+}
+
 // One page endpoint owns explicitly exported services and a single session.
 // Keep the peer protocol and wire value/reference handling in rutis itself.
-export function createPageEndpoint(id) {
+export function createPageEndpoint(
+  id,
+  {
+    onServiceError = ({ service, operation }) => console.warn(`rutis: ${operation} rejected for ${service}`),
+  } = {},
+) {
   if (typeof id !== 'string' || !ENDPOINT_ID.test(id)) throw Error('invalid endpoint id')
+  if (typeof onServiceError !== 'function') throw Error('invalid service error handler')
   const local = new Map()
+  // A returned reference must travel home as the exact function rutis gave
+  // us. Local callbacks likewise keep one exported identity across calls.
+  const remoteFunctions = new WeakMap(),
+    exports = new WeakMap(),
+    homes = new WeakMap()
+  const localObjects = new WeakSet()
+  function keepObject(value) {
+    if (Array.isArray(value) || value[RECORD] === true) return false
+    const methods = Object.keys(value).some(
+      (key) => typeof Object.getOwnPropertyDescriptor(value, key)?.value === 'function',
+    )
+    if (methods) localObjects.add(value)
+    return methods
+  }
+  function toWire(value) {
+    return mapFunctions(
+      value,
+      (fn) => {
+        if (remoteFunctions.has(fn)) return remoteFunctions.get(fn)
+        if (!exports.has(fn)) {
+          const exported = (...args) => handle(fn, undefined, args)
+          exports.set(fn, exported)
+          homes.set(exported, fn)
+        }
+        return exports.get(fn)
+      },
+      new Set(),
+      keepObject,
+    )
+  }
+  function fromWire(value) {
+    const scoped = new Map()
+    return mapFunctions(
+      value,
+      (fn) => {
+        if (homes.has(fn)) return homes.get(fn)
+        if (!scoped.has(fn)) {
+          const callback = bindInvocation((...args) => invoke(fn, args))
+          scoped.set(fn, callback)
+          remoteFunctions.set(callback, fn)
+        }
+        return scoped.get(fn)
+      },
+      new Set(),
+      (obj) => localObjects.has(obj),
+    )
+  }
+  function handle(fn, receiver, args) {
+    const result = fn.apply(receiver, fromWire(args))
+    return result instanceof Promise ? result.then(toWire) : toWire(result)
+  }
+  function invoke(fn, args) {
+    const read = bindInvocation(fromWire)
+    return Promise.resolve(fn(...toWire(args))).then(read)
+  }
   let current,
     version = 0
   function open(far) {
@@ -21,9 +111,9 @@ export function createPageEndpoint(id) {
       queuedFrames = 0
     let offerVersion = -1,
       serviceEpoch
-    const connection = { remote, announce, withdraw, call: (fn, args) => session.callFunctionAsync(fn, args) }
+    const connection = { remote, announce, withdraw }
     const session = new Session({
-      endpoint: { local: id, declare: ['node'] },
+      endpoint: { local: id },
       dispatch,
       maxTransfer: 16 << 20,
       pump() {
@@ -71,9 +161,12 @@ export function createPageEndpoint(id) {
     function notify(method, value) {
       if (!closed)
         session.invokeAsync('', method, [value]).catch((error) => {
-          if (!closed) {
+          if (closed) return
+          if (method === 'link.offers') {
             end(error)
             far.close({ kind: 'done' })
+          } else {
+            onServiceError({ service: value.name, operation: method, error })
           }
         })
     }
@@ -109,14 +202,27 @@ export function createPageEndpoint(id) {
       if (version <= (versions.get(name) ?? -1)) return
       if (method === 'services.withdraw') remote.delete(name)
       else {
-        if (local.has(name)) throw Error('service already provided')
         const methods = new Map()
         for (const key of Object.keys(value.shape)) {
-          if (!Object.hasOwn(value.service, key) || typeof value.service[key] !== 'function')
+          if (key in Object.prototype || typeof value.service?.[key] !== 'function')
             throw Error('invalid service')
-          methods.set(key, value.service[key])
+          const fn = value.service[key]
+          // Records carry function references. On an object reference the
+          // runtime's proxy sends a method call to the owning object instead.
+          methods.set(
+            key,
+            Object.hasOwn(value.service, key)
+              ? (...args) => session.callFunctionAsync(fn, args)
+              : (...args) => fn(...args),
+          )
         }
         remote.set(name, methods)
+        if (local.has(name)) {
+          // Retain the peer's current version so withdrawing the local
+          // provider resolves the collision without a new announcement.
+          versions.set(name, version)
+          throw Error('service already provided')
+        }
       }
       versions.set(name, version)
     }
@@ -142,8 +248,15 @@ export function createPageEndpoint(id) {
       },
     }
   }
+  async function call(connection, name, method, ...args) {
+    const methodCall = !local.has(name) && connection?.remote.get(name)?.get(method)
+    if (!methodCall) throw Error('remote service method unavailable')
+    return invoke(methodCall, args)
+  }
   return {
     sessions: { open },
+    call: (...args) => call(current, ...args),
+    captureCall: () => bindInvocation(call.bind(undefined, current)),
     provide(name, handlers) {
       if (
         typeof name !== 'string' ||
@@ -161,7 +274,7 @@ export function createPageEndpoint(id) {
         if (typeof value !== 'function' || key in Object.prototype) throw Error('invalid service method')
         methods[key] = (...args) => {
           if (local.get(name) !== entry) throw Error('service withdrawn')
-          return value.apply(handlers, args)
+          return handle(value, handlers, args)
         }
         shape[key] = 'async'
       }
@@ -175,11 +288,6 @@ export function createPageEndpoint(id) {
         }
       }
     },
-    remoteServices: () => [...(current?.remote.keys() ?? [])],
-    async call(name, method, ...args) {
-      const fn = current?.remote.get(name)?.get(method)
-      if (!fn) throw Error('remote service method unavailable')
-      return current.call(fn, args)
-    },
+    remoteServices: () => [...(current?.remote.keys() ?? [])].filter((name) => !local.has(name)),
   }
 }

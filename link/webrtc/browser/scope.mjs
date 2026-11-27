@@ -1,19 +1,30 @@
-// Page services make asynchronous remote calls. Preserve the synchronous
-// part of the dispatch chain on browsers without the AsyncContext proposal.
+// Rutis enters this scope when dispatching each call. Where native async
+// context is unavailable, retain a specific invocation at the RPC boundary.
+let active
+
+export function bindInvocation(fn) {
+  const scope = active
+  if (!scope) return fn
+  return (...args) => scope.storage.run(scope.value, () => fn(...args))
+}
+
 export class AsyncLocalStorage {
-  #value
   #variable = globalThis.AsyncContext?.Variable && new globalThis.AsyncContext.Variable()
+
   getStore() {
-    return this.#variable ? this.#variable.get() : this.#value
+    if (this.#variable) return this.#variable.get()
+    for (let scope = active; scope; scope = scope.parent) {
+      if (scope.storage === this) return scope.value
+    }
   }
+
   run(value, action) {
-    if (this.#variable) return this.#variable.run(value, action)
-    const previous = this.#value
-    this.#value = value
+    const parent = active
+    active = { storage: this, value, parent }
     try {
-      return action()
+      return this.#variable ? this.#variable.run(value, action) : action()
     } finally {
-      this.#value = previous
+      active = parent
     }
   }
 }

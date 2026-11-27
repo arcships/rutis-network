@@ -186,3 +186,59 @@ test('switching pair during backoff cancels the old retry and does not open a st
   assert.deepEqual(pairs, ['offline', 'replacement'])
   assert.equal(link.status().phase, 'stopped')
 })
+
+test('cancelled mounting releases the wire immediately and ends a late session once', async () => {
+  const life = new AbortController()
+  const mounting = Promise.withResolvers()
+  const wire = attachChannel({ readyState: 'open', bufferedAmount: 0 }, life)
+  let ended = 0
+  const serve = wire.serve({ open: () => mounting.promise }, 16384, () =>
+    assert.fail('retired session mounted'),
+  )
+  life.abort(Error('stop'))
+  await assert.rejects(serve, /stop/)
+  mounting.resolve({
+    end: () => {
+      ended++
+    },
+  })
+  await new Promise((r) => setImmediate(r))
+  assert.equal(ended, 1)
+})
+
+test('a TURN renewal is bound to both members and the completed previous negotiation', async () => {
+  const pairId = 'pair'
+  const signal = createPairing({ pairId, members: ['a', 'b'], refreshAfterMs: 10000 })
+  const acquire = (member, args) => signal(member, 'acquire', { pairId, ...args })
+  const publish = (member, attemptId) =>
+    signal(member, 'publish', {
+      pairId,
+      attemptId,
+      type: member === 'a' ? 'offer' : 'answer',
+      sdp: member,
+    })
+  const root = await acquire('a')
+  const fields = { renewOf: root.attemptId, after: root.attemptId }
+  await assert.rejects(acquire('a', fields))
+  await publish('a', root.attemptId)
+  await publish('b', root.attemptId)
+  await assert.rejects(acquire('a', { ...fields, after: 'old' }))
+  assert.equal(await acquire('a', fields), null)
+  assert.equal(await acquire('a', fields), null)
+  const next = await acquire('b', fields)
+  assert.equal(next.renewOf, root.attemptId)
+  assert.equal(next.role, 'answerer')
+  assert.equal((await acquire('a', fields)).attemptId, next.attemptId)
+  const again = { ...fields, after: next.attemptId }
+  await assert.rejects(acquire('a', again))
+  await publish('a', next.attemptId)
+  await publish('b', next.attemptId)
+  assert.equal(await acquire('b', again), null)
+  const answer = await signal('a', 'receive', { pairId, attemptId: next.attemptId, type: 'answer' })
+  assert.equal(answer.sdp, 'b')
+  const third = await acquire('a', again)
+  assert.notEqual(third.attemptId, next.attemptId)
+  await assert.rejects(acquire('b', fields))
+  await acquire('a', { after: root.attemptId })
+  await assert.rejects(acquire('a', again))
+})

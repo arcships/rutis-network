@@ -19,7 +19,7 @@ Admitting a peer grants trust in the identity it registers. Complete admission b
 
 ## WebRTC browser and native connections
 
-Pages can call rutis services on another page or a native host in both directions. The `go:link-webrtc` plugin and browser adapter support automatic connection, runtime controls, direct ICE paths and forced TURN. Pairing can use the application’s existing login. The example includes HTTP signaling and temporary TURN credentials. [Build, configure, run and manage a link](../design/08-link-webrtc.en.md)
+Pages can call rutis services on another page or a native host in both directions. The `go:link-webrtc` plugin and browser adapter support automatic connection, runtime controls, direct ICE paths and forced TURN. Pairing can use the application’s existing login. The example includes HTTP signaling and renews temporary TURN credentials on the existing session. [Build, configure, run and manage a link](../design/08-link-webrtc.en.md)
 
 ## Go libp2p
 

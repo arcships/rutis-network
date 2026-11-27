@@ -2,17 +2,17 @@ import { abortable, attachChannel, delay } from './channel.mjs'
 
 const fatal = new Set(['pairing-denied', 'incompatible-channel'])
 const codes = new Set([...fatal, 'channel-closed', 'turn-unavailable', 'invalid-grant', 'signaling-failed'])
-async function signalCall(provider, method, args, signal) {
-  signal.throwIfAborted()
-  try {
-    return await abortable(provider[method](args, signal), signal)
-  } catch (error) {
+async function signalCall(provider, method, args, signal, retry = false) {
+  for (;;) {
     signal.throwIfAborted()
-    throw Error(
-      error.name === 'PairingDenied' || error.code === 'pairing-denied'
-        ? 'pairing-denied'
-        : 'signaling-failed',
-    )
+    try {
+      return await abortable(provider[method](args, signal), signal)
+    } catch (error) {
+      signal.throwIfAborted()
+      if (error.name === 'PairingDenied' || error.code === 'pairing-denied') throw Error('pairing-denied')
+      if (!retry) throw Error('signaling-failed')
+      await delay(250, signal)
+    }
   }
 }
 
@@ -35,17 +35,42 @@ async function selectedRoute(pc) {
   return types.includes('relay') ? 'relay' : types.every(Boolean) ? 'direct' : 'unknown'
 }
 
+// During an ICE restart an answerer can otherwise run checks against the
+// new offer from its old TURN allocation before it has gathered the new one.
+// Install the offer's candidates once the fresh answer has been published.
+function deferOfferCandidates(desc) {
+  const candidates = []
+  let media = -1
+  const lines = desc.sdp.split(/\r?\n/).filter((line) => {
+    if (line.startsWith('m=')) media++
+    if (line.startsWith('a=candidate:') || line === 'a=end-of-candidates') {
+      candidates.push({
+        sdpMLineIndex: media,
+        candidate: line.startsWith('a=candidate:') ? line.slice(2) : '',
+      })
+      return false
+    }
+    return true
+  })
+  return { offer: { type: 'offer', sdp: lines.join('\r\n') }, candidates }
+}
+
+function serversFor(grant, policy) {
+  const { iceServers = [] } = grant
+  if (!Array.isArray(iceServers)) throw Error('invalid-grant')
+  if (policy === 'relay' && !iceServers.some((s) => [s.urls].flat().some((url) => /^turns?:/i.test(url))))
+    throw Error('turn-unavailable')
+  return iceServers
+}
+
 async function connect({ signaling, sessions }, config, grant, parent, update) {
   const expiry = Date.parse(grant.expiresAt)
   const remaining = expiry - Date.now()
   if (!(remaining > 0)) throw Error('invalid-grant')
-  const { iceServers = [] } = grant
-  if (
-    config.iceTransportPolicy === 'relay' &&
-    !iceServers.some((s) => [s.urls].flat().some((url) => /^turns?:/i.test(url)))
-  )
-    throw Error('turn-unavailable')
-  const pc = new RTCPeerConnection({ iceServers, iceTransportPolicy: config.iceTransportPolicy })
+  const pc = new RTCPeerConnection({
+    iceServers: serversFor(grant, config.iceTransportPolicy),
+    iceTransportPolicy: config.iceTransportPolicy,
+  })
   const life = new AbortController()
   const stop = () => life.abort(parent.reason)
   parent.addEventListener('abort', stop, { once: true })
@@ -81,46 +106,138 @@ async function connect({ signaling, sessions }, config, grant, parent, update) {
       disconnected = undefined
     }
   }
-  const fields = { pairId: config.pairId, attemptId: grant.attemptId }
-  const receive = async (type) => {
-    for (;;) {
-      const desc = await signalCall(signaling, 'receive', { ...fields, type, waitMs: 1000 }, signal)
-      if (desc !== null && desc !== undefined) {
-        if (desc.type !== type || typeof desc.sdp !== 'string' || !desc.sdp) throw Error('invalid-grant')
-        await abortable(pc.setRemoteDescription(desc), signal)
-        return
+  async function exchange(g, signal, restart) {
+    const fields = { pairId: config.pairId, attemptId: g.attemptId }
+    let deferred = []
+    const receive = async (type) => {
+      for (;;) {
+        const desc = await signalCall(
+          signaling,
+          'receive',
+          { ...fields, type, waitMs: 1000 },
+          signal,
+          restart,
+        )
+        if (desc !== null && desc !== undefined) {
+          if (desc.type !== type || typeof desc.sdp !== 'string' || !desc.sdp) throw Error('invalid-grant')
+          let remote = desc
+          if (restart && type === 'offer') {
+            const { offer, candidates } = deferOfferCandidates(desc)
+            remote = offer
+            deferred = candidates
+          }
+          await abortable(pc.setRemoteDescription(remote), signal)
+          return
+        }
+        await delay(50, signal)
       }
-      await delay(50, signal)
     }
-  }
-  const publish = async (desc) => {
-    await abortable(pc.setLocalDescription(desc), signal)
-    if (pc.iceGatheringState !== 'complete') {
+    const publish = async (desc) => {
+      // On restart Chromium may still report the previous generation's
+      // "complete" immediately after setLocalDescription has resolved.
       const gathered = Promise.withResolvers()
+      let relayTimer
+      const hasCandidates = () =>
+        config.iceTransportPolicy === 'relay'
+          ? /^a=candidate:.* typ relay(?:\s|$)/im.test(pc.localDescription?.sdp)
+          : /^a=candidate:/im.test(pc.localDescription?.sdp)
       const check = () => {
-        if (pc.iceGatheringState === 'complete') gathered.resolve()
+        if (pc.iceGatheringState === 'complete' && (!restart || hasCandidates())) gathered.resolve()
+      }
+      // Some interfaces can keep gathering after a usable relay is available.
+      // The answerer must deliver its SDP before the offerer's ICE checks expire.
+      const candidate = (event) => {
+        if (event.candidate?.type === 'relay')
+          relayTimer ??= setTimeout(
+            () => {
+              relayTimer = undefined
+              if (hasCandidates()) gathered.resolve()
+            },
+            restart ? 100 : 2000,
+          )
       }
       pc.addEventListener('icegatheringstatechange', check)
+      pc.addEventListener('icecandidate', candidate)
       try {
-        await abortable(gathered.promise, signal)
+        await abortable(pc.setLocalDescription(desc), signal)
+        if (pc.iceGatheringState !== 'complete' || (restart && !hasCandidates())) {
+          await abortable(gathered.promise, signal)
+        }
       } finally {
+        clearTimeout(relayTimer)
+        pc.removeEventListener('icecandidate', candidate)
         pc.removeEventListener('icegatheringstatechange', check)
       }
+      const { type, sdp } = pc.localDescription
+      if (config.iceTransportPolicy === 'relay' && !/^a=candidate:.* typ relay(?:\s|$)/im.test(sdp))
+        throw Error('turn-unavailable')
+      await signalCall(signaling, 'publish', { ...fields, type, sdp }, signal, restart)
     }
-    const { type, sdp } = pc.localDescription
-    if (config.iceTransportPolicy === 'relay' && !/^a=candidate:.* typ relay(?:\s|$)/im.test(sdp))
-      throw Error('turn-unavailable')
-    await signalCall(signaling, 'publish', { ...fields, type, sdp }, signal)
-  }
-  try {
-    if (grant.role === 'offerer') {
-      attach(pc.createDataChannel('rutis', { protocol: 'rutis-link/1', ordered: true }))
-      await publish(await pc.createOffer())
+
+    if (g.role === 'offerer') {
+      await publish(await pc.createOffer({ iceRestart: restart }))
       await receive('answer')
     } else {
       await receive('offer')
       await publish(await pc.createAnswer())
+      for (const candidate of deferred) await abortable(pc.addIceCandidate(candidate), signal)
     }
+  }
+  async function renew() {
+    let previous = grant
+    while (previous.refreshAt && !signal.aborted) {
+      const refreshAt = Date.parse(previous.refreshAt)
+      if (!Number.isFinite(refreshAt)) throw Error('invalid-grant')
+      while (Date.now() < refreshAt) await delay(Math.min(refreshAt - Date.now(), 2147483647), signal)
+      let next
+      let backoff = 250
+      while (!next) {
+        try {
+          next = await signalCall(
+            signaling,
+            'acquire',
+            {
+              pairId: config.pairId,
+              after: previous.attemptId,
+              renewOf: grant.attemptId,
+              waitMs: 1000,
+            },
+            signal,
+          )
+        } catch (error) {
+          if (error.message !== 'signaling-failed') throw error
+        }
+        // A signaling outage before ICE restart leaves the data channel usable.
+        if (!next) {
+          await delay(backoff, signal)
+          backoff = Math.min(backoff * 2, 3000)
+        }
+      }
+      const remaining = Date.parse(next.expiresAt) - Date.now()
+      if (
+        typeof next.attemptId !== 'string' ||
+        !next.attemptId ||
+        next.attemptId === grant.attemptId ||
+        next.attemptId === previous.attemptId ||
+        next.renewOf !== grant.attemptId ||
+        next.role !== grant.role ||
+        !(remaining > 0) ||
+        !(Date.parse(next.refreshAt) > refreshAt)
+      )
+        throw Error('invalid-grant')
+      pc.setConfiguration({
+        ...pc.getConfiguration(),
+        iceServers: serversFor(next, config.iceTransportPolicy),
+      })
+      const deadline = AbortSignal.any([signal, AbortSignal.timeout(Math.min(remaining, 2147483647))])
+      await exchange(next, deadline, true)
+      previous = next
+    }
+  }
+  try {
+    if (grant.role === 'offerer')
+      attach(pc.createDataChannel('rutis', { protocol: 'rutis-link/1', ordered: true }))
+    await exchange(grant, signal, false)
     await abortable(attached.promise, signal)
     await abortable(wire.opened, signal)
     if (Date.now() >= expiry) throw Error('invalid-grant')
@@ -131,6 +248,7 @@ async function connect({ signaling, sessions }, config, grant, parent, update) {
     }
     await wire.serve(sessions, pc.sctp.maxMessageSize, () => {
       update({ phase: 'connected', lastError: undefined })
+      void renew().catch((error) => life.abort(error))
       void refresh()
       statsTimer = setInterval(refresh, 500)
     })

@@ -51,7 +51,7 @@ func (p *httpProvider) call(ctx context.Context, method string, args map[string]
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
 		return errSignal
 	}
-	if out == nil {
+	if out == nil || res.StatusCode == http.StatusNoContent {
 		return nil
 	}
 	return json.NewDecoder(io.LimitReader(res.Body, 1<<20)).Decode(out)

@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/binary"
 	"testing"
+	"time"
+
+	"github.com/arcships/rutis-network/link/tcp"
 )
 
 func TestRecordBoundaries(t *testing.T) {
@@ -36,5 +39,38 @@ func TestRecordBoundaries(t *testing.T) {
 		if newReceiver().take(record) {
 			t.Fatalf("accepted invalid record of size %d", len(record))
 		}
+	}
+}
+
+func TestStopWhileSessionIsOpening(t *testing.T) {
+	row := t.Context()
+	ctx, cancel := context.WithCancelCause(row)
+	w := &wire{ctx: ctx, cancel: cancel}
+	entered, release, ended := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	sessions := tcp.Sessions{Open: func(_ context.Context, _ tcp.Far) (tcp.Near, error) {
+		close(entered)
+		<-release
+		return tcp.Near{End: func(_ context.Context, _ tcp.CloseReason) error {
+			close(ended)
+			return nil
+		}}, nil
+	}}
+	done := make(chan error, 1)
+	go func() { done <- w.serve(row, sessions, recordLimit, func() { t.Error("mounted after stop") }) }()
+	<-entered
+	cancel(errClosed)
+	select {
+	case err := <-done:
+		if err != errClosed {
+			t.Fatalf("got %v after stop", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("stop blocked on the host mount")
+	}
+	close(release)
+	select {
+	case <-ended:
+	case <-time.After(time.Second):
+		t.Fatal("late session was not ended")
 	}
 }

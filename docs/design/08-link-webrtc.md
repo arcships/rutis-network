@@ -12,7 +12,7 @@
 ## 从配对到第一次调用
 
 1. 集成方让用户登录、选择对端或接受邀请，给两个获准互连的端点分配同一个 `pairId`。应用已有的 HTTPS/WebSocket 服务即可传递信令。能接收邀请的原生应用和浏览器都可以充当任一角色。
-2. 两端通过本地信令服务取得本次配对授权。服务为同一次尝试分配一个发起方、一个应答方和一个短期 `attemptId`。发起方创建通道并发出包含 ICE 候选地址的 offer，应答方回复 answer。首版各自等 ICE 收集完成，只需交付两份 SDP。
+2. 两端通过本地信令服务取得本次配对授权。服务为同一次尝试分配一个发起方、一个应答方和一个短期 `attemptId`。发起方创建通道并发出包含 ICE 候选地址的 offer，应答方回复 answer。每端把收集到的 ICE 候选随一份 SDP 发布。浏览器取得可用中继候选后，可以在其他网卡仍在收集时发布。
 3. ICE 选择可用路径，DTLS 校验与受信 SDP 绑定的证书指纹。适配器检查授权仍有效、对端及通道符合约定后，一端一条通道交给一个会话。此时可以观察传输已连通；第一次业务 RPC 成功才证明对端服务可用。rutis 自行处理 Hello、服务发现和调用。[会话交接契约](01-link-plugin-contract.md) · [WebRTC 规范](https://www.w3.org/TR/webrtc/)
 
 ## 跑起来
@@ -42,7 +42,7 @@ printf 'A: %s\nB: %s\n' "$PAIR_A_TOKEN" "$PAIR_B_TOKEN"
 
 这会同时启动本机的认证 TURN 和 `http://127.0.0.1:8080` 上的配对页面。在两个浏览器里分别填入不同的页面 ID（例如 `page-a`、`page-b`）和对应的 A、B 配对凭据。两端连接后，填入对方的服务名，点击 **Call echo** 即可互调。示例把页面 ID 作为服务名。跨设备使用时，将页面和 `/signal` 放在两个端点都能访问的 HTTPS 域名下。
 
-**接入自己的 TURN。** 用自己的服务替换示例的回环服务器，启动信令前设置 `TURN_URL`（如 `turn:turn.example.org:3478?transport=udp`）和 `TURN_SECRET`。TURN 服务器需启用对应的共享密钥认证，并向两端开放监听端口及中继端口范围。使用 coturn 时，启用 `use-auth-secret`，让 `static-auth-secret` 与信令服务的 `TURN_SECRET` 相同。信令服务为每个成员签发一小时有效的 TURN 凭据，共享密钥仅保留在服务端。两端均选 **Require TURN**，连通后应显示 `connected · relay`。选择 `all` 时 ICE 也可直连，`STUN_URL` 可用于地址发现。[coturn 认证和端口配置](https://github.com/coturn/coturn/blob/master/examples/etc/turnserver.conf)
+**接入自己的 TURN。** 用自己的服务替换示例的回环服务器，启动信令前设置 `TURN_URL`（如 `turn:turn.example.org:3478?transport=udp`）和 `TURN_SECRET`。TURN 服务器需启用对应的共享密钥认证，并向两端开放监听端口及中继端口范围。使用 coturn 时，启用 `use-auth-secret`，让 `static-auth-secret` 与信令服务的 `TURN_SECRET` 相同。信令服务分别为两个成员签发 TURN 凭据，有效期默认一小时，可通过 `TURN_TTL_SECONDS` 配置。两端在有效期过半时申请续期，共享密钥仅保留在服务端。两端均选 **Require TURN**，连通后应显示 `connected · relay`。选择 `all` 时 ICE 也可直连，`STUN_URL` 可用于地址发现。[coturn 认证和端口配置](https://github.com/coturn/coturn/blob/master/examples/etc/turnserver.conf)
 
 ## 原生宿主与页面集成
 
@@ -98,6 +98,21 @@ await link.start()
 
 双方都通过会话发布和调用服务。以原生端提供 `sensor.echo` 为例，页面可通过 `page.remoteServices()` 查看是否已发现 `sensor`，然后调用 `await page.call('sensor', 'echo', value)`。原生端也可以注入页面提供的 `display`。调用 `remove()` 只撤下该服务，`await link.stop()` 则关闭整条连接。
 
+`createPageEndpoint(id, { onServiceError })` 通过 `{ service, operation, error }` 报告服务发布和撤下时收到的拒绝。同名冲突只影响这个服务，其他服务仍可调用。一方撤下本地同名服务后，即可发现另一方的服务。页面端点声明 services 能力族，可以调用以函数引用记录或对象引用形式发布的服务。
+
+传入页面处理函数的回调在 `await` 后仍保留父调用路径。若还需要在异步操作之后发起另一项服务调用，可在进入处理函数时取得 `page.captureCall()`，在缺少原生异步上下文的浏览器中也能保留调用关系。
+
+```js
+page.provide('display', {
+  async render(value, done) {
+    const call = page.captureCall()
+    await draw(value)
+    await call('sensor', 'ack', value)
+    return done(value)
+  }
+})
+```
+
 | 控制方法 | 约定 |
 | --- | --- |
 | `configure(patch)` | 可改 `pairId`、`iceTransportPolicy`、`reconnect`。先校验整份补丁。运行中更换配对或 ICE 策略会释放旧连接、重新授权。仅改重试开关保留健康连接。 |
@@ -112,9 +127,13 @@ await link.start()
 
 | 方法 | 调用与返回 |
 | --- | --- |
-| `acquire({pairId, after, waitMs})` | 返回 `{attemptId, role, expiresAt, iceServers}` 或 `null`。首次 `after` 为 null，重连传上次已结束的 ID。相同请求可重试。两个已授权成员取得同一尝试、互补角色和各自的 ICE 配置。 |
+| `acquire({pairId, after, waitMs, renewOf?})` | 返回 `{attemptId, role, expiresAt, iceServers}` 或 `null`。首次 `after` 为 null，重连传上次已结束的 ID。相同请求可重试。两个已授权成员取得同一尝试、互补角色和各自的 ICE 配置。 |
 | `publish({pairId, attemptId, type, sdp})` | 发起方发布 offer，应答方发布 answer。同一消息重投幂等，同时拒绝替换已发布内容。 |
 | `receive({pairId, attemptId, type, waitMs})` | 只读对端在此尝试发布的消息；返回 `{type, sdp}` 或 `null`。消息可重读至过期。等待有时限，停止后丢弃在途回复。 |
+
+提供短期 TURN 凭据时，信令方可在两端的初始授权中附上同一个 RFC 3339 UTC 时间 `refreshAt`。届时两端重新调用 `acquire`，将最初的 `attemptId` 作为 `renewOf`，上轮协商 ID 作为 `after`。两端都请求续期后，服务返回新的 ID、原 `renewOf` 和角色、新 ICE 凭据、协商截止时间和下次 `refreshAt`。等候另一端时返回 `null`。双方以新的 ID 交换 SDP，在现有 PeerConnection 上重启 ICE，沿用同一条 DataChannel、rutis 会话及在途调用。续期时刻需要给双方收集候选和交换 SDP 留足时间。省略 `refreshAt` 的既有提供方只执行初次协商。
+
+两端的 HTTP 客户端都接受 JSON `null` 或 HTTP 204 表示本次轮询暂无结果。ICE 服务器的 `urls` 字段可传单个 URL 字符串或字符串数组。
 
 提供方负责认证信令来源、保护 SDP 的机密性和完整性，并把配对双方、角色、尝试与有效期绑定。房间名仅用于寻址。接收者只使用当前授权中对端的 SDP，拒绝错误角色、过期、重放和跨配对消息。房间授权意味着允许对端成为受信 rutis peer。应用在邀请被消费后才允许首次配对，依其授权策略决定后续重连。TURN 凭据、原始 SDP、候选地址和指纹只在协商所需的私有接口内流转。既有信令短暂中断时，已建立的 DataChannel 可以继续工作。[WebRTC 安全架构](https://www.rfc-editor.org/rfc/rfc8827)
 
@@ -150,4 +169,4 @@ npm test
 go test -race ./...
 ```
 
-端到端测试使用原版 rutis-host 0.23、Chromium、Firefox，以及回环地址上的真实 STUN/TURN 服务器。两种端点组合都运行直连和强制 TURN，检查双方实选路径与双向 RPC。中继测试终止 TURN 进程，等待远端服务撤下，再用同一端口启动 TURN，确认能再次调用。测试还覆盖页面刷新、业务插件重载、回调、跨记录的二进制值、16 MiB 消息边界和背压。跨公网 NAT 拓扑与具体生产 TURN 部署需要另行验证。[端到端测试](../../link/webrtc/test/hosts.test.mjs) · [浏览器单元测试](../../link/webrtc/test/channel.test.mjs) · [Go 边界测试](../../link/webrtc/records_test.go)
+端到端测试使用原版 rutis-host 0.23、Chromium、Firefox，以及回环地址上的真实 STUN/TURN 服务器。两种端点组合都运行直连和强制 TURN，检查双方实选路径与双向 RPC。中继测试终止 TURN 进程，等待远端服务撤下，再用同一端口启动 TURN，确认能再次调用。短期凭据测试让一个回调跨过原凭据到期时间，检查实选中继端口已变化，并在同一会话上完成挂起的 RPC 和新调用。测试还覆盖页面刷新、业务插件重载、回调、跨记录的二进制值、16 MiB 消息边界和背压。跨公网 NAT 拓扑与具体生产 TURN 部署需要另行验证。[端到端测试](../../link/webrtc/test/hosts.test.mjs) · [浏览器单元测试](../../link/webrtc/test/channel.test.mjs) · [Go 边界测试](../../link/webrtc/records_test.go)
