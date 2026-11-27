@@ -1,0 +1,12 @@
+{
+  "id": "b",
+  "runtimes": { "go": { "dir": "./plugins/go" } },
+  "rows": [{
+    "id": "from-a", "name": "go:link-websocket-listen",
+    "config": {
+      "address": "wss://0.0.0.0:7443/rutis",
+      "cert": "/etc/rutis/b-chain.pem", "key": "/etc/rutis/b.key",
+      "tokenFile": "/etc/rutis/a-b.token"
+    }
+  }]
+}

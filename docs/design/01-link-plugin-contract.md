@@ -91,7 +91,7 @@ link plugin
 
 ### D10 localhost TCP / WebSocket 是第一波，HTTP 不是
 
-- 核心已有 `websocket::dial` / `websocket::listen`，`rutis-host/listen` 也用它；不新增 `link/websocket`。
+- 独立的 [Go WebSocket 插件](../../link/websocket/README.zh-CN.md)负责 WSS 拨号、监听和准入。宿主的 WebSocket 实现可用于协议互通测试。
 - 参考 bridge 使用 `127.0.0.1` TCP，在交接前通过双向 TLS 验证对端。随机端口用于选择可用地址。无准入的回环 TCP 仅用于隔离测试。
 - 纯 HTTP 请求/响应没有双向长连接和消息边界，不是 link；HTTP 只作为 WebSocket 升级或 gRPC 的承载。
 

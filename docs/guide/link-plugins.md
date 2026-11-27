@@ -13,6 +13,10 @@
 
 准入成功等于信任对端注册的身份。adapter 必须在交接前完成验证；失败即关闭连接。证书和 token 只在 adapter 内使用。随机端口只参与寻址。Rust 的 Channel 收发有边界的不透明字节，Greeted 在握手完成后提供身份。[Channel](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/channel/mod.rs) · [Session 与 Greeted](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/mod.rs)
 
+## Go WebSocket
+
+两端均可安装独立的 Go 插件，一端监听 WSS，另一端验证证书并使用配对 token 拨号。宿主自带的 WebSocket 行可用作互通测试对端。[WSS 配置与双向 RPC 测试](../../link/websocket/README.zh-CN.md)
+
 ## Go 版 Tailscale
 
 `go:link-tailscale` 通过本机 tailnet 按标签发现 worker，为每台建立独立连接，也支持指定单个节点。两种配置都可使用系统 tailscaled 或独立 tsnet 节点。管理插件通过 `rutis/loader` 创建、重载和移除连接行。[配置双端与管理连接](../design/04-link-tailscale.md)

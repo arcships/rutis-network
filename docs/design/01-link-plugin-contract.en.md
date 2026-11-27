@@ -91,7 +91,7 @@ link plugin
 
 ### D10 localhost TCP / WebSocket are first; HTTP is not a link
 
-- The core already has `websocket::dial` / `websocket::listen`, and `rutis-host/listen` uses it; do not add `link/websocket`.
+- The independent [Go WebSocket plugin](../../link/websocket/README.md) owns WSS dialing, listening and admission. The host WebSocket transport serves as a reference for wire interoperability tests.
 - The reference uses TCP on `127.0.0.1` with mutual TLS admission before handoff. An ephemeral port selects an available address. Raw loopback without admission is reserved for isolated tests.
 - Plain HTTP request/response has no duplex long-lived stream or message boundaries; HTTP only carries a WebSocket upgrade or gRPC.
 

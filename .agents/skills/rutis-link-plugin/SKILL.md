@@ -60,7 +60,7 @@ link plugin (any language)
 | Cloud link | gRPC bidi stream, cloud relay | messages | `open(far)` per stream |
 | Mobile device | ADB `forward`/`reverse`, usbmuxd/`iproxy` | local TCP | frame; `open(far)` |
 
-WebSocket is already in the core (`websocket::dial` / `websocket::listen`, used by `rutis-host/listen`); do not add `link/websocket`. The first reference adapter is localhost TCP (#6), and plain HTTP request/response is not a link — HTTP only carries a WebSocket upgrade or gRPC.
+The independent Go WSS link lives in `link/websocket`. The host WebSocket implementation provides an interoperability reference for its tests. The first reference adapter is localhost TCP (#6), and plain HTTP request/response is not a link — HTTP only carries a WebSocket upgrade or gRPC.
 
 Any language works. Pick the cheapest implementation that fits the target language:
 

@@ -33,6 +33,8 @@ function changed(paths) {
 }
 
 const suites = []
+if (changed(['link/websocket/', 'link/tcp/']))
+  suites.push({ transport: 'websocket', package: 'link/tcp/node' })
 if (changed(['link/tcp/'])) suites.push({ transport: 'tcp', package: 'link/tcp/node' })
 if (changed(['group/peer/', 'discovery/mdns/', 'link/tcp/'])) {
   suites.push({ transport: 'peer-group', package: 'link/tcp/node', runner: 'macos-15' })
