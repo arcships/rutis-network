@@ -17,6 +17,10 @@ Admitting a peer grants trust in the identity it registers. Complete admission b
 
 `go:link-ssh-dial` reaches a target listener through SSH. To use a VPS relay, the receiving host can run `go:link-ssh-listen` to accept rutis sessions on a remote loopback bind or `go:link-ssh-tunnel` to forward incoming streams to an existing TCP service. Both endpoints dial the existing SSH port on the VPS. Each row provides its own configuration, start, stop, status and reconnect controls. [Host configuration, controls and tests](../design/03-link-ssh.en.md)
 
+## WebRTC browser and native connections
+
+Pages can call rutis services on another page or a native host in both directions. The `go:link-webrtc` plugin and browser adapter support automatic connection, runtime controls, direct ICE paths and forced TURN. Pairing can use the application’s existing login. The example includes HTTP signaling and temporary TURN credentials. [Build, configure, run and manage a link](../design/08-link-webrtc.en.md)
+
 ## Go libp2p
 
 `go:link-libp2p` connects to one pinned peer over direct QUIC or a configured Circuit Relay v2 and mounts its stream as a session. Use Go 1.26 and rutis-host 0.23.0. [Build, configure and control the plugin](../design/09-p2p-plugins.en.md)

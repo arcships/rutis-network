@@ -17,6 +17,10 @@
 
 `go:link-ssh-dial` 通过 SSH 连接目标 listener。使用 VPS 中继时，接收端的 `go:link-ssh-listen` 申请远端回环端口并直接接入 rutis 会话，`go:link-ssh-tunnel` 则将入站流转发给现有 TCP 服务。两端都拨入 VPS 原有的 SSH 端口。每个行实例独立提供配置、启停、状态和重连控制。[两端配置、控制接口与测试](../design/03-link-ssh.md)
 
+## WebRTC 浏览器与原生连接
+
+网页可与另一网页或原生宿主双向调用 rutis 服务。`go:link-webrtc` 和页面适配器都支持自动连接、动态改配、直连和强制 TURN 中继。配对信令可复用应用现有登录，示例提供 HTTP 信令和临时 TURN 凭据。[构建、配置、运行示例和管理接口](../design/08-link-webrtc.md)
+
 ## Go 版 libp2p
 
 `go:link-libp2p` 使用 QUIC 直连或指定的 Circuit Relay v2，将一个通过 Peer ID 校验的对端挂为会话。需要 Go 1.26 和 rutis-host 0.23.0。[构建、配置和管理接口](../design/09-p2p-plugins.md)

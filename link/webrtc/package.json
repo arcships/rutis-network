@@ -1,0 +1,19 @@
+{
+  "name": "@arcships/rutis-link-webrtc",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node browser/build.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@arcships/rutis-runtime": "0.23.0",
+    "buffer": "6.0.3"
+  },
+  "devDependencies": {
+    "@arcships/rutis": "0.23.0",
+    "@arcships/rutis-host": "0.23.0",
+    "esbuild": "0.28.1",
+    "playwright": "1.62.1"
+  }
+}
