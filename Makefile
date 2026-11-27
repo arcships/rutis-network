@@ -8,7 +8,7 @@ TS_PROJECT_FILES := $(wildcard $(shell git ls-files '*/package-lock.json' '*/tsd
 TS_PACKAGES := $(sort $(patsubst %/,%,$(dir $(TS_PROJECT_FILES))))
 
 .PHONY: setup fmt fmt-check check test go-check go-vet go-test ts-setup typecheck ts-test list-go list-ts
-.PHONY: integration integration-tcp integration-webrtc
+.PHONY: integration integration-tcp integration-grpc integration-webrtc integration-peer-group integration-websocket
 
 setup: ts-setup
 	npm ci
@@ -31,7 +31,23 @@ go-vet:
 go-test:
 	@set -e; for mod in $(GO_MODULES); do sh scripts/in-go-module.sh "$$mod" go test -mod=readonly -short ./...; done
 
-integration: integration-tcp integration-webrtc
+integration: integration-tcp integration-grpc integration-webrtc integration-websocket $(if $(MDNS_TEST_INTERFACE),integration-peer-group)
+
+integration-websocket:
+	sh scripts/in-go-module.sh link/websocket go build -mod=readonly -o /dev/null ./cmd/link-websocket
+	sh scripts/in-go-module.sh link/websocket node --test --test-reporter=../../scripts/integration-reporter.mjs test/hosts.test.mjs
+
+integration-peer-group:
+	@test -n "$$MDNS_TEST_INTERFACE" || { echo "Set MDNS_TEST_INTERFACE to the multicast interface for the ring test" >&2; exit 1; }
+	# Build before starting the timed three-host test on a cold runner.
+	cd link/tcp && go build -mod=readonly -o /dev/null ./cmd/link-tcp
+	cd discovery/mdns && go build -mod=readonly -o /dev/null ./cmd/discover-mdns
+	cd group/peer && go build -mod=readonly -o /dev/null ./cmd/peer-group
+	node --test --test-reporter=./scripts/integration-reporter.mjs group/peer/test/ring.test.mjs
+
+integration-grpc:
+	@host=$$(cd link/tcp/node && node -p "require.resolve('@arcships/rutis-host-'+process.platform+'-'+process.arch+'/bin/rutis-host')") && \
+		RUTIS_HOST="$$host" sh scripts/in-go-module.sh link/grpc go test -mod=readonly -race -count=1 ./...
 
 integration-tcp:
 	# Warm the Go build cache before the timed host tests start.

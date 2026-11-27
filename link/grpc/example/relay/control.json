@@ -1,0 +1,53 @@
+{
+  "listen": "127.0.0.1:7443",
+  "caFile": "/etc/rutis/grpc/ca.pem",
+  "certFile": "/etc/rutis/grpc/directory.pem",
+  "keyFile": "/etc/rutis/grpc/directory.key",
+  "control": {
+    "stateFile": "/var/lib/rutis/grpc/routes.db",
+    "adminCert": "operator.test",
+    "members": [
+      {
+        "tenant": "demo",
+        "id": "edge",
+        "certName": "edge.test"
+      },
+      {
+        "tenant": "demo",
+        "id": "worker",
+        "certName": "worker.test"
+      }
+    ],
+    "regions": [
+      {
+        "name": "east",
+        "address": "127.0.0.1:7444",
+        "serverName": "east.test",
+        "agentName": "east-agent.test"
+      },
+      {
+        "name": "west",
+        "address": "127.0.0.1:7445",
+        "serverName": "west.test",
+        "agentName": "west-agent.test"
+      }
+    ],
+    "pairs": [
+      {
+        "tenant": "demo",
+        "id": "jobs",
+        "members": [
+          "edge",
+          "worker"
+        ],
+        "regions": [
+          "east",
+          "west"
+        ]
+      }
+    ],
+    "maxPairs": {
+      "demo": 1
+    }
+  }
+}

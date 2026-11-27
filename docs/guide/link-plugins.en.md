@@ -13,6 +13,10 @@ The plugins and examples pin rutis 0.23.0, session protocol 5 and plugin API 3. 
 
 Admitting a peer grants trust in the identity it registers. Complete admission before handoff and close a denied connection. The adapter keeps certificates and tokens. A random port selects an address. Rust's Channel carries opaque messages with boundaries. Greeted provides the identity after handshake. [Channel](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/channel/mod.rs) · [Session and Greeted](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/mod.rs)
 
+## Go WebSocket
+
+Install the independent Go plugin at both ends. One row listens for WSS and the other verifies its certificate and dials using the pair’s token. The built-in host transport is a wire interoperability reference. [WSS configuration and bidirectional RPC test](../../link/websocket/README.md)
+
 ## Go Tailscale
 
 `go:link-tailscale` discovers tagged workers on the local tailnet and opens a TCP session to each. It also supports a single pinned peer. Both modes work with system tailscaled or an embedded tsnet node. A management plugin can create, reload and remove a row through `rutis/loader`. [Configure and manage a Tailscale link](../design/04-link-tailscale.en.md)
@@ -31,13 +35,15 @@ Pages can call rutis services on another page or a native host in both direction
 
 ## Install the Go plugins
 
-TCP v0.1.0 provides a prebuilt archive for Linux/amd64. Verify and extract it in a new directory using the commands below. The example targets rutis-host 0.23.0, session protocol 5 and plugin API 3. [TCP v0.1.0 release](https://github.com/arcships/rutis-network/releases/tag/link%2Ftcp%2Fv0.1.0)
+Each Go plugin has its own release tag. For the current releases, choose a `.tar.gz` for Linux or macOS (`amd64` or `arm64`), or a `.zip` for Windows (`amd64`). macOS archives use `darwin` in the filename. The Windows mDNS plugin supports browsing. DNS-SD publishing and interface-bound description HTTP require macOS or Linux. [Plugin releases](https://github.com/arcships/rutis-network/releases)
+
+Download the archive for your host and the matching release’s `SHA256SUMS`. For example, to install TCP v0.1.0 on Linux/amd64, run the commands below in a new directory.
 
 ```sh
 mkdir tcp-v0.1.0 && cd tcp-v0.1.0
 gh release download link/tcp/v0.1.0 --repo arcships/rutis-network \
   --pattern 'link-tcp-v0.1.0-linux-amd64.tar.gz' --pattern SHA256SUMS
-sha256sum -c SHA256SUMS
+sha256sum --ignore-missing -c SHA256SUMS
 tar -xzf link-tcp-v0.1.0-linux-amd64.tar.gz
 ```
 
@@ -52,7 +58,7 @@ GOWORK=off GOBIN="$PWD/plugins/go" go install github.com/arcships/rutis-network/
 
 To build from a checkout, run `go -C link/tcp build -o ../../plugins/go/link-tcp ./cmd/link-tcp` from the repository root.
 
-Maintainers push a submodule tag (such as `link/tcp/v0.1.0`) on a tested `main` commit. PRs rehearse consumer installation with a temporary tag. Public tags run the same installation and RPC tests, publish the archive and checksum, then download the public release and call remote echo through two stock hosts. [Release workflow](../../.github/workflows/release-tcp.yml)
+To release a plugin, push its next module tag (for example, `link/tcp/v0.1.1`) on a tested commit from `main`. Only that tag triggers packaging. The Ubuntu runner cross-compiles the tagged plugin for all five targets and publishes the archives and a single `SHA256SUMS` file together. TCP archives include a sample `rutis.json`. gRPC archives include the host plugin under `plugins/go/` and the standalone directory and relay command under `bin/`. WebRTC archives include the browser module and type declarations under `browser/`. [Release workflow](../../.github/workflows/release.yml)
 
 Configure the dialing host with the listener’s port, its trusted CA and a client identity. The default is one connection attempt.
 
@@ -83,6 +89,8 @@ Managed dialers connect and retry by default. Changing a live endpoint closes th
 On the accepting host, use the same runtime configuration and a row named `go:link-tcp-listen`. Supply the server certificate and key and a CA dedicated to admitted clients. The listener binds to IPv4 loopback. The dialer accepts a DNS name, IPv4 address or IPv6 address in `host`. Port zero lets the listener choose and report a free port as `link/tcp listening 127.0.0.1:<port>`. Each verified client gets a separate session. Unloading the row closes the listener, pending TLS handshakes and admitted sockets. [Go adapters](../../link/tcp/adapter.go) · [Go bridge](../../link/tcp/bridge.go)
 
 To discover the port automatically, use `go:tcp-offer-source` to observe the listener control and `go:tcp-offer-dial` to select a matching `rutis.tcp` v1 offer and configure a dedicated local dialer. Each TCP row holds its own CA, certificate and key. The receiving adapter supplies the locally expected server identity. [mDNS configuration and two-host example](../../discovery/mdns/README.md)
+
+For multiple members, inject the local mDNS observation service into `go:peer-group` and point each TCP offer adapter at the group’s output. The topology selects outbound descriptions and the TCP row verifies the expected peer. [Topology configuration and three-host ring](../../group/peer/README.md)
 
 Run the checks below from the repository root. Integration tests use Node ≥22.18, npm, OpenSSL and a Unix host with control-socket support. They build the Go binary, start real rutis hosts and call a remote service through both the Go dialer and the single-dial TypeScript reference. The Rust example uses Cargo. [TypeScript reference](../../link/tcp/dial.ts) · [Host tests](../../link/tcp/node/test/hosts.test.mjs)
 
@@ -182,3 +190,8 @@ go -C link/grpc build -o example/device/plugins/go/link-grpc ./cmd/link-grpc
 Run `rutis-host run link/grpc/example/cloud/rutis.json` and `rutis-host run link/grpc/example/device/rutis.json` in separate terminals. Run `rutis-host call --config link/grpc/example/device/rutis.json device.submit '"build"'` on the device. On a fresh service the reply contains `{"id":"job-1","progress":"job-1 queued"}`. To exercise the two hosts with generated certificates on macOS or Linux, set `RUTIS_HOST` to the absolute path of rutis-host and run `go -C link/grpc test -race -count=1 ./...`.
 
 Each admitted stream carries one session, with one rutis message per protobuf frame (up to 16 MiB). The device retries a disconnect with 0.5–30 s backoff. If the cloud returns `PermissionDenied` or `Unauthenticated`, including on an established tunnel, the device records that code and retries after 30 s. Each reconnect rereads the device's CA, certificate and private key. If a rotation temporarily leaves the certificate and key out of sync, retries continue with backoff. An interrupted job call may already have reached the scheduler. The link reconnects without replaying it. The Go 0.23 session API does not expose peer IDs to the listener or a total outbound queue limit. [Wire contract](../../link/grpc/wire/link.proto)
+
+
+## Cloud links for outbound-only hosts
+
+Mount a `go:link-grpc` row at each end and configure the same tenant-scoped pair with reciprocal targets. A directory authenticates both hosts, assigns an allowed region and issues admission tickets. The relay forwards the two streams. A worker can run a plugin mounted remotely with `wire:go:worker-jobs`. [Deploy a two-region relay and run the worker example](grpc-cloud.en.md)

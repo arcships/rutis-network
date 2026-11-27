@@ -13,6 +13,10 @@
 
 准入成功等于信任对端注册的身份。adapter 必须在交接前完成验证；失败即关闭连接。证书和 token 只在 adapter 内使用。随机端口只参与寻址。Rust 的 Channel 收发有边界的不透明字节，Greeted 在握手完成后提供身份。[Channel](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/channel/mod.rs) · [Session 与 Greeted](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/mod.rs)
 
+## Go WebSocket
+
+两端均可安装独立的 Go 插件，一端监听 WSS，另一端验证证书并使用配对 token 拨号。宿主自带的 WebSocket 行可用作互通测试对端。[WSS 配置与双向 RPC 测试](../../link/websocket/README.zh-CN.md)
+
 ## Go 版 Tailscale
 
 `go:link-tailscale` 通过本机 tailnet 按标签发现 worker，为每台建立独立连接，也支持指定单个节点。两种配置都可使用系统 tailscaled 或独立 tsnet 节点。管理插件通过 `rutis/loader` 创建、重载和移除连接行。[配置双端与管理连接](../design/04-link-tailscale.md)
@@ -31,13 +35,15 @@
 
 ## 安装 Go 插件
 
-TCP 首个版本为 `v0.1.0`。Linux/amd64 宿主可以直接下载预编译归档。以下命令在新建目录中校验并解压，配置对应 rutis-host 0.23.0、会话协议 5 和插件 API 3。[TCP v0.1.0 Release](https://github.com/arcships/rutis-network/releases/tag/link%2Ftcp%2Fv0.1.0)
+每个 Go 插件都有自己的版本标签。当前发布中，Linux 和 macOS 提供 amd64、arm64 两种 `.tar.gz` 包，Windows 提供 amd64 的 `.zip` 包。macOS 的文件名中写作 `darwin`。Windows 上的 mDNS 插件可以浏览服务，广播 DNS-SD 服务和绑定指定网卡的描述文档 HTTP 服务需要 macOS 或 Linux。[插件下载](https://github.com/arcships/rutis-network/releases)
+
+下载与宿主匹配的安装包和同一版本的 `SHA256SUMS`。以在 Linux/amd64 上安装 TCP v0.1.0 为例：
 
 ```sh
 mkdir tcp-v0.1.0 && cd tcp-v0.1.0
 gh release download link/tcp/v0.1.0 --repo arcships/rutis-network \
   --pattern 'link-tcp-v0.1.0-linux-amd64.tar.gz' --pattern SHA256SUMS
-sha256sum -c SHA256SUMS
+sha256sum --ignore-missing -c SHA256SUMS
 tar -xzf link-tcp-v0.1.0-linux-amd64.tar.gz
 ```
 
@@ -52,7 +58,7 @@ GOWORK=off GOBIN="$PWD/plugins/go" go install github.com/arcships/rutis-network/
 
 从源码构建时，可在仓库根目录执行 `go -C link/tcp build -o ../../plugins/go/link-tcp ./cmd/link-tcp`。
 
-维护者在通过 CI 的 `main` 提交上推送子模块标签（例如 `link/tcp/v0.1.0`）。PR 会用临时标签演练消费者安装。正式标签触发相同的安装和 RPC 测试，发布归档和校验和，再从公开的 Release 下载并通过两个原版宿主执行远端 echo。[发布工作流](../../.github/workflows/release-tcp.yml)
+发布某个插件时，在已通过 CI 的 `main` 提交上推送该模块的新版本标签，例如 `link/tcp/v0.1.1`。只有版本标签会触发打包。Ubuntu runner 交叉编译该插件，一次发布五个平台包和一份 `SHA256SUMS`。TCP 包内附带示例 `rutis.json`。gRPC 包的 `plugins/go/` 中是宿主插件，`bin/` 中是独立运行目录或中继的命令。WebRTC 包内的 `browser/` 包含浏览器模块和类型声明。[发布工作流](../../.github/workflows/release.yml)
 
 在拨号宿主配置监听端口、用于验证服务端的 CA 和本机的客户端证书与私钥。默认只拨号一次。
 
@@ -83,6 +89,8 @@ GOWORK=off GOBIN="$PWD/plugins/go" go install github.com/arcships/rutis-network/
 监听宿主采用相同的运行时配置，行名使用 `go:link-tcp-listen`。配置服务端证书、私钥和专用于获准客户端的 CA。监听端绑定 IPv4 回环，拨号端可用 `host` 指向 DNS、IPv4 或 IPv6 地址。监听端口填 0 时由系统选择，启动后输出 `link/tcp listening 127.0.0.1:<port>`。每个通过准入的客户端独立挂载会话。卸载行会关闭监听器、进行中的 TLS 握手和已接入的连接。[Go 适配器](../../link/tcp/adapter.go) · [Go bridge](../../link/tcp/bridge.go)
 
 需要自动发现端口时，发布端的 `go:tcp-offer-source` 订阅监听控制服务，接收端的 `go:tcp-offer-dial` 从发现服务选择一个匹配的 `rutis.tcp` v1 入口，配置本机的专属拨号器。CA、证书和私钥放在各自的 TCP 行中，预期服务端身份由接收端配置。[mDNS 配置与双端示例](../../discovery/mdns/README.zh-CN.md)
+
+多成员组网时，把 mDNS 浏览服务注入 `go:peer-group`，再将各 TCP 说明适配器的发现来源改为组网行输出的服务。拓扑决定交付哪些出站说明，TCP 行验证预期对端。[拓扑配置与三节点环形示例](../../group/peer/README.zh-CN.md)
 
 在仓库根目录运行以下检查。集成测试使用 Node ≥22.18、npm、OpenSSL 和支持控制 socket 的 Unix 宿主。测试编译 Go 二进制，启动真实 rutis 宿主，通过 Go 拨号插件和单次拨号的 TypeScript 参考实现调用远端服务。Rust 示例使用 Cargo。[TypeScript 参考实现](../../link/tcp/dial.ts) · [宿主测试](../../link/tcp/node/test/hosts.test.mjs)
 
@@ -182,3 +190,8 @@ go -C link/grpc build -o example/device/plugins/go/link-grpc ./cmd/link-grpc
 在两个终端分别执行 `rutis-host run link/grpc/example/cloud/rutis.json` 和 `rutis-host run link/grpc/example/device/rutis.json`。在设备上执行 `rutis-host call --config link/grpc/example/device/rutis.json device.submit '"build"'`。刚启动的服务返回 `{"id":"job-1","progress":"job-1 queued"}`。在 macOS 或 Linux 上把 `RUTIS_HOST` 设为 rutis-host 的绝对路径，执行 `go -C link/grpc test -race -count=1 ./...`，即可使用临时证书验证两端和重连。
 
 一条获准的流承载一个会话，每个 protobuf 帧携带一条 rutis 消息，上限 16 MiB。设备断线后按 0.5–30 秒退避重连。若云端返回 `PermissionDenied` 或 `Unauthenticated`，即使隧道已建立，设备也会记录该状态码，等待 30 秒再重试。设备每次重连都会重新读取 CA、证书和私钥。如果轮换中的证书与私钥暂不匹配，设备会继续退避重试。中断时请求可能已进入调度器，重新连接不会自动重放。Go 0.23 会话接口尚未向监听端暴露远端 ID，也没有配置会话总出站队列上限的接口。[传输协议](../../link/grpc/wire/link.proto)
+
+
+## 只允许出站的宿主通过云中继连接
+
+两端各挂载一行 `go:link-grpc`，配置租户内相同的配对名并互填对方为目标。目录认证两端、分配允许的区域并签发准入票据。两端向区域中继拨号后即可互相调用。设备还可以通过 `wire:go:worker-jobs` 在云宿主上运行插件。[部署双区域中继并运行 worker 示例](grpc-cloud.md)

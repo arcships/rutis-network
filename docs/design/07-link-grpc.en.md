@@ -2,7 +2,7 @@
 
 The implemented Go adapter targets rutis 0.23.0. A device plugin connects to a plugin inside an existing cloud service. The cloud plugin shares the application’s gRPC listener and business objects. The integration test covers both call directions and reconnection. [Build, configure and run the example](../guide/link-plugins.en.md#a-device-plugin-and-a-plugin-embedded-in-a-go-cloud-service).
 
-The following design notes from 2026-11-08 also describe possible relay and multi-region deployments. The current direct endpoint uses mTLS and the versioned Tunnel RPC. After checking the client certificate and plugin binding, the server sends the initial metadata `rutis-link-accepted: 1`. The device opens its local session after receiving that acknowledgement.
+The cloud deployment adds a directory, tenant-scoped outbound pairing, a cloud worker and leased regional relays. The v1 protobuf lives in this repository. A pair chooses one allowed region, each member opens one stream, and a region change starts a fresh session. [Deployment, configuration and verified failure behavior](../guide/grpc-cloud.en.md)
 
 Issue: [#7](https://github.com/arcships/rutis-network/issues/7). Depends on [#1](https://github.com/arcships/rutis-network/issues/1).
 
@@ -43,7 +43,7 @@ message Frame {
 
 | Method | Rule |
 | --- | --- |
-| mTLS | Client certificate; verify CN/SAN; do not pass certificate identity to the session |
+| mTLS | Client certificate; verify the configured DNS SAN; do not pass certificate identity to the session |
 | OAuth/JWT | `authorization: Bearer`; verify issuer/audience/scope |
 | API key | Metadata; adapter configuration only |
 | Failure | `UNAUTHENTICATED`/`PERMISSION_DENIED`; create no session |
@@ -79,8 +79,9 @@ The session `Hello` still registers identity; the gRPC principal is not mapped t
 
 - **Model**: the relay mounts no session, does no handshake, and does not parse `payload`. A/B each handshake with their own session; `Hello` is end-to-end. The relay pairs two streams and forwards `payload` unchanged.
 - **Pairing**: `x-rutis-pair` + `x-rutis-target` locate the two streams; the tenant id comes from admission, and the pair key is tenant-scoped.
-- **Generation**: every reconnect increments `x-rutis-generation`; when a newer generation for the same pair arrives, the relay closes the two old streams and pairs the new ones.
-- **Failure**: on pair timeout/no peer, both ends get `UNAVAILABLE` with structured `data` (pair, target, generation, reason); no session is created.
+- The directory assigns an increasing `x-rutis-generation` on each successful resolution. When a new instance takes over a member, the relay closes the old pair. The superseded instance stops retrying on `REPLACED`, and its peer immediately pairs again on `PEER_REPLACED`. Automatic retries carry the previous generation so the directory can reject a superseded instance.
+- The waiting member immediately pairs again after `UNAVAILABLE / PAIR_TIMEOUT`. Ordinary network failures retain exponential backoff.
+- The directory reserves both stream slots in one permitted region. Full regions are skipped for new pairs. A pair with an admitted member retains its region. Lease expiry invalidates its reservations and outstanding tickets.
 - **Non-goals**: the relay does not own identity, replace sessions, or parse `Hello`; those live at A/B.
 - **Boundary**: the relay/control plane is a separate cloud service or application, not the local link layer's manager/registry, and does not hold link credentials; #1 D11 stays intact.
 
@@ -133,12 +134,9 @@ Errors use gRPC status plus structured details; rutis 0.21 error texts are not a
 - No gRPC-Web as a browser bidi solution.
 - No multiplexing several sessions on one stream (for now).
 
-## 11. Open questions
+## 11. Protocol decisions
 
-- O1: Does the proto live in rutis-network or the rutis repository? What version policy?
-- O2 (closed): the relay does not parse `payload`; route by metadata/tenant only.
-- O3: Is one stream per session (one HTTP/2 stream each) acceptable?
-- O4: Should failover migrate session state? Not first.
+The v1 wire schema is owned by rutis-network. The directory decides admission and issues generation numbers. The relay verifies routing metadata and passes each complete payload unchanged. Each admitted pair uses one stream per host and one end-to-end session. The next generation establishes a new session.
 
 ## Links
 

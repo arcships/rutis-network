@@ -48,7 +48,7 @@ printf 'A: %s\nB: %s\n' "$PAIR_A_TOKEN" "$PAIR_B_TOKEN"
 
 在 `link/webrtc` 使用上面示例的配对凭据和可选的 TURN 设置，执行 `npm run dev --prefix web`，即可启动页面和同源信令。保存浏览器 TS 后，tsdown 重新构建 ESM，成功后由 Vite 刷新已打开的页面。构建失败时终端显示错误，页面仍能读取上一份成功产物。保存 Node 配对模块会重启示例服务。页面刷新后重新连接即可建立新会话。
 
-在 `link/webrtc/web` 执行 `npm ci && npm pack`，会生成 `arcships-rutis-link-webrtc-0.1.0.tgz`。也可以从 WebRTC CI 的 `webrtc-npm-package` 下载已验收的 tarball。在使用方的 TypeScript 项目中安装：
+从包含浏览器 npm 包的 [WebRTC Release](https://github.com/arcships/rutis-network/releases?q=link%2Fwebrtc) 下载 `arcships-rutis-link-webrtc-<版本>.tgz`。包版本与该 Release 的标签一致。也可以在源码目录 `link/webrtc/web` 执行 `npm ci && npm pack` 生成本地包。在 TypeScript 项目中安装下载的文件（按实际版本替换文件名）：
 
 ```sh
 npm install ./arcships-rutis-link-webrtc-0.1.0.tgz

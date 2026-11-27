@@ -48,7 +48,7 @@ These commands start an authenticated loopback TURN server and the pairing page.
 
 With the same pairing credentials and optional TURN settings as the example, run `npm run dev --prefix web` from `link/webrtc`. It starts the example and same-origin signaling. Saving browser TS triggers tsdown to rebuild the ESM and Vite to refresh open pages on success. A failed build prints its error and keeps serving the last good bundle. Saving the Node pairing module restarts the example server. Reconnect on the refreshed page to open a new session.
 
-Run `npm ci && npm pack` in `link/webrtc/web` to produce `arcships-rutis-link-webrtc-0.1.0.tgz`. The verified tarball is also available in the WebRTC CI artifact `webrtc-npm-package`. From the consuming TypeScript project, install the downloaded file:
+Download `arcships-rutis-link-webrtc-<version>.tgz` from a [WebRTC release](https://github.com/arcships/rutis-network/releases?q=link%2Fwebrtc) that includes a browser npm package. The package version matches the release tag. To build a local tarball, run `npm ci && npm pack` in `link/webrtc/web`. In the consuming TypeScript project, install the file using its actual version:
 
 ```sh
 npm install ./arcships-rutis-link-webrtc-0.1.0.tgz
