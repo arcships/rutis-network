@@ -1,8 +1,12 @@
 # ![rutis-network](assets/network.svg)
 
-[![Quick checks](https://github.com/arcships/rutis-network/actions/workflows/checks.yml/badge.svg?branch=main)](https://github.com/arcships/rutis-network/actions/workflows/checks.yml) [![Latest release](https://img.shields.io/github/v/release/arcships/rutis-network?display_name=release&label=release)](https://github.com/arcships/rutis-network/releases/latest) [![MIT license](https://img.shields.io/github/license/arcships/rutis-network)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/arcships/rutis-network?display_name=release&label=release)](https://github.com/arcships/rutis-network/releases/latest)
+[![Compatible rutis version](https://img.shields.io/badge/rutis-0.23.0-456b75)](https://github.com/arcships/rutis/releases/tag/v0.23.0)
+[![Quick checks](https://github.com/arcships/rutis-network/actions/workflows/checks.yml/badge.svg?branch=main)](https://github.com/arcships/rutis-network/actions/workflows/checks.yml)
+[![Transport integration](https://github.com/arcships/rutis-network/actions/workflows/integration.yml/badge.svg?branch=main)](https://github.com/arcships/rutis-network/actions/workflows/integration.yml)
+[![MIT license](https://img.shields.io/github/license/arcships/rutis-network)](LICENSE)
 
-[Get started](#get-started) · [Choose a connection](#choose-a-connection) · [中文](README.zh-CN.md)
+[Get started](#get-started) · [Choose a connection](#choose-a-connection) · [Version tags](https://github.com/arcships/rutis-network/tags) · [中文](README.zh-CN.md)
 
 When you first deploy an application, you may not know every program it will need to work with. Some programs have to stay where the data is collected. Others run only while someone has a browser tab open. Some will be written after the application ships. If adding a capability means editing configuration in several places, those deployment files end up deciding which programs can work together.
 

@@ -1,8 +1,12 @@
 # ![rutis-network](assets/network.svg)
 
-[![快速检查](https://github.com/arcships/rutis-network/actions/workflows/checks.yml/badge.svg?branch=main)](https://github.com/arcships/rutis-network/actions/workflows/checks.yml) [![最新发布](https://img.shields.io/github/v/release/arcships/rutis-network?display_name=release&label=release)](https://github.com/arcships/rutis-network/releases/latest) [![MIT 许可证](https://img.shields.io/github/license/arcships/rutis-network)](LICENSE)
+[![最新发布](https://img.shields.io/github/v/release/arcships/rutis-network?display_name=release&label=release)](https://github.com/arcships/rutis-network/releases/latest)
+[![兼容的 rutis 版本](https://img.shields.io/badge/rutis-0.23.0-456b75)](https://github.com/arcships/rutis/releases/tag/v0.23.0)
+[![快速检查](https://github.com/arcships/rutis-network/actions/workflows/checks.yml/badge.svg?branch=main)](https://github.com/arcships/rutis-network/actions/workflows/checks.yml)
+[![传输集成测试](https://github.com/arcships/rutis-network/actions/workflows/integration.yml/badge.svg?branch=main)](https://github.com/arcships/rutis-network/actions/workflows/integration.yml)
+[![MIT 许可证](https://img.shields.io/github/license/arcships/rutis-network)](LICENSE)
 
-[开始使用](#开始使用) · [选择连接方式](#选择连接方式) · [English](README.md)
+[开始使用](#开始使用) · [选择连接方式](#选择连接方式) · [版本标签](https://github.com/arcships/rutis-network/tags) · [English](README.md)
 
 软件上线时，很难预先列出它以后要和哪些程序一起工作。有些程序必须留在数据产生的现场，有些只在用户打开浏览器时运行，还有些要等到下一次功能迭代才会出现。如果每增加一种能力，都要人先改好几处配置，软件能怎样协作，就受限于部署时已经接好的那几条线。
 
