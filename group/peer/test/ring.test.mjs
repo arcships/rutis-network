@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import test from 'node:test'
+import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { exec, row, setup, startHost } from '../../../link/tcp/node/test/fixtures/hosts.mjs'
 import { manager } from '../../../link/tcp/node/test/fixtures/manager.mjs'
@@ -49,6 +50,22 @@ async function identity(env, name, serial) {
     cert,
   ])
   return { ca: env.identity.ca, cert, key }
+}
+
+// A cold host reads the manifests of three freshly built Go executables
+// before its management service is callable.
+async function waitForPolicy(host, policy) {
+  const deadline = Date.now() + 30_000
+  while (Date.now() < deadline && host.child.exitCode === null && !host.child.signalCode) {
+    try {
+      await policy.invoke('neighbors')
+      return
+    } catch (err) {
+      if (err.code !== 'ENOENT' && err.code !== 'ECONNREFUSED') throw err
+    }
+    await delay(100)
+  }
+  assert.fail('group service did not become ready\n' + host.output())
 }
 
 test(
@@ -102,7 +119,7 @@ test(
       t.after(() => {
         if (!t.passed) t.diagnostic(host.output())
       })
-      await host.waitFor(/management socket ready neighbors/)
+      await waitForPolicy(host, policy)
       nodes.push({ host, control, standby, policy, group })
     }
     async function checkRPC(i, step = 1) {
