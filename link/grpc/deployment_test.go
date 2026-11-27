@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -68,6 +69,7 @@ func TestCloudDeploymentExample(t *testing.T) {
 	if err := os.Link(filepath.Join(dir, "edge/plugins/go/link-grpc"), filepath.Join(dir, "worker/plugins/go/link-grpc")); err != nil {
 		t.Fatal(err)
 	}
+	stopCloud := map[string]func(){}
 	for _, name := range []string{"control", "east", "west"} {
 		path := config(name + ".json")
 		ports[name].Close()
@@ -81,7 +83,7 @@ func TestCloudDeploymentExample(t *testing.T) {
 		if err := cli.Start(); err != nil {
 			t.Fatal(err)
 		}
-		t.Cleanup(func() {
+		stopCloud[name] = sync.OnceFunc(func() {
 			cli.Process.Signal(os.Interrupt)
 			done := make(chan error, 1)
 			go func() { done <- cli.Wait() }()
@@ -101,6 +103,7 @@ func TestCloudDeploymentExample(t *testing.T) {
 				t.Log(string(b))
 			}
 		})
+		t.Cleanup(stopCloud[name])
 	}
 	edge := config("edge/rutis.json")
 	stopWorker := startHost(t, host, dir, config("worker/rutis.json"))
@@ -116,15 +119,17 @@ func TestCloudDeploymentExample(t *testing.T) {
 			if json.Unmarshal(output, &r) != nil || r.ID != "job-1" || r.Progress != "job-1 queued" {
 				t.Fatalf("unexpected receipt %s", output)
 			}
-			// Retire the cloud worker while the edge is still serving its local
-			// control socket. The edge must withdraw the remotely mounted job row.
-			stopWorker()
+			// Drain the forwarding tier with the remote work still mounted.
+			// Both hosts can then observe withdrawal before shutting down.
+			stopCloud["east"]()
+			stopCloud["west"]()
 			until(t, func() bool {
 				ctx, done := context.WithTimeout(t.Context(), 2*time.Second)
 				defer done()
 				b, err := exec.CommandContext(ctx, host, "call", "--config", edge, "device.submit", `"offline"`).CombinedOutput()
 				return err != nil && strings.Contains(string(b), "no row provides")
 			})
+			stopWorker()
 			return
 		}
 		time.Sleep(150 * time.Millisecond)

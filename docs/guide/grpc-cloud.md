@@ -31,7 +31,7 @@ rutis-host run example/relay/edge/rutis.json
 
 在 edge 上运行 `rutis-host call --config example/relay/edge/rutis.json device.submit '"build"'`。首次返回 `{"id":"job-1","progress":"job-1 queued"}`。要在本机用临时证书复现完整部署，从仓库根目录运行 `npm ci --prefix link/tcp/node` 和 `make integration-grpc`。该套件也会模拟区域与目录之间的网络分区。[部署测试](../../link/grpc/deployment_test.go) · [真实宿主切换测试](../../link/grpc/relay_hosts_test.go)
 
-示例整组停机时，先停止 worker，等 edge 撤下远端服务，再停止 edge 和云进程。在 rutis-host 0.23.0 上，直接对仍挂载远端业务行的 edge 发 SIGINT，偶尔会在等待远端行卸载时达到宿主的 10 秒退出期限。需要单独退役该业务行时，可以在连接可用期间通过 loader 卸载它。
+整组停机时，先停止两个中继，等 edge 撤下远端服务，再停止宿主和目录。此顺序保留宿主清单。在 rutis-host 0.23.0 上，直接对仍有活动远端业务行的宿主发 SIGINT，偶尔会在等待行卸载时达到 10 秒退出期限。如果只想退役某个远端业务行，可在连接可用时调用 `rutis/loader.remove` 并等待返回。该操作会修改可编辑清单。
 
 ## 集成方配置
 
