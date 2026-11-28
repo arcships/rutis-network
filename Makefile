@@ -78,3 +78,7 @@ list-go:
 
 list-ts:
 	@printf '%s\n' $(TS_PACKAGES)
+
+.PHONY: integration-rcp-mobile
+integration-rcp-mobile:
+	sh scripts/test-rcp-mobile.sh

@@ -15,7 +15,7 @@
 
 ## Go RCP
 
-设备双方持有已验证的对端公钥，并要求转发中继只能看到会话密文时，可使用 RCP。每台设备对应一行及一个 session。WebSocket 插件用于通用 WSS 端点，gRPC 插件提供云端注册与路由。[RCP 配置、凭证刷新及故障行为](../../link/rcp/README.zh-CN.md)
+设备双方持有已验证的对端公钥，并要求转发中继只能看到会话密文时，可使用 RCP。每台设备对应一行及一个 session。WebSocket 插件用于通用 WSS 端点，gRPC 插件提供云端注册与路由。Android 的 Kotlin 协程和 iOS 的 Swift Task 均可持有一条 RCP 连接，在双方确认准入后逐条收发消息。[RCP 配置、凭证刷新及故障行为](../../link/rcp/README.zh-CN.md)
 
 ## Go WebSocket
 
