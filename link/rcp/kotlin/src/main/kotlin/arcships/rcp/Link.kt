@@ -125,7 +125,7 @@ suspend fun serveRcp(socket: BinarySocket, grant: Grant, limits: Limits = Limits
         try {
             receiver = try { open(sender) }
             catch (e: CancellationException) { throw e }
-            catch (_: Exception) { fail(Reason.REFUSED) }
+            catch (_: Exception) { fail(writeFailure.get() ?: Reason.REFUSED) }
             coroutineScope {
                 val heartbeat = launch {
                     while (isActive) { delay(agreed.heartbeatMillis.toLong()); send(2) }
@@ -140,7 +140,7 @@ suspend fun serveRcp(socket: BinarySocket, grant: Grant, limits: Limits = Limits
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (_: Exception) {
-                                fail(Reason.REFUSED)
+                                fail(writeFailure.get() ?: Reason.REFUSED)
                             }
                             2 -> send(3)
                             3 -> Unit
@@ -156,7 +156,12 @@ suspend fun serveRcp(socket: BinarySocket, grant: Grant, limits: Limits = Limits
             currentCoroutineContext().ensureActive()
             if (!localClose.get()) { reason = writeFailure.get() ?: Reason.TRANSPORT; fail(reason) }
         } catch (e: Exception) {
-            if (!localClose.get()) { reason = writeFailure.get() ?: (e as? RcpException)?.reason ?: Reason.TRANSPORT; fail(reason) }
+            if (!localClose.get()) {
+                val received = (e as? RcpException)?.reason ?: Reason.TRANSPORT
+                // A heartbeat interrupted by teardown must not mask a received close record.
+                reason = if (received == Reason.TRANSPORT) writeFailure.get() ?: received else received
+                fail(reason)
+            }
         } finally {
             stopped.set(true)
             socket.abort()

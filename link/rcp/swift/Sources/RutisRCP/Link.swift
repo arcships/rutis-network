@@ -174,7 +174,10 @@ public enum RCPLink {
                             switch kind {
                             case 1:
                                 do { try await receiver.receive(data) }
-                                catch { try Task.checkCancellation(); throw RCPError.refused }
+                                catch {
+                                    try Task.checkCancellation()
+                                    throw await sender.writeFailure ?? RCPError.refused
+                                }
                             case 2: try await sender.write(3)
                             case 3: continue
                             case 4: throw RCPError.peerClosed
@@ -189,7 +192,9 @@ public enum RCPLink {
                 }
             } catch {
                 if !(await sender.localClose) && !Task.isCancelled {
-                    outcome = await sender.writeFailure ?? (error as? RCPError ?? .transport)
+                    let received = error as? RCPError ?? .transport
+                    // Cancelling a concurrent heartbeat must not mask a received close record.
+                    outcome = received == .transport ? (await sender.writeFailure ?? received) : received
                 }
             }
             await sender.finish()

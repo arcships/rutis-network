@@ -51,7 +51,7 @@ fun main() = runBlocking {
             }
             null
         } catch (e: RcpException) { e.reason }
-        check(result == (if (terminal) reason else null)) { "terminal outcome: $result" }
+        check(result == (if (terminal) reason else null)) { "$fault outcome=$result, retries=$retries, endings=$endings, delivered=$sequence" }
         check(retries == (if (fault in setOf("version","slow","refused")) emptyList() else listOf(reason))) { "retry outcomes: $retries" }
         check(calls == if (fault in setOf("version","slow","refused")) 1 else 2)
         val expectedEnds = when (fault) {

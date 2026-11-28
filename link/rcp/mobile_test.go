@@ -241,6 +241,14 @@ func TestMobileFaults(t *testing.T) {
 								}
 							}
 							_ = ch.write(closeReplaced, nil)
+							// Let the slow receiver drain the close record. Its next
+							// heartbeat does not acknowledge that it has read it.
+							conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+							for {
+								if _, _, err := ch.read(); err != nil {
+									return
+								}
+							}
 						}
 						_, _, _ = ch.read()
 					}))
