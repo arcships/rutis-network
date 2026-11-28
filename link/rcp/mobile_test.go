@@ -191,7 +191,7 @@ func TestMobileFaults(t *testing.T) {
 			}{
 				{"version", 0, incompatible}, {"revoked", 403, credential}, {"invalid", 0, credential},
 				{"unavailable", 503, unavailable}, {"offline", 404, offline}, {"expired", 0, expired},
-				{"silent", 0, transport}, {"slow", 0, replaced},
+				{"silent", 0, transport}, {"slow", 0, replaced}, {"refused", 0, refused}, {"oversize", 0, oversized},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
 					client, daemon := credentials(t)
@@ -227,6 +227,11 @@ func TestMobileFaults(t *testing.T) {
 								if _, _, err := ch.read(); err != nil {
 									return
 								}
+							}
+						}
+						if tc.name == "refused" || (tc.name == "oversize" && first) {
+							if err := ch.write(dataMessage, []byte("probe")); err != nil {
+								return
 							}
 						}
 						if tc.name == "slow" {

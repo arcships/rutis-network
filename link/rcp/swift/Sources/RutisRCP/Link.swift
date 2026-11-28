@@ -42,6 +42,7 @@ public actor RCPSender {
     private var waiting: [CheckedContinuation<Void, Never>] = []
     fileprivate var localClose = false
     fileprivate var ended = false
+    fileprivate var writeFailure: RCPError?
     init(_ tx: Direction, _ limits: RCPLimits, _ socket: any RCPBinarySocket) {
         self.tx = tx; self.limits = limits; self.socket = socket
     }
@@ -53,12 +54,17 @@ public actor RCPSender {
             if waiting.isEmpty { busy = false } else { waiting.removeFirst().resume() }
         }
         guard !ended, !localClose || kind == 4 else { throw RCPError.done }
+        if let writeFailure { throw writeFailure }
         do {
             let frame = try tx.seal(kind, body)
             try await bounded(kind == 4 ? 1000 : 3 * limits.heartbeatMillis, .transport, socket) { [socket] in
                 try await socket.write(frame)
             }
-        } catch { socket.abort(); throw error }
+        } catch {
+            writeFailure = error as? RCPError ?? .transport
+            socket.abort()
+            throw error
+        }
     }
     public func send(_ message: Data) async throws { try await write(1, message) }
     public func close() async {
@@ -88,15 +94,21 @@ private func pair(_ socket: any RCPBinarySocket, _ grant: RCPGrant, _ limits: RC
     if let first {
         try await socket.write(first)
         // Only this task can retransmit. Join it before advancing the Noise state.
-        offer = try await withThrowingTaskGroup(of: Data.self) { group in
-            group.addTask {
+        let repeats = Task {
+            do {
                 while true { try await sleepMillis(1000); try await socket.write(first) }
+            } catch {
+                if !Task.isCancelled { socket.abort() }
             }
-            group.addTask { try await receiveOffer() }
-            defer { group.cancelAll() }
-            do { return try await group.next()! }
-            catch { socket.abort(); throw error }
         }
+        do { offer = try await receiveOffer() }
+        catch {
+            repeats.cancel()
+            await repeats.value
+            throw error
+        }
+        repeats.cancel()
+        await repeats.value
     } else { offer = try await receiveOffer() }
     let agreed = try limits.negotiate(state.read(offer))
     socket.setReadLimit(max(60, agreed.maxMessage + 33))
@@ -143,7 +155,12 @@ public enum RCPLink {
             let sender = RCPSender(tx, agreed, socket)
             let receiver: RCPReceiver
             do { receiver = try await open(sender) }
-            catch { await sender.finish(); try Task.checkCancellation(); throw RCPError.refused }
+            catch {
+                await sender.finish()
+                try Task.checkCancellation()
+                if await sender.localClose { return }
+                throw await sender.writeFailure ?? RCPError.refused
+            }
             var outcome: RCPError = .done
             do {
                 try await withThrowingTaskGroup(of: Void.self) { group in
@@ -155,7 +172,9 @@ public enum RCPLink {
                             let bytes = try await bounded(3 * agreed.heartbeatMillis, .transport, socket) { try await socket.read() }
                             let (kind, data) = try rx.open(bytes)
                             switch kind {
-                            case 1: try await receiver.receive(data)
+                            case 1:
+                                do { try await receiver.receive(data) }
+                                catch { try Task.checkCancellation(); throw RCPError.refused }
                             case 2: try await sender.write(3)
                             case 3: continue
                             case 4: throw RCPError.peerClosed
@@ -169,7 +188,9 @@ public enum RCPLink {
                     _ = try await group.next()
                 }
             } catch {
-                if !(await sender.localClose) && !Task.isCancelled { outcome = error as? RCPError ?? .transport }
+                if !(await sender.localClose) && !Task.isCancelled {
+                    outcome = await sender.writeFailure ?? (error as? RCPError ?? .transport)
+                }
             }
             await sender.finish()
             await receiver.ended(outcome)

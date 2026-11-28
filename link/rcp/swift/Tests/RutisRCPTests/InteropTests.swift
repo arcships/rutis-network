@@ -16,7 +16,7 @@ final class InteropTests: XCTestCase {
         if values["mode"] == "fault" {
             let fault = values["fault"]!
             let reason = try XCTUnwrap(RCPError(rawValue: values["reason"]!))
-            let terminal = ["version","invalid","revoked","slow"].contains(fault)
+            let terminal = ["version","invalid","revoked","slow","refused"].contains(fault)
             let counts = Counts()
             var result: RCPError?
             do {
@@ -34,8 +34,13 @@ final class InteropTests: XCTestCase {
                     counts.retry(reason)
                 }) { sender in
                     let attempt = counts.opened()
-                    if fault != "slow" && !(fault == "silent" && attempt == 1) { await sender.close() }
+                    if !["slow","refused"].contains(fault) && !(["silent","oversize"].contains(fault) && attempt == 1) { await sender.close() }
                     return RCPReceiver(receive: { message in
+                        if fault == "refused" { throw CocoaError(.userCancelled) }
+                        if fault == "oversize" {
+                            try await sender.send(Data(repeating: 0, count: 4097))
+                            XCTFail("oversized send returned")
+                        }
                         XCTAssertEqual(fault, "slow")
                         try await Task.sleep(nanoseconds: 60_000_000)
                         let index = counts.nextMessage()
@@ -44,10 +49,12 @@ final class InteropTests: XCTestCase {
                 }
             } catch let why as RCPError { result = why }
             XCTAssertEqual(result, terminal ? reason : nil)
-            XCTAssertEqual(counts.retries, ["version","slow"].contains(fault) ? [] : [reason])
-            XCTAssertEqual(counts.calls, ["version","slow"].contains(fault) ? 1 : 2)
+            XCTAssertEqual(counts.retries, ["version","slow","refused"].contains(fault) ? [] : [reason])
+            XCTAssertEqual(counts.calls, ["version","slow","refused"].contains(fault) ? 1 : 2)
             let endings: [RCPError]
             switch fault {
+            case "oversize": endings = [.size, .done]
+            case "refused": endings = [.refused]
             case "silent": endings = [.transport, .done]
             case "slow": endings = [.replaced]
             default: endings = terminal ? [] : [.done]

@@ -21,7 +21,7 @@ fun main() = runBlocking {
     if (field("mode") == "fault") {
         val fault = field("fault")
         val reason = Reason.entries.single { it.code == field("reason") }
-        val terminal = fault in setOf("version", "revoked", "invalid", "slow")
+        val terminal = fault in setOf("version", "revoked", "invalid", "slow", "refused")
         var calls = 0
         var opens = 0
         var sequence = 0
@@ -34,11 +34,13 @@ fun main() = runBlocking {
                 if (fault == "expired" && calls == 1) throw RcpException(Reason.EXPIRED)
                 if (fault == "invalid") Grant(grant.address, role, grant.privateKey, grant.peerKey,
                     byteArrayOf(0), grant.expiresAtMillis) else grant
-            }, { why, delay -> check(delay == 250L); retries.add(why) }) { sender ->
+            }, { why, delay -> check(delay == 250L) { "$fault retry: $why after ${delay}ms, previous=$retries" }; retries.add(why) }) { sender ->
                 opens++
-                if (fault != "slow" && !(fault == "silent" && opens == 1)) sender.close()
+                if (fault !in setOf("slow", "refused") && !(fault in setOf("silent", "oversize") && opens == 1)) sender.close()
                 object : Receiver {
                     override suspend fun receive(message: ByteArray) {
+                        if (fault == "refused") error("test consumer declined the message")
+                        if (fault == "oversize") { sender.send(ByteArray(4097)); error("oversized send returned") }
                         check(fault == "slow")
                         delay(60)
                         sequence++
@@ -50,9 +52,11 @@ fun main() = runBlocking {
             null
         } catch (e: RcpException) { e.reason }
         check(result == (if (terminal) reason else null)) { "terminal outcome: $result" }
-        check(retries == (if (fault == "version" || fault == "slow") emptyList() else listOf(reason))) { "retry outcomes: $retries" }
-        check(calls == if (fault == "version" || fault == "slow") 1 else 2)
+        check(retries == (if (fault in setOf("version","slow","refused")) emptyList() else listOf(reason))) { "retry outcomes: $retries" }
+        check(calls == if (fault in setOf("version","slow","refused")) 1 else 2)
         val expectedEnds = when (fault) {
+            "oversize" -> listOf(Reason.SIZE, Reason.DONE)
+            "refused" -> listOf(Reason.REFUSED)
             "silent" -> listOf(Reason.TRANSPORT, Reason.DONE)
             "slow" -> listOf(Reason.REPLACED)
             else -> if (terminal) emptyList() else listOf(Reason.DONE)

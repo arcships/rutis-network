@@ -10,6 +10,7 @@ import io.ktor.websocket.FrameTooBigException
 import io.ktor.websocket.WebSocketSession
 import java.net.URI
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -91,19 +92,25 @@ suspend fun serveRcp(socket: BinarySocket, grant: Grant, limits: Limits = Limits
             }
             if (rejection != null) {
                 try { bounded(1000, Reason.TRANSPORT) { socket.write(rejection) } }
-                catch (e: CancellationException) { throw e }
+                catch (_: CancellationException) { currentCoroutineContext().ensureActive() }
                 catch (_: Exception) { /* the peer may already have closed */ }
             }
             fail(reason)
         }
         val writeLock = Mutex()
         val stopped = AtomicBoolean()
+        val writeFailure = AtomicReference<Reason?>()
         val localClose = AtomicBoolean()
         suspend fun send(kind: Int, body: ByteArray = byteArrayOf()) = writeLock.withLock {
             if (stopped.get() || (localClose.get() && kind != 4)) fail(Reason.DONE)
+            writeFailure.get()?.let { fail(it) }
             try {
                 bounded(3L * agreed.heartbeatMillis, Reason.TRANSPORT) { socket.write(keys.tx.seal(kind, body)) }
-            } catch (e: Throwable) { socket.abort(); throw e }
+            } catch (e: Exception) {
+                writeFailure.compareAndSet(null, (e as? RcpException)?.reason ?: Reason.TRANSPORT)
+                socket.abort()
+                throw e
+            }
         }
         val sender = object : Sender {
             override val limits = agreed
@@ -128,7 +135,13 @@ suspend fun serveRcp(socket: BinarySocket, grant: Grant, limits: Limits = Limits
                         val data = bounded(3L * agreed.heartbeatMillis, Reason.TRANSPORT) { socket.read() }
                         val record = keys.rx.open(data)
                         when (record.kind) {
-                            1 -> receiver.receive(record.bytes)
+                            1 -> try {
+                                receiver.receive(record.bytes)
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (_: Exception) {
+                                fail(Reason.REFUSED)
+                            }
                             2 -> send(3)
                             3 -> Unit
                             4 -> fail(Reason.PEER_CLOSED)
@@ -141,9 +154,9 @@ suspend fun serveRcp(socket: BinarySocket, grant: Grant, limits: Limits = Limits
             }
         } catch (e: CancellationException) {
             currentCoroutineContext().ensureActive()
-            if (!localClose.get()) { reason = Reason.TRANSPORT; fail(reason) }
+            if (!localClose.get()) { reason = writeFailure.get() ?: Reason.TRANSPORT; fail(reason) }
         } catch (e: Exception) {
-            if (!localClose.get()) { reason = (e as? RcpException)?.reason ?: Reason.TRANSPORT; fail(reason) }
+            if (!localClose.get()) { reason = writeFailure.get() ?: (e as? RcpException)?.reason ?: Reason.TRANSPORT; fail(reason) }
         } finally {
             stopped.set(true)
             socket.abort()
