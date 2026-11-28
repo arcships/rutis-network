@@ -162,6 +162,10 @@ link.done.catch(reportTransportError)
 | 0.20 | 卸载一次逆序栈；session 写线程；`outbound_limit` 默认无上限 |
 | 0.21 | 收到的函数默认异步；错误文本改变，按 code |
 
+## 连接插件的端到端准入
+
+连接插件可以在调用 `sessions.open` 前自行握手、认证并加密。密钥由两端持有，session 接收解密后的有序消息。调用方在重连前提供新凭证，撤销授权时卸载设备行。远端身份仍由 session Hello 声明。[RCP 线协议](../../link/rcp/wire.zh-CN.md)
+
 ## 关联
 
 - [开发指南与一致性要求](../guide/link-plugins.md)

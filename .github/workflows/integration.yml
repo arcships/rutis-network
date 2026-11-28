@@ -54,6 +54,7 @@ jobs:
           cache-dependency-path: |
             link/tcp/go.sum
             link/grpc/go.sum
+            link/rcp/go.sum
             link/webrtc/go.sum
             link/websocket/go.sum
             discovery/mdns/go.sum
@@ -64,6 +65,7 @@ jobs:
           cache: npm
           cache-dependency-path: ${{ matrix.suite.package }}/package-lock.json
       - name: Install locked dependencies and check the native host
+        id: install
         working-directory: ${{ matrix.suite.package }}
         run: |
           npm ci
@@ -73,5 +75,15 @@ jobs:
         working-directory: ${{ matrix.suite.package }}
         run: node_modules/.bin/playwright install --with-deps chromium firefox
       - run: make "integration-$TRANSPORT"
+        if: matrix.suite.transport != 'rcp'
         env:
           MDNS_TEST_INTERFACE: ${{ matrix.suite.transport == 'peer-group' && 'lo0' || '' }}
+      - name: RCP hosts and reconnect lifecycle
+        if: matrix.suite.transport == 'rcp'
+        run: make integration-rcp-hosts
+      - name: Go RCP fault matrix (direct)
+        if: ${{ !cancelled() && matrix.suite.transport == 'rcp' && steps.install.outcome == 'success' }}
+        run: make integration-rcp-direct
+      - name: Go RCP fault matrix (relay)
+        if: ${{ !cancelled() && matrix.suite.transport == 'rcp' && steps.install.outcome == 'success' }}
+        run: make integration-rcp-relay

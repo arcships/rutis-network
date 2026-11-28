@@ -162,6 +162,10 @@ link.done.catch(reportTransportError)
 | 0.20 | One reverse unload stack; session writer thread; `outbound_limit` unbounded by default |
 | 0.21 | Received functions asynchronous by default; error texts changed, match codes |
 
+## Link-owned end-to-end admission
+
+A link can authenticate and encrypt its own application handshake before calling `sessions.open`. The two endpoints hold their keys and pass decrypted, ordered messages to the session. The caller supplies fresh grants on reconnect and unloads the device row on revocation. Session Hello still supplies the remote identity. [RCP wire contract](../../link/rcp/wire.md)
+
 ## Links
 
 - [Implementation guide and conformance requirements](../guide/link-plugins.en.md)
