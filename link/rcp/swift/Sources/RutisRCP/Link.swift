@@ -1,5 +1,4 @@
 import Foundation
-import Darwin
 
 /// One ordered binary WebSocket. abort must unblock outstanding reads and writes.
 public protocol RCPBinarySocket: Sendable {
@@ -34,6 +33,8 @@ private func bounded<T: Sendable>(_ ms: Int, _ failure: RCPError, _ socket: any 
     }
 }
 
+public enum RCPCloseReason: UInt8, Sendable { case done = 4, replaced, rejected }
+
 public actor RCPSender {
     public nonisolated let limits: RCPLimits
     private let tx: Direction
@@ -53,11 +54,11 @@ public actor RCPSender {
         defer {
             if waiting.isEmpty { busy = false } else { waiting.removeFirst().resume() }
         }
-        guard !ended, !localClose || kind == 4 else { throw RCPError.done }
+        guard !ended, !localClose || kind >= 4 else { throw RCPError.done }
         if let writeFailure { throw writeFailure }
         do {
             let frame = try tx.seal(kind, body)
-            try await bounded(kind == 4 ? 1000 : 3 * limits.heartbeatMillis, .transport, socket) { [socket] in
+            try await bounded(kind >= 4 ? 1000 : 3 * limits.heartbeatMillis, .transport, socket) { [socket] in
                 try await socket.write(frame)
             }
         } catch {
@@ -67,11 +68,11 @@ public actor RCPSender {
         }
     }
     public func send(_ message: Data) async throws { try await write(1, message) }
-    public func close() async {
+    public func close(_ reason: RCPCloseReason = .done) async {
         guard !localClose, !ended else { return }
         localClose = true
         // Never queue a final notification behind a stalled application write.
-        if !busy { try? await write(4) }
+        if !busy { try? await write(reason.rawValue) }
         socket.abort()
     }
     fileprivate func finish() { ended = true; socket.abort() }
@@ -111,7 +112,6 @@ private func pair(_ socket: any RCPBinarySocket, _ grant: RCPGrant, _ limits: RC
         await repeats.value
     } else { offer = try await receiveOffer() }
     let agreed = try limits.negotiate(state.read(offer))
-    socket.setReadLimit(max(60, agreed.maxMessage + 33))
     if first == nil { try await socket.write(state.write(limits.offer)) }
     let (tx, rx) = try state.split(limit: agreed.maxMessage)
     if first != nil { try await socket.write(tx.seal(0)) }
@@ -125,6 +125,7 @@ private func pair(_ socket: any RCPBinarySocket, _ grant: RCPGrant, _ limits: RC
     }
     if first == nil { try await socket.write(tx.seal(0)) }
     try grant.validate()
+    socket.setReadLimit(agreed.maxMessage + 33)
     return (agreed, tx, rx)
 }
 
@@ -218,7 +219,11 @@ public enum RCPLink {
                 catch let error as URLError where error.code == .timedOut { throw RCPError.provider }
                 catch { try Task.checkCancellation(); throw RCPError.credential }
                 try grant.validate()
-                let socket = try AppleSocket(grant.address, maximum: max(128, limits.maxMessage + 33))
+                let socket = try AppleSocket(grant.address)
+                defer { socket.abort() }
+                try await withTaskCancellationHandler {
+                    try await bounded(10_000, .transport, socket) { try await socket.upgrade() }
+                } onCancel: { socket.abort() }
                 try await serve(socket, grant: grant, limits: limits) { sender in
                     await admitted.mark()
                     return try await open(sender)
@@ -257,60 +262,4 @@ private func handshakeBefore(_ ms: Int, _ socket: any RCPBinarySocket, _ grant: 
         do { return try await group.next()! }
         catch RCPError.offline { socket.abort(); throw RCPError.offline }
     }
-}
-
-private final class NoRedirect: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
-    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
-                    newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
-        completionHandler(nil)
-    }
-}
-
-private final class AppleSocket: RCPBinarySocket, @unchecked Sendable {
-    let session: URLSession
-    let task: URLSessionWebSocketTask
-    private let lock = NSLock()
-    private var readLimit = 128
-
-    init(_ address: URL, maximum: Int) throws {
-        guard let host = address.host, address.user == nil, address.password == nil, address.fragment == nil
-        else { throw RCPError.credential }
-        var ipv4 = in_addr(), ipv6 = in6_addr()
-        let literal = host.trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
-        let loopback = (inet_pton(AF_INET, literal, &ipv4) == 1 && UInt32(bigEndian: ipv4.s_addr) >> 24 == 127) ||
-            (inet_pton(AF_INET6, literal, &ipv6) == 1 && withUnsafeBytes(of: ipv6) { $0.dropLast().allSatisfy { $0 == 0 } && $0.last == 1 })
-        guard address.scheme == "wss" || (address.scheme == "ws" && loopback) else { throw RCPError.credential }
-        let config = URLSessionConfiguration.ephemeral
-        config.httpShouldSetCookies = false
-        config.urlCredentialStorage = nil
-        session = URLSession(configuration: config, delegate: NoRedirect(), delegateQueue: nil)
-        task = session.webSocketTask(with: address)
-        // URLSession fixes the WebSocket ceiling when the task starts.
-        // Check the current handshake/negotiated limit again before delivery.
-        task.maximumMessageSize = maximum
-        task.resume()
-    }
-    func setReadLimit(_ bytes: Int) { lock.lock(); defer { lock.unlock() }; readLimit = bytes }
-    private func fits(_ count: Int) -> Bool { lock.lock(); defer { lock.unlock() }; return count <= readLimit }
-    private func failure() -> RCPError {
-        switch (task.response as? HTTPURLResponse)?.statusCode {
-        case 401, 403: return .credential
-        case 410: return .expired
-        case 404: return .offline
-        case 429, 502, 503, 504: return .unavailable
-        case nil, 101: return .transport
-        default: return .refused
-        }
-    }
-    func read() async throws -> Data {
-        let message: URLSessionWebSocketTask.Message
-        do { message = try await task.receive() } catch { throw failure() }
-        guard case .data(let b) = message else { throw RCPError.frame }
-        guard fits(b.count) else { throw RCPError.size }
-        return b
-    }
-    func write(_ bytes: Data) async throws {
-        do { try await task.send(.data(bytes)) } catch { throw failure() }
-    }
-    func abort() { task.cancel(); session.invalidateAndCancel() }
 }

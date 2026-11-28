@@ -1,13 +1,5 @@
 package arcships.rcp
 
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.HttpResponseValidator
-import io.ktor.client.plugins.websocket.WebSockets
-import io.ktor.client.plugins.websocket.webSocketSession
-import io.ktor.websocket.Frame
-import io.ktor.websocket.FrameTooBigException
-import io.ktor.websocket.WebSocketSession
 import java.net.URI
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -15,7 +7,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-/** The owner supplies one ordered binary WebSocket, with a bounded read and write path. */
+/** Read one bounded message on demand. abort() must be thread-safe, idempotent and unblock pending I/O. */
 interface BinarySocket {
     fun setReadLimit(bytes: Int)
     suspend fun read(): ByteArray
@@ -23,10 +15,12 @@ interface BinarySocket {
     fun abort()
 }
 
+enum class CloseReason(internal val kind: Int) { DONE(4), REPLACED(5), REJECTED(6) }
+
 interface Sender {
     val limits: Limits
     suspend fun send(message: ByteArray)
-    suspend fun close()
+    suspend fun close(reason: CloseReason = CloseReason.DONE)
 }
 
 interface Receiver {
@@ -34,8 +28,20 @@ interface Receiver {
     suspend fun ended(reason: Reason) {}
 }
 
-private suspend fun <T : Any> bounded(ms: Long, reason: Reason, block: suspend () -> T): T =
-    withTimeoutOrNull(ms) { block() } ?: fail(reason)
+// Some callback-based sockets only release their pending continuation when aborted.
+internal suspend fun <T> abortOnCancellation(abort: () -> Unit, block: suspend () -> T): T = coroutineScope {
+    val finished = AtomicBoolean()
+    val watcher = launch(Dispatchers.Unconfined, start = CoroutineStart.UNDISPATCHED) {
+        try { awaitCancellation() }
+        finally { if (!finished.get()) abort() }
+    }
+    try { block() }
+    catch (e: Exception) { currentCoroutineContext().ensureActive(); throw e }
+    finally { finished.set(true); watcher.cancel() }
+}
+
+private suspend fun <T : Any> BinarySocket.withDeadline(ms: Long, reason: Reason, block: suspend () -> T): T =
+    withTimeoutOrNull(ms) { abortOnCancellation(this@withDeadline::abort, block) } ?: fail(reason)
 
 private suspend fun pair(socket: BinarySocket, grant: Grant, limits: Limits): Pair<Limits, Records> = coroutineScope {
     Pairing(grant).use { state ->
@@ -55,7 +61,6 @@ private suspend fun pair(socket: BinarySocket, grant: Grant, limits: Limits): Pa
         }
         val offer = try { nextOffer() } finally { repeat?.cancelAndJoin() }
         val agreed = limits.negotiate(state.read(offer))
-        socket.setReadLimit(maxOf(60, agreed.maxMessage + 33))
         if (first == null) socket.write(state.write(limits.offer()))
         val keys = state.split(agreed.maxMessage)
         try {
@@ -70,6 +75,7 @@ private suspend fun pair(socket: BinarySocket, grant: Grant, limits: Limits): Pa
             }
             if (first == null) socket.write(keys.tx.seal(0))
             grant.validate()
+            socket.setReadLimit(agreed.maxMessage + 33)
             agreed to keys
         } catch (e: Throwable) { keys.close(); throw e }
     }
@@ -77,12 +83,12 @@ private suspend fun pair(socket: BinarySocket, grant: Grant, limits: Limits): Pa
 
 /** Owns this socket through admission and teardown. Only an admitted peer reaches open. */
 suspend fun serveRcp(socket: BinarySocket, grant: Grant, limits: Limits = Limits(),
-                     open: suspend (Sender) -> Receiver) {
+                     open: suspend (Sender) -> Receiver): Unit = abortOnCancellation(socket::abort) {
     try {
         grant.validate()
         socket.setReadLimit(128)
         val until = minOf(10_000L, grant.expiresAtMillis - System.currentTimeMillis())
-        val (agreed, keys) = try { bounded(until, Reason.OFFLINE) { pair(socket, grant, limits) } }
+        val (agreed, keys) = try { socket.withDeadline(until, Reason.OFFLINE) { pair(socket, grant, limits) } }
         catch (e: RcpException) {
             val reason = if (grant.expiresAtMillis <= System.currentTimeMillis()) Reason.EXPIRED else e.reason
             val rejection = when (reason) {
@@ -91,7 +97,7 @@ suspend fun serveRcp(socket: BinarySocket, grant: Grant, limits: Limits = Limits
                 else -> null
             }
             if (rejection != null) {
-                try { bounded(1000, Reason.TRANSPORT) { socket.write(rejection) } }
+                try { socket.withDeadline(1000, Reason.TRANSPORT) { socket.write(rejection) } }
                 catch (_: CancellationException) { currentCoroutineContext().ensureActive() }
                 catch (_: Exception) { /* the peer may already have closed */ }
             }
@@ -102,10 +108,10 @@ suspend fun serveRcp(socket: BinarySocket, grant: Grant, limits: Limits = Limits
         val writeFailure = AtomicReference<Reason?>()
         val localClose = AtomicBoolean()
         suspend fun send(kind: Int, body: ByteArray = byteArrayOf()) = writeLock.withLock {
-            if (stopped.get() || (localClose.get() && kind != 4)) fail(Reason.DONE)
+            if (stopped.get() || (localClose.get() && kind < 4)) fail(Reason.DONE)
             writeFailure.get()?.let { fail(it) }
             try {
-                bounded(3L * agreed.heartbeatMillis, Reason.TRANSPORT) { socket.write(keys.tx.seal(kind, body)) }
+                socket.withDeadline(3L * agreed.heartbeatMillis, Reason.TRANSPORT) { socket.write(keys.tx.seal(kind, body)) }
             } catch (e: Exception) {
                 writeFailure.compareAndSet(null, (e as? RcpException)?.reason ?: Reason.TRANSPORT)
                 socket.abort()
@@ -115,9 +121,9 @@ suspend fun serveRcp(socket: BinarySocket, grant: Grant, limits: Limits = Limits
         val sender = object : Sender {
             override val limits = agreed
             override suspend fun send(message: ByteArray) { send(1, message) }
-            override suspend fun close() {
+            override suspend fun close(reason: CloseReason) {
                 if (!localClose.compareAndSet(false, true)) return
-                try { bounded(1000, Reason.TRANSPORT) { send(4) } } finally { socket.abort() }
+                try { socket.withDeadline(1000, Reason.TRANSPORT) { send(reason.kind) } } finally { socket.abort() }
             }
         }
         var receiver: Receiver? = null
@@ -132,7 +138,7 @@ suspend fun serveRcp(socket: BinarySocket, grant: Grant, limits: Limits = Limits
                 }
                 try {
                     while (!localClose.get()) {
-                        val data = bounded(3L * agreed.heartbeatMillis, Reason.TRANSPORT) { socket.read() }
+                        val data = socket.withDeadline(3L * agreed.heartbeatMillis, Reason.TRANSPORT) { socket.read() }
                         val record = keys.rx.open(data)
                         when (record.kind) {
                             1 -> try {
@@ -167,23 +173,11 @@ suspend fun serveRcp(socket: BinarySocket, grant: Grant, limits: Limits = Limits
             socket.abort()
             withContext(NonCancellable) {
                 writeLock.withLock { keys.close() }
-                receiver?.ended(reason)
+                // Cleanup is a notification. Its failure cannot change the session's retry decision.
+                try { receiver?.ended(reason) } catch (_: Exception) { }
             }
         }
     } finally { socket.abort() }
-}
-
-internal class KtorSocket(private val session: WebSocketSession) : BinarySocket {
-    override fun setReadLimit(bytes: Int) { session.maxFrameSize = bytes.toLong() }
-    override suspend fun read(): ByteArray {
-        val frame = try { session.incoming.receive() } catch (_: FrameTooBigException) { fail(Reason.SIZE) }
-        return (frame as? Frame.Binary)?.data ?: fail(Reason.FRAME)
-    }
-    override suspend fun write(bytes: ByteArray) {
-        session.outgoing.send(Frame.Binary(true, bytes))
-        session.flush()
-    }
-    override fun abort() { session.cancel() }
 }
 
 internal fun endpoint(address: String): URI {
@@ -194,30 +188,6 @@ internal fun endpoint(address: String): URI {
     if (uri.userInfo != null || uri.fragment != null || (uri.scheme != "wss" && !(uri.scheme == "ws" && loopback)))
         fail(Reason.CREDENTIAL)
     return uri
-}
-
-private suspend fun dial(grant: Grant, limits: Limits, open: suspend (Sender) -> Receiver) {
-    endpoint(grant.address)
-    val client = HttpClient(CIO) {
-        followRedirects = false
-        install(WebSockets) { maxFrameSize = 128 }
-        HttpResponseValidator {
-            validateResponse { response ->
-                when (response.status.value) {
-                    101 -> Unit
-                    401, 403 -> fail(Reason.CREDENTIAL)
-                    410 -> fail(Reason.EXPIRED)
-                    404 -> fail(Reason.OFFLINE)
-                    429, 502, 503, 504 -> fail(Reason.UNAVAILABLE)
-                    else -> fail(Reason.REFUSED)
-                }
-            }
-        }
-    }
-    try {
-        val session = bounded(10_000, Reason.TRANSPORT) { client.webSocketSession(grant.address) }
-        serveRcp(KtorSocket(session), grant, limits, open)
-    } finally { client.coroutineContext.cancel(); client.close() }
 }
 
 /** Run one device until local close, terminal failure or caller cancellation. */

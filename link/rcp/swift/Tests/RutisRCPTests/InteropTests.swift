@@ -17,10 +17,17 @@ final class InteropTests: XCTestCase {
             let fault = values["fault"]!
             let reason = try XCTUnwrap(RCPError(rawValue: values["reason"]!))
             let terminal = ["version","invalid","revoked","slow","refused"].contains(fault)
+            let noRetry = ["large", "version", "slow", "refused", "local-replaced", "local-rejected"].contains(fault)
+            let limit: Int
+            switch fault {
+            case "large": limit = 65536
+            case "negotiated-size": limit = 8192
+            default: limit = 4096
+            }
             let counts = Counts()
             var result: RCPError?
             do {
-                try await RCPLink.run(limits: RCPLimits(maxMessage: 4096, heartbeatMillis: 150), provider: {
+                try await RCPLink.run(limits: RCPLimits(maxMessage: limit, heartbeatMillis: 150), provider: {
                     let attempt = counts.attempt()
                     if attempt > 2 { throw RCPError.refused }
                     if fault == "expired" && attempt == 1 { throw RCPError.expired }
@@ -34,8 +41,22 @@ final class InteropTests: XCTestCase {
                     counts.retry(reason)
                 }) { sender in
                     let attempt = counts.opened()
-                    if !["slow","refused"].contains(fault) && !(["silent","oversize"].contains(fault) && attempt == 1) { await sender.close() }
+                    switch fault {
+                    case "local-replaced": await sender.close(.replaced)
+                    case "local-rejected": await sender.close(.rejected)
+                    case "slow", "refused", "large": break
+                    case "silent", "oversize", "inbound-size", "negotiated-size", "close-1009":
+                        if attempt > 1 { await sender.close() }
+                    default: await sender.close()
+                    }
                     return RCPReceiver(receive: { message in
+                        if fault == "large" {
+                            let n = counts.nextMessage()
+                            XCTAssertEqual(message, Data(repeating: UInt8(n), count: limit))
+                            try await sender.send(message)
+                            if n == 2 { await sender.close() }
+                            return
+                        }
                         if fault == "refused" { throw CocoaError(.userCancelled) }
                         if fault == "oversize" {
                             try await sender.send(Data(repeating: 0, count: 4097))
@@ -49,11 +70,11 @@ final class InteropTests: XCTestCase {
                 }
             } catch let why as RCPError { result = why }
             XCTAssertEqual(result, terminal ? reason : nil)
-            XCTAssertEqual(counts.retries, ["version","slow","refused"].contains(fault) ? [] : [reason])
-            XCTAssertEqual(counts.calls, ["version","slow","refused"].contains(fault) ? 1 : 2)
+            XCTAssertEqual(counts.retries, noRetry ? [] : [reason])
+            XCTAssertEqual(counts.calls, noRetry ? 1 : 2)
             let endings: [RCPError]
             switch fault {
-            case "oversize": endings = [.size, .done]
+            case "oversize", "inbound-size", "negotiated-size", "close-1009": endings = [.size, .done]
             case "refused": endings = [.refused]
             case "silent": endings = [.transport, .done]
             case "slow": endings = [.replaced]
@@ -62,6 +83,7 @@ final class InteropTests: XCTestCase {
             XCTAssertEqual(counts.endings, endings)
             XCTAssertEqual(counts.opens, endings.count)
             if fault == "slow" { XCTAssertEqual(counts.messages, 3) }
+            if fault == "large" { XCTAssertEqual(counts.messages, 2) }
             return
         }
         actor Exchange {

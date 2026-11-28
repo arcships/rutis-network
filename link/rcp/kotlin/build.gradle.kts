@@ -11,8 +11,7 @@ kotlin {
 
 dependencies {
     implementation(libs.noise)
-    implementation(libs.ktor.cio)
-    implementation(libs.ktor.ws)
+    implementation(libs.ktor.http.cio)
     implementation(libs.coroutines)
     testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
     testImplementation("io.ktor:ktor-server-cio:3.3.2")

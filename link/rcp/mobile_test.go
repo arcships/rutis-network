@@ -3,6 +3,7 @@ package rcp
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -178,6 +180,112 @@ func mobilePeer(t *testing.T, ctx context.Context, language string, fixture mobi
 	return done
 }
 
+// Send an authenticated 129-byte record after both Noise offers, before the daemon's READY.
+func oversizedBeforeReady(conn *websocket.Conn, daemon Credentials) error {
+	state, err := pairState(daemon, nil)
+	if err != nil {
+		return err
+	}
+	initial, err := receivePair(conn, nil)
+	if err != nil {
+		return err
+	}
+	if _, _, _, err := state.ReadMessage(nil, initial[len(version):]); err != nil {
+		return err
+	}
+	reply, _, tx, err := state.WriteMessage(nil, offer(4096, 150*time.Millisecond))
+	if err != nil {
+		return err
+	}
+	if err := conn.WriteMessage(websocket.BinaryMessage, append([]byte(version), reply...)); err != nil {
+		return err
+	}
+	if _, err := readHandshakeFrame(conn); err != nil {
+		return err
+	}
+	frame, err := seal(tx, dataMessage, make([]byte, 129-overhead))
+	if err != nil {
+		return err
+	}
+	return conn.WriteMessage(websocket.BinaryMessage, frame)
+}
+
+func writeFragments(conn *websocket.Conn, frame []byte) error {
+	w, err := conn.NextWriter(websocket.BinaryMessage)
+	if err != nil {
+		return err
+	}
+	for len(frame) > 0 {
+		n := min(192, len(frame))
+		if _, err := w.Write(frame[:n]); err != nil {
+			return err
+		}
+		frame = frame[n:]
+	}
+	return w.Close()
+}
+
+// Exercise both WebSocket length encodings used for a full 64 KiB RCP message,
+// fragmented binary delivery, and WebSocket control frames alongside RCP traffic.
+func mobileLargeEcho(ch *channel) error {
+	ch.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	observedPong := false
+	ch.conn.SetPongHandler(func(s string) error { observedPong = s == "check"; return nil })
+	if err := ch.conn.WriteControl(websocket.PingMessage, []byte("check"), time.Now().Add(time.Second)); err != nil {
+		return err
+	}
+	for i := byte(1); i <= 2; i++ {
+		message := bytes.Repeat([]byte{i}, 65536)
+		frame, err := seal(ch.send, dataMessage, message)
+		if err != nil {
+			return err
+		}
+		if i == 1 {
+			err = ch.conn.WriteMessage(websocket.BinaryMessage, frame)
+		} else {
+			err = writeFragments(ch.conn, frame)
+		}
+		if err != nil {
+			return err
+		}
+		for {
+			kind, reply, err := ch.read()
+			if err != nil {
+				return err
+			}
+			if kind == ping {
+				if err = ch.write(pong, nil); err != nil {
+					return err
+				}
+				continue
+			}
+			if kind != dataMessage || !bytes.Equal(message, reply) {
+				return errors.New("incorrect large message echo")
+			}
+			break
+		}
+	}
+	for {
+		kind, _, err := ch.read()
+		if err != nil {
+			return err
+		}
+		if kind == closeDone {
+			break
+		}
+		if kind != ping {
+			return errors.New("missing close after large message echo")
+		}
+		if err := ch.write(pong, nil); err != nil {
+			return err
+		}
+	}
+	if !observedPong {
+		return errors.New("missing WebSocket pong")
+	}
+	return nil
+}
+
 func TestMobileFaults(t *testing.T) {
 	if os.Getenv("RCP_KOTLIN_CLASSPATH") == "" {
 		t.Skip("use make integration-rcp-mobile")
@@ -192,10 +300,13 @@ func TestMobileFaults(t *testing.T) {
 				{"version", 0, incompatible}, {"revoked", 403, credential}, {"invalid", 0, credential},
 				{"unavailable", 503, unavailable}, {"offline", 404, offline}, {"expired", 0, expired},
 				{"silent", 0, transport}, {"slow", 0, replaced}, {"refused", 0, refused}, {"oversize", 0, oversized},
+				{"before-ready-size", 0, oversized}, {"inbound-size", 0, oversized}, {"negotiated-size", 0, oversized}, {"close-1009", 0, oversized},
+				{"large", 0, done}, {"local-replaced", 0, replaced}, {"local-rejected", 0, refused},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
 					client, daemon := credentials(t)
-					up := websocket.Upgrader{}
+					up := websocket.Upgrader{WriteBufferSize: 256}
+					peerClose := make(chan byte, 1)
 					var attempts atomic.Int32
 					srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 						first := attempts.Add(1) == 1
@@ -214,12 +325,67 @@ func TestMobileFaults(t *testing.T) {
 							}
 							return
 						}
-						ch, err := handshake(conn, daemon, 4096, 150*time.Millisecond)
+						if tc.name == "before-ready-size" && first {
+							if err := oversizedBeforeReady(conn, daemon); err != nil {
+								t.Error(err)
+							}
+							_, _, _ = conn.ReadMessage()
+							return
+						}
+						limit := 4096
+						if tc.name == "large" {
+							limit = 65536
+						}
+						ch, err := handshake(conn, daemon, limit, 150*time.Millisecond)
 						if err != nil {
 							if err == credential {
 								_ = conn.WriteMessage(websocket.BinaryMessage, []byte(rejectCredential))
 							}
 							return
+						}
+						switch tc.name {
+						case "large":
+							if err := mobileLargeEcho(ch); err != nil {
+								t.Error(err)
+							}
+							return
+						case "local-replaced", "local-rejected":
+							kind, _, err := ch.read()
+							if err == nil && first {
+								peerClose <- kind
+							}
+							return
+						case "negotiated-size":
+							if first {
+								// Send only the header. A reader that buffers the body will time out.
+								header := binary.BigEndian.AppendUint16([]byte{0x82, 126}, uint16(ch.limit+overhead+1))
+								if _, err := conn.UnderlyingConn().Write(header); err != nil {
+									t.Error(err)
+								}
+								conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+								for {
+									if _, _, err := ch.read(); err != nil {
+										return
+									}
+								}
+							}
+						case "inbound-size":
+							if first {
+								// Each fragment fits; the cumulative payload exceeds the negotiated limit by one.
+								frame, err := seal(ch.send, dataMessage, make([]byte, ch.limit+1))
+								if err == nil {
+									err = writeFragments(ch.conn, frame)
+								}
+								if err != nil {
+									t.Error(err)
+								}
+							}
+						case "close-1009":
+							if first {
+								_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseMessageTooBig, ""), time.Now().Add(time.Second))
+								_, _, _ = conn.ReadMessage()
+								return
+							}
 						}
 						if tc.name == "silent" && first {
 							conn.SetReadDeadline(time.Now().Add(3 * time.Second))
@@ -259,9 +425,76 @@ func TestMobileFaults(t *testing.T) {
 					if err := <-mobilePeer(t, ctx, lang, mobileFixture{Credentials: client, Mode: "fault", Fault: tc.name, Reason: string(tc.reason)}); err != nil {
 						t.Fatal(err)
 					}
+					if tc.name == "local-replaced" || tc.name == "local-rejected" {
+						want := closeReplaced
+						if tc.name == "local-rejected" {
+							want = closeRejected
+						}
+						select {
+						case got := <-peerClose:
+							if got != want {
+								t.Fatalf("Go received close kind %d, want %d", got, want)
+							}
+						case <-ctx.Done():
+							t.Fatal("Go did not receive encrypted close")
+						}
+					}
 				})
 			}
 		})
+	}
+}
+
+// Flushing the final encrypted record over WSS must finish before local teardown.
+func TestMobileKotlinWSSClose(t *testing.T) {
+	if os.Getenv("RCP_KOTLIN_CLASSPATH") == "" {
+		t.Skip("use make integration-rcp-mobile")
+	}
+	client, daemon := credentials(t)
+	up := websocket.Upgrader{}
+	result := make(chan error, 1)
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := up.Upgrade(w, r, nil)
+		if err != nil {
+			result <- err
+			return
+		}
+		defer conn.Close()
+		ch, err := handshake(conn, daemon, 4096, 150*time.Millisecond)
+		if err != nil {
+			result <- err
+			return
+		}
+		kind, _, err := ch.read()
+		if err == nil && kind != closeRejected {
+			err = errors.New("Go did not receive closeRejected over WSS")
+		}
+		result <- err
+	}))
+	defer srv.Close()
+	dir := t.TempDir()
+	cert, store := filepath.Join(dir, "server.der"), filepath.Join(dir, "trust.p12")
+	if err := os.WriteFile(cert, srv.Certificate().Raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := exec.Command("keytool", "-importcert", "-noprompt", "-alias", "fixture",
+		"-keystore", store, "-storetype", "PKCS12", "-storepass", "fixture", "-file", cert).CombinedOutput(); err != nil {
+		t.Fatalf("create test trust store: %v: %s", err, out)
+	}
+	t.Setenv("JAVA_TOOL_OPTIONS", os.Getenv("JAVA_TOOL_OPTIONS")+` "-Djavax.net.ssl.trustStore=`+store+`" -Djavax.net.ssl.trustStorePassword=fixture`)
+	client.Address = "wss" + strings.TrimPrefix(srv.URL, "https")
+	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
+	defer cancel()
+	if err := <-mobilePeer(t, ctx, "kotlin", mobileFixture{Credentials: client, Mode: "fault", Fault: "local-rejected", Reason: string(refused)}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-result:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
 	}
 }
 

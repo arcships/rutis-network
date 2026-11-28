@@ -1,5 +1,6 @@
 package arcships.rcp
 
+import io.ktor.websocket.*
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.*
 import io.ktor.server.application.install
@@ -22,13 +23,20 @@ fun main() = runBlocking {
         val fault = field("fault")
         val reason = Reason.entries.single { it.code == field("reason") }
         val terminal = fault in setOf("version", "revoked", "invalid", "slow", "refused")
+        val localClose = fault in setOf("local-replaced", "local-rejected")
+        val noRetry = localClose || fault in setOf("large", "version", "slow", "refused")
+        val limit = when (fault) {
+            "large" -> 65536
+            "negotiated-size" -> 8192
+            else -> 4096
+        }
         var calls = 0
         var opens = 0
         var sequence = 0
         val endings = mutableListOf<Reason>()
         val retries = mutableListOf<Reason>()
         val result = try {
-            runRcp(Limits(4096,150), {
+            runRcp(Limits(limit, 150), {
                 calls++
                 check(calls <= 2)
                 if (fault == "expired" && calls == 1) throw RcpException(Reason.EXPIRED)
@@ -36,9 +44,22 @@ fun main() = runBlocking {
                     byteArrayOf(0), grant.expiresAtMillis) else grant
             }, { why, delay -> check(delay == 250L) { "$fault retry: $why after ${delay}ms, previous=$retries" }; retries.add(why) }) { sender ->
                 opens++
-                if (fault !in setOf("slow", "refused") && !(fault in setOf("silent", "oversize") && opens == 1)) sender.close()
+                when {
+                    fault == "local-replaced" -> sender.close(CloseReason.REPLACED)
+                    fault == "local-rejected" -> sender.close(CloseReason.REJECTED)
+                    fault in setOf("slow", "refused", "large") -> Unit
+                    opens == 1 && fault in setOf("silent", "oversize", "inbound-size", "negotiated-size", "close-1009") -> Unit
+                    else -> sender.close()
+                }
                 object : Receiver {
                     override suspend fun receive(message: ByteArray) {
+                        if (fault == "large") {
+                            sequence++
+                            check(message.size == limit && message.all { it == sequence.toByte() })
+                            sender.send(message)
+                            if (sequence == 2) sender.close()
+                            return
+                        }
                         if (fault == "refused") error("test consumer declined the message")
                         if (fault == "oversize") { sender.send(ByteArray(4097)); error("oversized send returned") }
                         check(fault == "slow")
@@ -46,16 +67,19 @@ fun main() = runBlocking {
                         sequence++
                         check(message.size == 4096 && message.all { it == sequence.toByte() })
                     }
-                    override suspend fun ended(reason: Reason) { endings += reason }
+                    override suspend fun ended(reason: Reason) {
+                        endings += reason
+                        if (localClose || fault == "slow") throw java.io.IOException("test cleanup failure after close")
+                    }
                 }
             }
             null
         } catch (e: RcpException) { e.reason }
         check(result == (if (terminal) reason else null)) { "$fault outcome=$result, retries=$retries, endings=$endings, delivered=$sequence" }
-        check(retries == (if (fault in setOf("version","slow","refused")) emptyList() else listOf(reason))) { "retry outcomes: $retries" }
-        check(calls == if (fault in setOf("version","slow","refused")) 1 else 2)
+        check(retries == (if (noRetry) emptyList() else listOf(reason))) { "retry outcomes: $retries" }
+        check(calls == if (noRetry) 1 else 2)
         val expectedEnds = when (fault) {
-            "oversize" -> listOf(Reason.SIZE, Reason.DONE)
+            "inbound-size", "negotiated-size", "close-1009", "oversize" -> listOf(Reason.SIZE, Reason.DONE)
             "refused" -> listOf(Reason.REFUSED)
             "silent" -> listOf(Reason.TRANSPORT, Reason.DONE)
             "slow" -> listOf(Reason.REPLACED)
@@ -63,6 +87,7 @@ fun main() = runBlocking {
         }
         check(endings == expectedEnds && opens == expectedEnds.size)
         if (fault == "slow") check(sequence == 3)
+        if (fault == "large") check(sequence == 2)
         return@runBlocking
     }
     val mine = field("role")
@@ -111,4 +136,17 @@ fun main() = runBlocking {
             try { complete.await() } finally { task.cancelAndJoin() }
         }
     }
+}
+
+internal class KtorSocket(private val session: WebSocketSession) : BinarySocket {
+    override fun setReadLimit(bytes: Int) { session.maxFrameSize = bytes.toLong() }
+    override suspend fun read(): ByteArray {
+        val frame = try { session.incoming.receive() } catch (_: FrameTooBigException) { fail(Reason.SIZE) }
+        return (frame as? Frame.Binary)?.data ?: fail(Reason.FRAME)
+    }
+    override suspend fun write(bytes: ByteArray) {
+        session.outgoing.send(Frame.Binary(true, bytes))
+        session.flush()
+    }
+    override fun abort() { session.cancel() }
 }

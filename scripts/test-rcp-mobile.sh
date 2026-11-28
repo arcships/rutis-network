@@ -7,4 +7,4 @@ swift="$repo/link/rcp/swift"
 swift test --package-path "$swift" --skip InteropTests
 RCP_KOTLIN_CLASSPATH=$("$kotlin/gradlew" -q -p "$kotlin" interopClasspath)
 export RCP_KOTLIN_CLASSPATH
-sh scripts/in-go-module.sh link/rcp go test -mod=readonly -race -v -count=1 -run '^TestMobile(Interop|Faults|RelayResponder)$' .
+sh scripts/in-go-module.sh link/rcp go test -mod=readonly -race -v -count=1 -run '^TestMobile(Interop|Faults|RelayResponder|KotlinWSSClose)$' .

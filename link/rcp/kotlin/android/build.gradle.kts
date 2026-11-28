@@ -27,7 +27,6 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
     implementation(libs.noise)
-    implementation(libs.ktor.cio)
-    implementation(libs.ktor.ws)
+    implementation(libs.ktor.http.cio)
     implementation(libs.coroutines)
 }

@@ -3,6 +3,5 @@ ktor = "3.3.2"
 
 [libraries]
 noise = { module = "org.signal.forks:noise-java", version = "0.1.1" }
-ktor-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
-ktor-ws = { module = "io.ktor:ktor-client-websockets", version.ref = "ktor" }
+ktor-http-cio = { module = "io.ktor:ktor-http-cio", version.ref = "ktor" }
 coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version = "1.10.2" }
