@@ -107,7 +107,10 @@ suspend fun serveRcp(socket: BinarySocket, grant: Grant, limits: Limits = Limits
         val stopped = AtomicBoolean()
         val writeFailure = AtomicReference<Reason?>()
         val localClose = AtomicBoolean()
+        val closeFinished = CompletableDeferred<Unit>()
         suspend fun send(kind: Int, body: ByteArray = byteArrayOf()) = writeLock.withLock {
+            // A queued heartbeat or pong must not cancel a close still being written.
+            if (localClose.get() && (kind == 2 || kind == 3)) return@withLock
             if (stopped.get() || (localClose.get() && kind < 4)) fail(Reason.DONE)
             writeFailure.get()?.let { fail(it) }
             try {
@@ -123,7 +126,8 @@ suspend fun serveRcp(socket: BinarySocket, grant: Grant, limits: Limits = Limits
             override suspend fun send(message: ByteArray) { send(1, message) }
             override suspend fun close(reason: CloseReason) {
                 if (!localClose.compareAndSet(false, true)) return
-                try { socket.withDeadline(1000, Reason.TRANSPORT) { send(reason.kind) } } finally { socket.abort() }
+                try { socket.withDeadline(1000, Reason.TRANSPORT) { send(reason.kind) } }
+                finally { closeFinished.complete(Unit); socket.abort() }
             }
         }
         var receiver: Receiver? = null
@@ -169,9 +173,10 @@ suspend fun serveRcp(socket: BinarySocket, grant: Grant, limits: Limits = Limits
                 fail(reason)
             }
         } finally {
-            stopped.set(true)
-            socket.abort()
             withContext(NonCancellable) {
+                if (localClose.get()) closeFinished.await()
+                stopped.set(true)
+                socket.abort()
                 writeLock.withLock { keys.close() }
                 // Cleanup is a notification. Its failure cannot change the session's retry decision.
                 try { receiver?.ended(reason) } catch (_: Exception) { }

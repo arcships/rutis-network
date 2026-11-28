@@ -137,6 +137,7 @@ internal suspend fun dial(grant: Grant, limits: Limits, open: suspend (Sender) -
             val client = withTimeoutOrNull(10_000) {
                 abortOnCancellation(tcp::close) {
                     withContext(Dispatchers.IO) {
+                        tcp.tcpNoDelay = true
                         tcp.connect(InetSocketAddress(host, port), 10_000)
                         val stream = if (secure) {
                             val factory = SSLSocketFactory.getDefault() as SSLSocketFactory

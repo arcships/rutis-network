@@ -41,7 +41,8 @@ public actor RCPSender {
     private let socket: any RCPBinarySocket
     private var busy = false
     private var waiting: [CheckedContinuation<Void, Never>] = []
-    fileprivate var localClose = false
+    private var closing: Task<Void, Never>?
+    fileprivate var localClose: Bool { closing != nil }
     fileprivate var ended = false
     fileprivate var writeFailure: RCPError?
     init(_ tx: Direction, _ limits: RCPLimits, _ socket: any RCPBinarySocket) {
@@ -54,6 +55,7 @@ public actor RCPSender {
         defer {
             if waiting.isEmpty { busy = false } else { waiting.removeFirst().resume() }
         }
+        if localClose && (kind == 2 || kind == 3) { return }
         guard !ended, !localClose || kind >= 4 else { throw RCPError.done }
         if let writeFailure { throw writeFailure }
         do {
@@ -69,13 +71,21 @@ public actor RCPSender {
     }
     public func send(_ message: Data) async throws { try await write(1, message) }
     public func close(_ reason: RCPCloseReason = .done) async {
-        guard !localClose, !ended else { return }
-        localClose = true
-        // Never queue a final notification behind a stalled application write.
-        if !busy { try? await write(reason.rawValue) }
+        if let closing { await closing.value; return }
+        guard !ended else { return }
+        let close = Task {
+            // Bound the wait for both the current writer and the final record.
+            try? await bounded(1000, .transport, socket) { try await self.write(reason.rawValue) }
+            socket.abort()
+        }
+        closing = close
+        await close.value
+    }
+    fileprivate func finish() async {
+        await closing?.value
+        ended = true
         socket.abort()
     }
-    fileprivate func finish() { ended = true; socket.abort() }
 }
 
 private func pair(_ socket: any RCPBinarySocket, _ grant: RCPGrant, _ limits: RCPLimits)
@@ -188,8 +198,10 @@ public enum RCPLink {
                             }
                         }
                     }
-                    defer { group.cancelAll(); socket.abort() }
-                    _ = try await group.next()
+                    defer { group.cancelAll() }
+                    do { _ = try await group.next() }
+                    catch { await sender.finish(); throw error }
+                    await sender.finish()
                 }
             } catch {
                 if !(await sender.localClose) && !Task.isCancelled {
