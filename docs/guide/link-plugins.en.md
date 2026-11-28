@@ -13,6 +13,10 @@ The plugins and examples pin rutis 0.23.0, session protocol 5 and plugin API 3. 
 
 Admitting a peer grants trust in the identity it registers. Complete admission before handoff and close a denied connection. The adapter keeps certificates and tokens. A random port selects an address. Rust's Channel carries opaque messages with boundaries. Greeted provides the identity after handshake. [Channel](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/channel/mod.rs) · [Session and Greeted](https://github.com/arcships/rutis/blob/v0.23.0/crates/rutis-bridge/src/session/plugin/mod.rs)
 
+## Go RCP
+
+Use RCP when both devices pin each other’s public keys and session traffic must stay encrypted across a forwarding relay. One row owns one device session. A WebSocket link handles ordinary WSS endpoints, and the gRPC link supports cloud registration and routing. [RCP configuration, credential refresh and failure behavior](../../link/rcp/README.md)
+
 ## Go WebSocket
 
 Install the independent Go plugin at both ends. One row listens for WSS and the other verifies its certificate and dials using the pair’s token. The built-in host transport is a wire interoperability reference. [WSS configuration and bidirectional RPC test](../../link/websocket/README.md)
