@@ -42,4 +42,15 @@
 
 在本目录运行 `go test -race ./...`，覆盖向量、准入、故障映射、顺序、上限、背压和刷新。在仓库根目录运行 `npm ci --prefix link/tcp/node` 和 `make integration-rcp`，使用三台真实宿主、两行设备、直连和本地 relay 验证双向调用与密文抓取。测试会生成所需凭证。
 
+在仓库根目录运行 `make integration-rcp-direct` 或 `make integration-rcp-relay` 可分别验收 Go 直连和 relay。CI 为两条路径分别显示结果。只跑一个场景时，在本目录运行 `go test -race -v -run '^TestGoFaultMatrix$/^relay$/^peer_offline$' .`。
+
+| 故障用例 | 预期拨号行为 |
+| --- | --- |
+| `version_mismatch` | 对端拒绝版本后停止拨号，创建的会话数为零。 |
+| `invalid_grant`、`revoked_grant` | 凭证绑定不匹配或收到 HTTP 403 时刷新一次，再次拒绝则停止该行拨号。 |
+| `unavailable_503` | 收到 HTTP 503 后重试，恢复后在新会话上完成消息往返。 |
+| `peer_offline` | 直连地址停止监听时报 `transport-error`，relay 返回 HTTP 404 时报 `peer-offline`。两条路径都应重试，恢复后完成消息往返。 |
+
+`go test -race -run '^TestDialBackoff$' .` 使用虚拟时钟逐次检查从 250 ms 到 30 s 上限的退避、会话结束后的复位，以及等待重试期间的取消。`make integration-rcp-hosts` 还会在退避期间卸载真实宿主的配置行，检查凭证请求随之停止。
+
 [线协议与向量](wire.zh-CN.md)

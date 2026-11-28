@@ -115,19 +115,25 @@ func dial(ctx context.Context, address string) (*websocket.Conn, error) {
 }
 
 func (d *device) runDial(ctx, row context.Context) error {
+	return d.retryDial(ctx, func() (bool, error) {
+		c, err := d.creds(ctx)
+		if err != nil {
+			return false, err
+		}
+		conn, err := dial(ctx, c.Address)
+		if err != nil {
+			return false, err
+		}
+		return d.connected(ctx, row, conn, c)
+	})
+}
+
+func (d *device) retryDial(ctx context.Context, attempt func() (bool, error)) error {
 	delay := 250 * time.Millisecond
 	refreshed := false
 	for ctx.Err() == nil {
 		d.log("dial", nil)
-		c, err := d.creds(ctx)
-		var opened bool
-		if err == nil {
-			var conn *websocket.Conn
-			conn, err = dial(ctx, c.Address)
-			if err == nil {
-				opened, err = d.connected(ctx, row, conn, c)
-			}
-		}
+		opened, err := attempt()
 		d.log("close", err)
 		if ctx.Err() != nil {
 			return nil

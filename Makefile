@@ -9,6 +9,7 @@ TS_PACKAGES := $(sort $(patsubst %/,%,$(dir $(TS_PROJECT_FILES))))
 
 .PHONY: setup fmt fmt-check check test go-check go-vet go-test ts-setup typecheck ts-test list-go list-ts
 .PHONY: integration integration-tcp integration-grpc integration-webrtc integration-peer-group integration-websocket integration-rcp
+.PHONY: integration-rcp-hosts integration-rcp-direct integration-rcp-relay
 
 setup: ts-setup
 	npm ci
@@ -45,9 +46,14 @@ integration-peer-group:
 	cd group/peer && go build -mod=readonly -o /dev/null ./cmd/peer-group
 	node --test --test-reporter=./scripts/integration-reporter.mjs group/peer/test/ring.test.mjs
 
-integration-rcp:
+integration-rcp: integration-rcp-hosts integration-rcp-direct integration-rcp-relay
+
+integration-rcp-hosts:
 	@host=$$(cd link/tcp/node && node -p "require.resolve('@arcships/rutis-host-'+process.platform+'-'+process.arch+'/bin/rutis-host')") && \
-		RUTIS_HOST="$$host" sh scripts/in-go-module.sh link/rcp go test -mod=readonly -race -count=1 ./...
+		RUTIS_HOST="$$host" sh scripts/in-go-module.sh link/rcp go test -mod=readonly -race -count=1 -skip '^TestGoFaultMatrix$$' ./...
+
+integration-rcp-direct integration-rcp-relay:
+	sh scripts/in-go-module.sh link/rcp go test -mod=readonly -race -v -count=1 -run '^TestGoFaultMatrix$$/^$(patsubst integration-rcp-%,%,$@)$$' .
 
 integration-grpc:
 	@host=$$(cd link/tcp/node && node -p "require.resolve('@arcships/rutis-host-'+process.platform+'-'+process.arch+'/bin/rutis-host')") && \

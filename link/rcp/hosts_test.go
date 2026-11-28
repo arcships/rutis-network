@@ -245,6 +245,7 @@ func writeJSON(t *testing.T, path string, v any) {
 type relayFixture struct {
 	url          string
 	packets      atomic.Int64
+	clientStatus atomic.Int32 // HTTP admission failure to inject before the client upgrades
 	droppedOffer chan struct{}
 	disconnect   func(string)
 }
@@ -279,6 +280,10 @@ func testRelay(t *testing.T, publicClientKey []byte) *relayFixture {
 		role := strings.TrimPrefix(r.URL.Path, "/")
 		if (role != "client" && role != "daemon") || r.URL.Query().Get("ticket") != "test-private-ticket" {
 			w.WriteHeader(403)
+			return
+		}
+		if status := relay.clientStatus.Load(); role == "client" && status != 0 {
+			w.WriteHeader(int(status))
 			return
 		}
 		conn, err := upgrader.Upgrade(w, r, nil)
@@ -328,7 +333,7 @@ func testRelay(t *testing.T, publicClientKey []byte) *relayFixture {
 						return
 					}
 				}
-			} else {
+			} else if string(b) != rejectVersion && string(b) != rejectCredential {
 				if len(b) < overhead {
 					t.Error("truncated encrypted record")
 					return
@@ -392,5 +397,40 @@ func TestListenerSeparatesIssuerOutageFromDenial(t *testing.T) {
 			t.Fatalf("got %v, want %v", err, want)
 		}
 		revoked.Store(true)
+	}
+}
+
+func TestUnloadDuringDialBackoff(t *testing.T) {
+	if testing.Short() || os.Getenv("RUTIS_HOST") == "" || runtime.GOOS == "windows" {
+		t.Skip("requires RUTIS_HOST and Unix control sockets")
+	}
+	calls := make(chan time.Time, 4)
+	provider := func(ctx context.Context, _ string) (Credentials, error) {
+		select {
+		case calls <- time.Now():
+		case <-ctx.Done():
+		}
+		return Credentials{}, ErrProviderUnavailable
+	}
+	row := rutistest.Load(t, Plugin(provider), config{LinkID: "unload-backoff"}, nil)
+	nextCall := func() time.Time {
+		t.Helper()
+		select {
+		case at := <-calls:
+			return at
+		case <-time.After(5 * time.Second):
+			t.Fatal("missing credential request")
+			return time.Time{}
+		}
+	}
+	first, second := nextCall(), nextCall()
+	if second.Sub(first) < 250*time.Millisecond {
+		t.Fatal("row started another dial before its first backoff elapsed")
+	}
+	row.Unload()
+	select {
+	case <-calls:
+		t.Fatal("unloaded row requested credentials again")
+	case <-time.After(600 * time.Millisecond): // past the pending 500 ms retry
 	}
 }

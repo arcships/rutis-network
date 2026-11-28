@@ -42,4 +42,15 @@ The diagnostic fields are the operator-supplied link ID, direction, stage and a 
 
 From this directory run `go test -race ./...` for vectors, admission, relay fault mapping, message order, limits, backpressure and refresh. From the repository root run `npm ci --prefix link/tcp/node` and `make integration-rcp` for three real host processes with two device rows, a direct connection and a local forwarding relay. The test creates its own grants. It runs service calls in both directions and examines captured relay records.
 
+Run `make integration-rcp-direct` or `make integration-rcp-relay` from the repository root for the Go fault matrix. CI reports each path in a separate step. To run one case from this directory, use `go test -race -v -run '^TestGoFaultMatrix$/^relay$/^peer_offline$' .`.
+
+| Fault case | Expected dial behavior |
+| --- | --- |
+| `version_mismatch` | Stop on version rejection without opening a session. |
+| `invalid_grant`, `revoked_grant` | Refresh once after a binding mismatch or HTTP 403. A second rejection stops the row's dial task. |
+| `unavailable_503` | Retry after HTTP 503 and exchange a message on the new session. |
+| `peer_offline` | A closed direct endpoint reports `transport-error`. Relay HTTP 404 reports `peer-offline`. Both retry and exchange a message after recovery. |
+
+`go test -race -run '^TestDialBackoff$' .` uses virtual time to check each retry interval from 250 ms to the 30 s cap, the reset after a live session, and cancellation during a pending retry. `make integration-rcp-hosts` also unloads a real configuration row during backoff and checks that credential requests stop.
+
 [Wire specification and vectors](wire.md)
