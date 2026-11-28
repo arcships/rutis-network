@@ -7,3 +7,8 @@ target/
 /link/tcp/node/dev/plugin.mjs
 /link/tcp/node/dev/.plugin.tmp
 /link/tcp/node/dev/.rutis/
+/link/rcp/kotlin/.gradle/
+/link/rcp/kotlin/.kotlin/
+/link/rcp/kotlin/build/
+/link/rcp/swift/.build/
+/link/rcp/kotlin/android/build/

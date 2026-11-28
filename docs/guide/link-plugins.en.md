@@ -15,7 +15,7 @@ Admitting a peer grants trust in the identity it registers. Complete admission b
 
 ## Go RCP
 
-Use RCP when both devices pin each other’s public keys and session traffic must stay encrypted across a forwarding relay. One row owns one device session. A WebSocket link handles ordinary WSS endpoints, and the gRPC link supports cloud registration and routing. [RCP configuration, credential refresh and failure behavior](../../link/rcp/README.md)
+Use RCP when both devices pin each other’s public keys and session traffic must stay encrypted across a forwarding relay. One row owns one device session. A WebSocket link handles ordinary WSS endpoints, and the gRPC link supports cloud registration and routing. Android apps can own a link in a Kotlin coroutine and iOS apps in a Swift task. Both expose the admitted message channel. [RCP configuration, credential refresh and failure behavior](../../link/rcp/README.md)
 
 ## Go WebSocket
 
