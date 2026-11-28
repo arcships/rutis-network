@@ -131,11 +131,11 @@ func TestHosts(t *testing.T) {
 		t.Fatal("client did not offer before the daemon joined")
 	}
 	desktop := manifest("desk", directRow, relayRow)
-	start(desktop)
+	stopDesktop := start(desktop)
 	a := manifest("alpha", row("to-desk-a", client, ""))
 	stopA := start(a)
-	call := func(path, method, arg string) ([]byte, error) {
-		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	call := func(path, method, arg string, timeout time.Duration) ([]byte, error) {
+		ctx, cancel := context.WithTimeout(t.Context(), timeout)
 		defer cancel()
 		return exec.CommandContext(ctx, host, "call", "--config", path, method, arg).CombinedOutput()
 	}
@@ -144,7 +144,7 @@ func TestHosts(t *testing.T) {
 		until := time.Now().Add(18 * time.Second)
 		var last []byte
 		for time.Now().Before(until) {
-			out, err := call(path, peer+".echo", `"`+probeText+`"`)
+			out, err := call(path, peer+".echo", `"`+probeText+`"`, 10*time.Second)
 			last = out
 			var got string
 			if err == nil && json.Unmarshal(out, &got) == nil && got == peer+" "+probeText {
@@ -153,6 +153,20 @@ func TestHosts(t *testing.T) {
 			time.Sleep(100 * time.Millisecond)
 		}
 		t.Fatalf("service %s from %s: %.1000s", peer, path, last)
+	}
+	waitForRemoval := func(path, peer string) {
+		t.Helper()
+		deadline := time.Now().Add(18 * time.Second)
+		for {
+			out, err := call(path, peer+".echo", `""`, 3*time.Second)
+			if err != nil && bytes.Contains(out, []byte("no row provides "+peer+" ")) {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("service %s still registered on %s: %v %.300s", peer, path, err, out)
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
 	}
 	echo(a, "desk")
 	echo(desktop, "alpha")
@@ -177,7 +191,7 @@ func TestHosts(t *testing.T) {
 	// Its 17 MiB result must end only this connection. Reconnect must recover
 	// the row while the second device continues serving calls.
 	for _, request := range []struct{ from, method string }{{a, "desk.blob"}, {desktop, "alpha.blob"}} {
-		out, err := call(request.from, request.method, "17825792")
+		out, err := call(request.from, request.method, "17825792", 45*time.Second)
 		if err == nil || !bytes.Contains(out, []byte("peer disconnected")) {
 			t.Fatalf("%s: expected the 0.23 frame-limit failure: %v %.300s", request.method, err, out)
 		}
@@ -202,9 +216,16 @@ func TestHosts(t *testing.T) {
 	manifest("desk", directRow, relayRow)
 	echo(a, "desk")
 	stopA()
+	waitForRemoval(desktop, "alpha")
 	start(a)
+	echo(a, "desk")
 	echo(desktop, "alpha")
 	echo(desktop, "beta")
+	// Shut the two-session host down while both peers can still acknowledge
+	// its teardown. Each live peer must withdraw the desk service afterwards.
+	stopDesktop()
+	waitForRemoval(a, "desk")
+	waitForRemoval(b, "desk")
 }
 
 func writeJSON(t *testing.T, path string, v any) {
