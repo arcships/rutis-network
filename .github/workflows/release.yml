@@ -46,14 +46,28 @@ jobs:
         if: startsWith(github.ref_name, 'link/webrtc/') || startsWith(github.ref_name, 'link/tcp/')
         with:
           node-version: '22.18.0'
-      - name: Build the shared WebRTC browser bundle
+      - name: Pack the WebRTC browser module at the tag version
+        id: browser
         if: startsWith(github.ref_name, 'link/webrtc/')
         working-directory: link/webrtc/web
         run: |
           npm ci
-          npm run build
+          npm version "${GITHUB_REF_NAME##*/}" --no-git-tag-version --allow-same-version --ignore-scripts
+          filename=$(npm pack --json --pack-destination "$RUNNER_TEMP" | jq -er '.[0].filename')
+          echo "filename=$filename" >> "$GITHUB_OUTPUT"
       - name: Cross-compile and archive the plugin
         run: scripts/package-plugin.sh "$GITHUB_REF_NAME" "$RUNNER_TEMP/assets"
+      - name: Verify and stage the browser tarball
+        if: startsWith(github.ref_name, 'link/webrtc/')
+        working-directory: link/webrtc/web
+        env:
+          FILENAME: ${{ steps.browser.outputs.filename }}
+        run: |
+          node_modules/.bin/playwright install --with-deps chromium
+          WEBRTC_TARBALL="$RUNNER_TEMP/$FILENAME" npm run test:package
+          cd "$RUNNER_TEMP/assets"
+          mv "$RUNNER_TEMP/$FILENAME" .
+          sha256sum "$FILENAME" >> SHA256SUMS
       - name: Load the Linux TCP archive in stock hosts
         if: startsWith(github.ref_name, 'link/tcp/')
         run: |
@@ -84,6 +98,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           files=(*.tar.gz *.zip SHA256SUMS)
+          if [[ ${GITHUB_REF_NAME%/*} == link/webrtc ]]; then files+=(*.tgz); fi
           if gh release view "$GITHUB_REF_NAME" --json assets,isDraft > "$RUNNER_TEMP/release.json"; then
             if jq -e '.isDraft' "$RUNNER_TEMP/release.json" >/dev/null; then
               gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
@@ -100,6 +115,8 @@ jobs:
             notes="Download the archive for your OS and CPU and check its SHA-256 against SHA256SUMS. Extract plugins/go/ into your host project."
             if [[ ${GITHUB_REF_NAME%/*} == discovery/mdns ]]; then
               notes+=" DNS-SD publishing and interface-bound description HTTP require macOS or Linux. Linux publishing also requires Avahi and its DNS-SD compatibility library."
+            elif [[ ${GITHUB_REF_NAME%/*} == link/webrtc ]]; then
+              notes+=" Browser projects can install the separate .tgz with npm install."
             elif [[ ${GITHUB_REF_NAME%/*} == link/grpc ]]; then
               notes+=" The bin/ directory contains the standalone grpc-cloud directory and relay executable."
             fi

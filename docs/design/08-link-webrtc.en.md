@@ -48,7 +48,15 @@ These commands start an authenticated loopback TURN server and the pairing page.
 
 With the same pairing credentials and optional TURN settings as the example, run `npm run dev --prefix web` from `link/webrtc`. It starts the example and same-origin signaling. Saving browser TS triggers tsdown to rebuild the ESM and Vite to refresh open pages on success. A failed build prints its error and keeps serving the last good bundle. Saving the Node pairing module restarts the example server. Reconnect on the refreshed page to open a new session.
 
-Run `npm pack` in `link/webrtc/web` to build and package the browser ESM and generated declarations. Install the resulting tarball in your application and import `createWebRtcLink`, `createPageEndpoint` and `httpSignaling` from `@arcships/rutis-link-webrtc`. Plain HTML can import the built `dist/link-webrtc.mjs` directly. The example signaling and TURN servers are separate deployment components. With Chromium installed, `npm run test:delivery` verifies live reload, recovery after a failed build, strict type checking in an external consumer and RPC through its installed package.
+Download `arcships-rutis-link-webrtc-<version>.tgz` from a [WebRTC release](https://github.com/arcships/rutis-network/releases?q=link%2Fwebrtc) that includes a browser npm package. The package version matches the release tag. To build a local tarball, run `npm ci && npm pack` in `link/webrtc/web`. In the consuming TypeScript project, install the file using its actual version:
+
+```sh
+npm install ./arcships-rutis-link-webrtc-0.1.0.tgz
+```
+
+Import `createWebRtcLink`, `createPageEndpoint`, `httpSignaling` and their types from `@arcships/rutis-link-webrtc`. The package exports the browser ESM and its declaration entry point. A plain HTML page can serve the included `dist/link-webrtc.mjs` directly. Deploy the signaling and TURN services separately.
+
+To verify a specific tarball, run `WEBRTC_TARBALL=/absolute/path/package.tgz npm run test:package` in `link/webrtc/web` with Chromium installed (`npx playwright install chromium`). An independent app installs the tarball, type-checks with `strict: true` and `skipLibCheck: false`, and builds with Vite. Two Chromium pages then exchange an echo and a callback through authenticated TURN. `npm run test:delivery` also exercises development reload and build-error recovery. [TypeScript consumer](../../link/webrtc/web/test/fixtures/consumer/app.ts)
 
 ## Integrate a native host and a page
 
