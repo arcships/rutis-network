@@ -22,7 +22,7 @@ Build `go build -o /path/to/project/plugins/go/link-rcp ./cmd/link-rcp` from thi
 }
 ```
 
-The standalone binary rereads the caller's credential file on every connection attempt. Use an atomically replaced regular file, accessible only to its owner (0600 on Unix, equivalent ACL on Windows). Account systems embedding the Go definition can pass their own `Provider` to `rcp.Plugin`. The callback runs locally and receives the row's `linkId`.
+The standalone binary rereads the caller's credential file on every connection attempt. Use an atomically replaced regular file, accessible only to its owner (0600 on Unix, equivalent ACL on Windows). Account systems embedding the Go definition can pass their own `Provider` to `rcp.Plugin`. The callback runs locally and receives the row's `linkId`. Network timeouts use transport backoff. Wrap `rcp.ErrProviderUnavailable` for other temporary issuer errors (for example, an HTTP 503). A direct listener returns HTTP 503 during such an outage. Other provider errors reject the grant.
 
 | Credential field | Value supplied by the caller |
 | --- | --- |
@@ -34,9 +34,9 @@ The standalone binary rereads the caller's credential file on every connection a
 
 For direct connections add `"listen": "wss://0.0.0.0:7443/pair"` and TLS certificate and key file paths (`cert`, `key`) to the daemon row. The client grant supplies the corresponding dialable URL. Local testing can use `ws://127.0.0.1:7443/pair`. In relay mode both roles dial the address from their own grant. The credential issuer supplies the complete URL for each role. Relay deployments must allow the configured message size plus 33 bytes per encrypted record and the 60-byte handshake messages.
 
-`maxMessage` defaults to 16 MiB of rutis message bytes. `heartbeatMs` defaults to 10000. See the wire specification for negotiation. The link serializes socket writes and awaits each session receive. Rutis 0.23.0 owns the separate session writer queue and its Go opening API cannot bound that queue or pass the negotiated frame limit to the chunker. On this host an oversized RPC ends the connection with `frame-too-large`. The integration test exercises a 17 MiB response, recovery and isolation of a second device. [Upstream frame-limit issue](https://github.com/arcships/rutis/issues/1411)
+`maxMessage` defaults to 16 MiB of rutis message bytes. `heartbeatMs` defaults to 10000. See the wire specification for negotiation. The link serializes socket writes and awaits each session receive. Rutis 0.23.0 owns the separate session writer queue and its Go opening API cannot bound that queue or pass the negotiated frame limit to the chunker. On this host an oversized RPC ends the connection with `frame-too-large`. The integration test returns 17 MiB from each direction, then verifies that small calls recover and the second device stays online. [Upstream frame-limit issue](https://github.com/arcships/rutis/issues/1411)
 
-The diagnostic fields are the operator-supplied link ID, direction, stage and a fixed reason code. Keep link IDs suitable for logs. Transport failures, peer disconnect and relay unavailability trigger another attempt after 250 ms, doubling up to 30 s. A credential refusal or expired grant allows one refresh attempt. Version or frame errors, replacement and session refusal stop the dial task. Reload the row after correcting a terminal error. Every successful pairing resets the backoff.
+The diagnostic fields are the operator-supplied link ID, direction, stage and a fixed reason code. Keep link IDs suitable for logs. Transport failures, peer restarts, oversized messages and relay or provider outages trigger another attempt after 250 ms, doubling up to 30 s. A credential refusal or expired grant allows one refresh attempt. Version mismatch, malformed frames, replacement and session refusal stop the dial task. A local session close stops redial even when the peer cannot receive its final record. Reload the row after correcting a terminal error. Every successful pairing resets the backoff.
 
 ## Verify
 

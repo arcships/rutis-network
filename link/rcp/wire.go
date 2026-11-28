@@ -22,6 +22,8 @@ const (
 	// Four bytes of nonce length, twelve of nonce, one of type, sixteen of tag.
 	overhead         = 33
 	handshakeTimeout = 10 * time.Second
+	offerInterval    = time.Second
+	pairSize         = len(version) + 32 + 8 + 16
 )
 const (
 	ready byte = iota
@@ -38,18 +40,19 @@ type failure string
 func (f failure) Error() string { return string(f) }
 
 const (
-	credential   failure = "credential-rejected"
-	expired      failure = "credential-expired"
-	incompatible failure = "version-mismatch"
-	badFrame     failure = "invalid-frame"
-	oversized    failure = "frame-too-large"
-	offline      failure = "peer-offline"
-	unavailable  failure = "relay-unavailable"
-	transport    failure = "transport-error"
-	replaced     failure = "replaced"
-	refused      failure = "refused"
-	done         failure = "done"
-	peerClosed   failure = "peer-closed"
+	credential    failure = "credential-rejected"
+	expired       failure = "credential-expired"
+	incompatible  failure = "version-mismatch"
+	badFrame      failure = "invalid-frame"
+	oversized     failure = "frame-too-large"
+	offline       failure = "peer-offline"
+	unavailable   failure = "relay-unavailable"
+	transport     failure = "transport-error"
+	replaced      failure = "replaced"
+	refused       failure = "refused"
+	done          failure = "done"
+	peerClosed    failure = "peer-closed"
+	peerRestarted failure = "peer-restarted"
 )
 
 type channel struct {
@@ -80,46 +83,75 @@ func offer(limit int, beat time.Duration) []byte {
 	return b
 }
 
-func readPair(conn *websocket.Conn, hs *noise.HandshakeState) ([]byte, *noise.CipherState, *noise.CipherState, error) {
+func readHandshakeFrame(conn *websocket.Conn) ([]byte, error) {
 	typ, b, err := conn.ReadMessage()
 	if err != nil {
 		var timeout net.Error
 		if errors.As(err, &timeout) && timeout.Timeout() {
-			return nil, nil, nil, offline
+			return nil, offline
 		}
-		return nil, nil, nil, readFailure(err)
+		return nil, readFailure(err)
 	}
 	if typ != websocket.BinaryMessage || len(b) < 4 {
-		return nil, nil, nil, badFrame
+		return nil, badFrame
 	}
 	switch string(b) {
 	case rejectVersion:
-		return nil, nil, nil, incompatible
+		return nil, incompatible
 	case rejectCredential:
-		return nil, nil, nil, credential
+		return nil, credential
 	}
-	if string(b[:4]) != version {
-		return nil, nil, nil, incompatible
+	if bytes.HasPrefix(b, []byte("RCP")) && string(b[:4]) != version {
+		return nil, incompatible
 	}
-	if len(b) != 4+32+8+16 {
-		return nil, nil, nil, badFrame
-	}
-	payload, c1, c2, err := hs.ReadMessage(nil, b[4:])
-	if err != nil {
-		return nil, nil, nil, credential
-	}
-	return payload, c1, c2, nil
+	return b, nil
 }
 
-func writePair(conn *websocket.Conn, hs *noise.HandshakeState, payload []byte) (*noise.CipherState, *noise.CipherState, error) {
-	msg, c1, c2, err := hs.WriteMessage(nil, payload)
-	if err != nil {
-		return nil, nil, credential
+func isPair(frame []byte) bool {
+	return len(frame) == pairSize && bytes.HasPrefix(frame, []byte(version))
+}
+
+// A forwarding relay may drop the first offer while the daemon is offline.
+// Resend the identical bytes on the same socket until a response arrives.
+// Join the writer before READY or session traffic can use the socket.
+func receivePair(conn *websocket.Conn, first []byte) ([]byte, error) {
+	if first != nil {
+		if err := conn.WriteMessage(websocket.BinaryMessage, first); err != nil {
+			return nil, transport
+		}
+		stop, finished := make(chan struct{}), make(chan struct{})
+		go func() {
+			defer close(finished)
+			ticker := time.NewTicker(offerInterval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-stop:
+					return
+				case <-ticker.C:
+					if conn.WriteMessage(websocket.BinaryMessage, first) != nil {
+						conn.Close()
+						return
+					}
+				}
+			}
+		}()
+		defer func() { close(stop); <-finished }()
 	}
-	if err = conn.WriteMessage(websocket.BinaryMessage, append([]byte(version), msg...)); err != nil {
-		return nil, nil, transport
+	for {
+		b, err := readHandshakeFrame(conn)
+		if err != nil {
+			return nil, err
+		}
+		if isPair(b) {
+			return b, nil
+		}
+		// A newly dialed socket may still receive records from the old peer.
+		// They are never decrypted or delivered in this handshake.
+		if !hasRecordHeader(b) {
+			return nil, badFrame
+		}
 	}
-	return c1, c2, nil
 }
 
 func handshake(conn *websocket.Conn, c Credentials, limit int, beat time.Duration) (*channel, error) {
@@ -136,14 +168,21 @@ func handshake(conn *websocket.Conn, c Credentials, limit int, beat time.Duratio
 	conn.SetWriteDeadline(until)
 	mine := offer(limit, beat)
 	client := c.Role == "client"
+	var first []byte
 	if client {
-		if _, _, err = writePair(conn, hs, mine); err != nil {
-			return nil, err
+		first, _, _, err = hs.WriteMessage(nil, mine)
+		if err != nil {
+			return nil, credential
 		}
+		first = append([]byte(version), first...)
 	}
-	theirs, c1, c2, err := readPair(conn, hs)
+	peerOffer, err := receivePair(conn, first)
 	if err != nil {
 		return nil, err
+	}
+	theirs, c1, c2, err := hs.ReadMessage(nil, peerOffer[len(version):])
+	if err != nil {
+		return nil, credential
 	}
 	peerLimit := int64(binary.BigEndian.Uint32(theirs))
 	peerBeat := time.Duration(binary.BigEndian.Uint32(theirs[4:])) * time.Millisecond
@@ -157,33 +196,38 @@ func handshake(conn *websocket.Conn, c Credentials, limit int, beat time.Duratio
 			return nil, err
 		}
 	} else {
-		c1, c2, err = writePair(conn, hs, mine)
+		var response []byte
+		response, c1, c2, err = hs.WriteMessage(nil, mine)
 		if err != nil {
-			return nil, err
+			return nil, credential
+		}
+		if conn.WriteMessage(websocket.BinaryMessage, append([]byte(version), response...)) != nil {
+			return nil, transport
 		}
 		ch.send, ch.recv = c2, c1
 	}
 	// Explicit confirmation proves the peer possesses this connection's split keys.
 	// Rejections are binary messages so an opaque relay forwards them too.
-	typ, confirmation, err := conn.ReadMessage()
-	if err != nil {
-		return nil, readFailure(err)
-	}
-	if typ != websocket.BinaryMessage {
-		return nil, badFrame
-	}
-	switch string(confirmation) {
-	case rejectCredential:
-		return nil, credential
-	case rejectVersion:
-		return nil, incompatible
-	}
-	kind, _, err := unseal(ch.recv, confirmation)
-	if err != nil {
-		return nil, err
-	}
-	if kind != ready {
-		return nil, badFrame
+	for {
+		confirmation, err := readHandshakeFrame(conn)
+		if err != nil {
+			return nil, err
+		}
+		// Retransmissions can already be in flight when the response is sent.
+		if !client && bytes.Equal(confirmation, peerOffer) {
+			continue
+		}
+		if isPair(confirmation) {
+			return nil, peerRestarted
+		}
+		kind, _, err := unseal(ch.recv, confirmation)
+		if err != nil {
+			return nil, err
+		}
+		if kind != ready {
+			return nil, badFrame
+		}
+		break
 	}
 	if !client {
 		if err = ch.write(ready, nil); err != nil {
@@ -207,8 +251,12 @@ func seal(state *noise.CipherState, kind byte, data []byte) ([]byte, error) {
 	return state.Encrypt(header[:], header[:], plaintext)
 }
 
+func hasRecordHeader(frame []byte) bool {
+	return len(frame) >= overhead && binary.BigEndian.Uint32(frame[:4]) == 12 && binary.BigEndian.Uint32(frame[4:8]) == 0
+}
+
 func unseal(state *noise.CipherState, frame []byte) (byte, []byte, error) {
-	if len(frame) < overhead || !bytes.Equal(frame[:8], []byte{0, 0, 0, 12, 0, 0, 0, 0}) || binary.BigEndian.Uint64(frame[8:16]) != state.Nonce() {
+	if !hasRecordHeader(frame) || binary.BigEndian.Uint64(frame[8:16]) != state.Nonce() {
 		return 0, nil, badFrame
 	}
 	plain, err := state.Decrypt(nil, frame[:16], frame[16:])
@@ -246,6 +294,9 @@ func (ch *channel) read() (byte, []byte, error) {
 	}
 	if typ != websocket.BinaryMessage {
 		return 0, nil, badFrame
+	}
+	if isPair(frame) {
+		return 0, nil, peerRestarted
 	}
 	if len(frame) > ch.limit+overhead {
 		return 0, nil, oversized

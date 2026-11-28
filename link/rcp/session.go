@@ -21,6 +21,9 @@ func serveSession(parent, row context.Context, ch *channel, sessions tcp.Session
 	send := func(kind byte, b []byte) error {
 		writer.Lock()
 		defer writer.Unlock()
+		if localClose.Load() {
+			return done
+		}
 		if ctx.Err() != nil {
 			return context.Cause(ctx)
 		}
@@ -32,7 +35,7 @@ func serveSession(parent, row context.Context, ch *channel, sessions tcp.Session
 		return nil
 	}
 	far := tcp.Far{Send: func(b []byte) error { return send(dataMessage, b) }, Close: func(r tcp.CloseReason) {
-		if !localClose.CompareAndSwap(false, true) {
+		if ctx.Err() != nil || !localClose.CompareAndSwap(false, true) {
 			return
 		}
 		kind := closeDone
@@ -42,7 +45,13 @@ func serveSession(parent, row context.Context, ch *channel, sessions tcp.Session
 		case "rejected":
 			kind = closeRejected
 		}
-		_ = send(kind, nil)
+		// The shutdown decision is final even if the notification fails. Never
+		// queue a control notification behind a stalled application write.
+		if writer.TryLock() {
+			ch.conn.SetWriteDeadline(time.Now().Add(time.Second))
+			_ = ch.write(kind, nil)
+			writer.Unlock()
+		}
 		cancel(done)
 	}}
 	near, err := sessions.Open(row, far)
@@ -101,7 +110,10 @@ func serveSession(parent, row context.Context, ch *channel, sessions tcp.Session
 	}
 	cancel(err)
 	<-heartDone
-	if !localClose.Load() && row.Err() == nil {
+	if localClose.Load() {
+		return done
+	}
+	if row.Err() == nil {
 		if endErr := near.End(row, reason); endErr != nil && err == nil {
 			err = refused
 		}

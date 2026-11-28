@@ -142,7 +142,7 @@ func (d *device) runDial(ctx, row context.Context) error {
 				return err
 			}
 			refreshed = true
-		case transport, offline, unavailable, peerClosed:
+		case transport, offline, unavailable, peerClosed, peerRestarted, oversized, ErrProviderUnavailable:
 		default:
 			return nil
 		}
@@ -206,6 +206,10 @@ func (d *device) listen(row *rutis.Ctx) error {
 			return
 		}
 		c, err := d.creds(row)
+		if errors.Is(err, ErrProviderUnavailable) {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
 		if err != nil || c.Role != "daemon" {
 			w.WriteHeader(http.StatusForbidden)
 			return

@@ -11,7 +11,9 @@ Use `Noise_KK_25519_AESGCM_SHA256`. The client is the Noise initiator. Both stat
 1. The client sends the four-byte version prefix followed by the first Noise handshake message.
 2. The daemon authenticates it and sends the same prefix followed by the second Noise handshake message. Each Noise payload contains two unsigned big-endian 32-bit integers, the sender's maximum message size in bytes (1 through 2³⁰) and heartbeat interval in milliseconds (100 through 300000). Each prefixed handshake message is exactly 60 bytes.
 3. Use the smaller message limit and larger heartbeat interval. Noise Split produces AES-256-GCM keys in client→daemon, daemon→client order. The client sends an encrypted READY record, the daemon verifies it and returns its own READY. Each endpoint checks the grant expiry and opens a rutis session after verifying peer confirmation. A replay of the client's first message cannot admit a session.
-4. The Go handshake deadline is the earlier of 10 s and grant expiry. A rejecting peer sends a five-byte binary message then closes. `52 43 50 45 01` means version mismatch, and `52 43 50 45 02` means credential rejection. Relays can forward these pre-admission codes unchanged. Only encrypted READY proves successful admission. There is one pairing exchange per connection.
+4. The Go handshake deadline is the earlier of 10 s and grant expiry. A rejecting peer sends a five-byte binary message then closes. `52 43 50 45 01` means version mismatch, and `52 43 50 45 02` means credential rejection. Relays can forward these pre-admission codes unchanged. Only encrypted READY proves successful admission. There is one pairing exchange per connection. While awaiting the response, the Go client repeats its identical first message once per second until the handshake deadline. A daemon awaiting READY ignores byte-identical copies of the offer it authenticated.
+
+When a relay keeps one socket alive across peer restarts, an endpoint awaiting an offer discards residual record envelopes within its handshake read limit. A fresh pairing offer arriving during an established session ends that session. Reconnecting endpoints fetch new grants and complete pairing with fresh keys before opening another session.
 
 ## Records
 
@@ -36,6 +38,7 @@ Control records have zero data bytes. Invalid tags, replayed or skipped counters
 | HTTP 429/502/503/504 | `relay-unavailable` |
 | Version mismatch | `version-mismatch` |
 | Malformed or unauthenticated record, size over limit | `invalid-frame`, `frame-too-large` |
+| New pairing offer during an established session | `peer-restarted` |
 | Established transport lost, authenticated peer close | `transport-error`, `peer-closed`, `replaced` or `refused` |
 
 ## Shared vector

@@ -28,6 +28,10 @@ type Credentials struct {
 	ExpiresAt  time.Time `json:"expiresAt"`
 }
 
+// ErrProviderUnavailable marks a temporary credential service failure. Providers
+// can wrap it with %w. Timeouts also retry; other errors reject the grant.
+const ErrProviderUnavailable failure = "credential-provider-unavailable"
+
 // Provider is called once per connection attempt. It may return a newly issued
 // relay URL and rotated peer binding. Keep account operations in the caller.
 type Provider func(ctx context.Context, linkID string) (Credentials, error)
@@ -94,6 +98,13 @@ func (c config) normalized() (config, error) {
 func (d *device) creds(ctx context.Context) (Credentials, error) {
 	c, err := d.provide(ctx, d.cfg.LinkID)
 	if err != nil {
+		if ctx.Err() != nil {
+			return Credentials{}, ctx.Err()
+		}
+		var timeout net.Error
+		if errors.Is(err, ErrProviderUnavailable) || (errors.As(err, &timeout) && timeout.Timeout()) {
+			return Credentials{}, ErrProviderUnavailable
+		}
 		return Credentials{}, credential
 	}
 	if c.ExpiresAt.IsZero() || !time.Now().Before(c.ExpiresAt) {

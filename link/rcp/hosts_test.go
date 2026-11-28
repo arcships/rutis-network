@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/arcships/rutis/go/rutis/rutistest"
 	"github.com/gorilla/websocket"
 )
 
@@ -60,11 +61,11 @@ func TestHosts(t *testing.T) {
 	}
 	remote.PrivateKey = remoteKey.Bytes()
 	deskRelay.PeerKey = remoteKey.PublicKey().Bytes()
-	relay, packets := testRelay(t, deskRelay.PeerKey)
+	relay := testRelay(t, deskRelay.PeerKey)
 	remote.Binding = []byte("second-grant")
 	deskRelay.Binding = remote.Binding
-	remote.Address = relay + "/client?ticket=test-private-ticket"
-	deskRelay.Address = relay + "/daemon?ticket=test-private-ticket"
+	remote.Address = relay.url + "/client?ticket=test-private-ticket"
+	deskRelay.Address = relay.url + "/daemon?ticket=test-private-ticket"
 	type obj = map[string]any
 	row := func(id string, cred Credentials, listen string) obj {
 		path := filepath.Join(dir, id+".json")
@@ -122,12 +123,17 @@ func TestHosts(t *testing.T) {
 		t.Cleanup(stop)
 		return stop
 	}
+	b := manifest("beta", row("to-desk-b", remote, ""))
+	start(b)
+	select {
+	case <-relay.droppedOffer:
+	case <-time.After(10 * time.Second):
+		t.Fatal("client did not offer before the daemon joined")
+	}
 	desktop := manifest("desk", directRow, relayRow)
 	start(desktop)
 	a := manifest("alpha", row("to-desk-a", client, ""))
 	stopA := start(a)
-	b := manifest("beta", row("to-desk-b", remote, ""))
-	start(b)
 	call := func(path, method, arg string) ([]byte, error) {
 		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 		defer cancel()
@@ -152,7 +158,12 @@ func TestHosts(t *testing.T) {
 	echo(desktop, "alpha")
 	echo(b, "desk")
 	echo(desktop, "beta")
-	if packets.Load() < 4 {
+	for _, role := range []string{"client", "daemon"} {
+		relay.disconnect(role)
+		echo(b, "desk")
+		echo(desktop, "beta")
+	}
+	if relay.packets.Load() < 4 {
 		t.Fatal("missing capture of relay records")
 	}
 	// A second connect to the occupied row must not replace the addressable session.
@@ -165,12 +176,15 @@ func TestHosts(t *testing.T) {
 	// rutis 0.23's FarSender does not advertise the link limit (#1411).
 	// Its 17 MiB result must end only this connection. Reconnect must recover
 	// the row while the second device continues serving calls.
-	out, err := call(a, "desk.blob", "17825792")
-	if err == nil || !bytes.Contains(out, []byte("peer disconnected")) {
-		t.Fatalf("expected the documented 0.23 frame-limit failure: %v %.300s", err, out)
+	for _, request := range []struct{ from, method string }{{a, "desk.blob"}, {desktop, "alpha.blob"}} {
+		out, err := call(request.from, request.method, "17825792")
+		if err == nil || !bytes.Contains(out, []byte("peer disconnected")) {
+			t.Fatalf("%s: expected the 0.23 frame-limit failure: %v %.300s", request.method, err, out)
+		}
+		echo(desktop, "beta")
+		echo(a, "desk")
+		echo(desktop, "alpha")
 	}
-	echo(desktop, "beta")
-	echo(a, "desk")
 	manifest("desk", relayRow)
 	deadline := time.Now().Add(6 * time.Second)
 	for {
@@ -207,19 +221,32 @@ func writeJSON(t *testing.T, path string, v any) {
 	}
 }
 
-// The relay owns sockets and routing labels only. Inspect the actual data after
-// the outer WebSocket is decoded, before forwarding it to the other endpoint.
-func testRelay(t *testing.T, publicClientKey []byte) (string, *atomic.Int64) {
-	var packets atomic.Int64
+type relayFixture struct {
+	url          string
+	packets      atomic.Int64
+	droppedOffer chan struct{}
+	disconnect   func(string)
+}
+
+// Each relay slot has its own lifetime. Frames sent before the other role
+// joins are dropped, and replacing one role leaves the other socket alive.
+func testRelay(t *testing.T, publicClientKey []byte) *relayFixture {
+	relay := &relayFixture{droppedOffer: make(chan struct{})}
+	markDropped := sync.OnceFunc(func() { close(relay.droppedOffer) })
+	var duplicateOffer sync.Once
 	upgrader := websocket.Upgrader{}
-	type pair struct {
-		sockets map[string]*websocket.Conn
-		ready   chan struct{}
-	}
-	newPair := func() *pair { return &pair{sockets: map[string]*websocket.Conn{}, ready: make(chan struct{})} }
-	current := newPair()
+	sockets := map[string]*websocket.Conn{}
 	var mu sync.Mutex
-	ctx, cancel := context.WithCancel(t.Context())
+	relay.disconnect = func(role string) {
+		t.Helper()
+		mu.Lock()
+		defer mu.Unlock()
+		if sockets[role] == nil {
+			t.Fatalf("missing %s relay slot", role)
+		}
+		sockets[role].Close()
+		delete(sockets, role)
+	}
 	// Give the observer public routing context and the real client's public key,
 	// but only its own private key. Authentication of the captured offer must fail.
 	observerKey, err := ecdh.X25519().GenerateKey(rand.Reader)
@@ -233,43 +260,28 @@ func testRelay(t *testing.T, publicClientKey []byte) (string, *atomic.Int64) {
 			w.WriteHeader(403)
 			return
 		}
-		mu.Lock()
-		group := current
-		if group.sockets[role] != nil {
-			mu.Unlock()
-			w.WriteHeader(503)
-			return
-		}
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			mu.Unlock()
 			return
 		}
-		group.sockets[role] = conn
-		if len(group.sockets) == 2 {
-			close(group.ready)
+		mu.Lock()
+		if previous := sockets[role]; previous != nil {
+			previous.Close()
 		}
+		sockets[role] = conn
 		mu.Unlock()
 		defer func() {
 			mu.Lock()
-			if current == group {
-				current = newPair()
-				for _, c := range group.sockets {
-					c.Close()
-				}
+			defer mu.Unlock()
+			conn.Close()
+			if sockets[role] == conn {
+				delete(sockets, role)
 			}
-			mu.Unlock()
 		}()
-		select {
-		case <-group.ready:
-		case <-ctx.Done():
-			return
-		}
 		other := "client"
 		if role == "client" {
 			other = "daemon"
 		}
-		dst := group.sockets[other]
 		for {
 			kind, b, err := conn.ReadMessage()
 			if err != nil {
@@ -300,21 +312,64 @@ func testRelay(t *testing.T, publicClientKey []byte) (string, *atomic.Int64) {
 					t.Error("truncated encrypted record")
 					return
 				}
-				packets.Add(1)
+				relay.packets.Add(1)
 			}
-			if dst.WriteMessage(kind, b) != nil {
-				return
+			mu.Lock()
+			if dst := sockets[other]; dst != nil && sockets[role] == conn {
+				dst.SetWriteDeadline(time.Now().Add(time.Second))
+				if err := dst.WriteMessage(kind, b); err != nil {
+					dst.Close()
+				} else if role == "client" && isPair(b) {
+					// Deliver one duplicate before READY, as on a delayed pairing response.
+					duplicateOffer.Do(func() {
+						if dst.WriteMessage(kind, b) != nil {
+							dst.Close()
+						}
+					})
+				}
+			} else if role == "client" && isPair(b) {
+				markDropped()
 			}
+			mu.Unlock()
 		}
 	}))
 	t.Cleanup(func() {
-		cancel()
 		mu.Lock()
-		for _, c := range current.sockets {
+		for _, c := range sockets {
 			c.Close()
 		}
 		mu.Unlock()
 		srv.Close()
 	})
-	return wsURL(srv.URL), &packets
+	relay.url = wsURL(srv.URL)
+	return relay
+}
+
+func TestListenerSeparatesIssuerOutageFromDenial(t *testing.T) {
+	if testing.Short() || os.Getenv("RUTIS_HOST") == "" || runtime.GOOS == "windows" {
+		t.Skip("requires RUTIS_HOST and Unix control sockets")
+	}
+	socket, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	address := "ws://" + socket.Addr().String() + "/pair"
+	socket.Close()
+	var revoked atomic.Bool
+	provide := func(context.Context, string) (Credentials, error) {
+		if revoked.Load() {
+			return Credentials{}, credential
+		}
+		return Credentials{}, ErrProviderUnavailable
+	}
+	rutistest.Load(t, Plugin(provide), config{LinkID: "test", Listen: address}, nil)
+	for _, want := range []failure{unavailable, credential} {
+		if conn, err := dial(t.Context(), address); err != want {
+			if conn != nil {
+				conn.Close()
+			}
+			t.Fatalf("got %v, want %v", err, want)
+		}
+		revoked.Store(true)
+	}
 }

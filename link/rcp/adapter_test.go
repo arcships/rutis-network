@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -245,5 +246,84 @@ func TestSilentPeerAndRefusedClose(t *testing.T) {
 				t.Fatal(r)
 			}
 		})
+	}
+}
+
+// Keep the row active while the provider times out and then reports an
+// unavailable issuer. The next successful grant must reach the normal dial path.
+func TestTemporaryProviderFailureRecovers(t *testing.T) {
+	client, _ := credentials(t)
+	var requests int
+	reached := make(chan struct{}, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reached <- struct{}{}
+		w.WriteHeader(http.StatusBadRequest) // terminal HTTP refusal ends the test
+	}))
+	defer srv.Close()
+	client.Address = wsURL(srv.URL)
+	d := device{provide: func(context.Context, string) (Credentials, error) {
+		requests++
+		switch requests {
+		case 1:
+			return Credentials{}, context.DeadlineExceeded
+		case 2:
+			return Credentials{}, fmt.Errorf("issuer offline: %w", ErrProviderUnavailable)
+		case 3:
+			return client, nil
+		default:
+			t.Fatal("unexpected retry after terminal refusal")
+			return Credentials{}, credential
+		}
+	}}
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+	defer cancel()
+	if err := d.runDial(ctx, ctx); err != nil || requests != 3 || ctx.Err() != nil {
+		t.Fatalf("attempts=%d ctx=%v err=%v", requests, ctx.Err(), err)
+	}
+	select {
+	case <-reached:
+	default:
+		t.Error("fresh credentials never reached the endpoint")
+	}
+}
+
+func TestCloseWithFailedNotificationStopsSession(t *testing.T) {
+	client, daemon := credentials(t)
+	up := websocket.Upgrader{}
+	peerDone := make(chan error, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := up.Upgrade(w, r, nil)
+		if err != nil {
+			peerDone <- err
+			return
+		}
+		defer conn.Close()
+		ch, err := handshake(conn, daemon, 1024, time.Second)
+		if err == nil {
+			_, _, err = ch.read()
+		}
+		peerDone <- err
+	}))
+	defer srv.Close()
+	conn, err := dial(t.Context(), wsURL(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	ch, err := handshake(conn, client, 1024, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessions := tcp.Sessions{Open: func(_ context.Context, far tcp.Far) (tcp.Near, error) {
+		// The socket disappears immediately before the host unloads its session.
+		conn.Close()
+		far.Close(tcp.CloseReason{Kind: "done"})
+		return tcp.Near{}, nil
+	}}
+	if err := serveSession(t.Context(), t.Context(), ch, sessions); err != done {
+		t.Fatalf("local unload returned %v, want terminal done", err)
+	}
+	if err := <-peerDone; err != transport {
+		t.Fatalf("peer observed %v, want failed notification", err)
 	}
 }
